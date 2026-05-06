@@ -3,13 +3,13 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
 
     methods (Test)
         function testWrenchControllerSetEstimateThetaUpdatesEuclideanAdaptation(testCase)
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('euclidean');
             cfg.setAdaptiveGains(ones(10,1));
             cfg.done();
 
-            ctrl = vt.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.WrenchController(cfg);
             theta = (1:10).';
             ctrl.setEstimateTheta(theta);
             [m_hat, cog_hat, I_hat] = ctrl.getEstimate();
@@ -20,14 +20,14 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
         end
 
         function testEuclideanAdaptationRegressorUsesPositiveCoriolisSign(testCase)
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('euclidean');
             cfg.setAdaptiveGains([1; zeros(9,1)]);
             cfg.setAdaptationParams(0.001);
             cfg.done();
 
-            adapt = vt.ctrl.adapt.EuclideanAdaptation(cfg);
+            adapt = fth.ctrl.adapt.EuclideanAdaptation(cfg);
             Hd = eye(4);
             H = eye(4);
             Vd = zeros(6,1);
@@ -41,19 +41,19 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
 
             B1 = zeros(6,6);
             B1(1,1) = 1;
-            expectedColumn = vt.se3.adV(V)' * B1 * V;
+            expectedColumn = fth.se3.adV(V)' * B1 * V;
             expectedDelta = dt * (expectedColumn.' * V);
 
             testCase.verifyEqual(I_after(1) - I_before(1), expectedDelta, 'AbsTol', 1e-12);
         end
 
         function testEuclideanAdaptationBasisMatchesGeneralizedInertiaUtility(testCase)
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('euclidean');
             cfg.done();
 
-            adapt = vt.ctrl.adapt.EuclideanAdaptation(cfg);
+            adapt = fth.ctrl.adapt.EuclideanAdaptation(cfg);
             params = adapt.getParams();
             theta = [cfg.vehicle.I_params(:); cfg.vehicle.m; cfg.vehicle.m * cfg.vehicle.CoG(:)];
 
@@ -74,7 +74,7 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
             B{7} = G;
             for ax = 1:3
                 e = zeros(3,1); e(ax) = 1;
-                S = vt.se3.hat3(e);
+                S = fth.se3.hat3(e);
                 G = zeros(6,6);
                 G(1:3,4:6) = S;
                 G(4:6,1:3) = -S;
@@ -90,13 +90,13 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
         end
 
         function testSetEstimateInitializationAcceptsFixedHigher(testCase)
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             cfg.setEstimateInitialization('fixed-higher');
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed-higher');
         end
 
         function testSetEstimateInitializationCustomVectorStoredAsFixed(testCase)
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             theta = 1:10;
             cfg.setEstimateInitialization(theta);
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed');
@@ -104,14 +104,14 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
         end
 
         function testSetEstimateInitializationRandomWithSeedSpecStored(testCase)
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             cfg.setEstimateInitialization('random', 1234);
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'random');
             testCase.verifyEqual(cfg.controller.estimateInitialization.spec, 1234);
         end
 
         function testSetEstimateInitializationFixedHigherWithExplicitSpec(testCase)
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             theta = (21:30).';
             cfg.setEstimateInitialization('fixed-higher', theta);
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed-higher');

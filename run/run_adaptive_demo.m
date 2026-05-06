@@ -6,7 +6,7 @@ clear; close all;
 startup;
 
 % Build a fresh configuration with defaults.
-cfg = vt.config.Config();
+cfg = fth.config.Config();
 
 % Scenario duration in seconds.
 duration = 30;
@@ -50,7 +50,7 @@ cfg.setEstimateInitialization('random');
 cfg.done();
 
 % Run the simulation, save plots silently, and skip sim_data.mat.
-sim = vt.sim.SimRunner(cfg);
+sim = fth.sim.SimRunner(cfg);
 sim.setup();
 sim.run( ...
    'summary', ...       % plotting mode: 'summary', 'all', or 'none'

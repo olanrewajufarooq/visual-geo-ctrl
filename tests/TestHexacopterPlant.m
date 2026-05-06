@@ -3,8 +3,8 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
 
     methods (Test)
         function testConstructorReadsGroundDefaultsFromConfig(testCase)
-            cfg = vt.config.Config();
-            plant = vt.plant.HexacopterPlant(cfg);
+            cfg = fth.config.Config();
+            plant = fth.plant.HexacopterPlant(cfg);
             testCase.verifyTrue(plant.groundEnable);
             testCase.verifyEqual(plant.groundHeight, 0);
             testCase.verifyEqual(plant.groundStiffness, 5000);
@@ -13,8 +13,8 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testResetSetsState(testCase)
-            cfg = vt.config.Config();
-            plant = vt.plant.HexacopterPlant(cfg);
+            cfg = fth.config.Config();
+            plant = fth.plant.HexacopterPlant(cfg);
             H0 = eye(4);
             H0(1:3,4) = [1; 2; 3];
             V0 = (1:6).';
@@ -26,8 +26,8 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testStepWithZeroWrenchIsFinite(testCase)
-            cfg = vt.config.Config();
-            plant = vt.plant.HexacopterPlant(cfg);
+            cfg = fth.config.Config();
+            plant = fth.plant.HexacopterPlant(cfg);
             plant.reset(eye(4), zeros(6,1));
             plant.step(0.005, zeros(6,1));
             [H, V] = plant.getState();
@@ -36,16 +36,16 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testStepUsesPositiveCoriolisSign(testCase)
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
-            plant = vt.plant.HexacopterPlant(cfg);
+            plant = fth.plant.HexacopterPlant(cfg);
 
             H0 = eye(4);
             H0(3,4) = 5;
             V0 = [0.2; -0.3; 0.4; 0.5; -0.6; 0.7];
             dt = 1e-4;
-            C = vt.se3.adV(V0)' * plant.I6 * V0;
+            C = fth.se3.adV(V0)' * plant.I6 * V0;
             expectedV = V0 + dt * (plant.I6 \ C);
 
             plant.reset(H0, V0);
@@ -56,8 +56,8 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testUpdateParametersChangesMassCogAndInertia(testCase)
-            cfg = vt.config.Config();
-            plant = vt.plant.HexacopterPlant(cfg);
+            cfg = fth.config.Config();
+            plant = fth.plant.HexacopterPlant(cfg);
             newMass = cfg.vehicle.m + 1.0;
             newCoG = [0.1; -0.05; 0.02];
             newI = cfg.vehicle.I_params(:) + 0.01;
@@ -71,10 +71,10 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testDropPayloadConservesLinearMomentum(testCase)
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
-            plant = vt.plant.HexacopterPlant(cfg);
+            plant = fth.plant.HexacopterPlant(cfg);
 
             m_base = cfg.vehicle.m;
             I_base = cfg.vehicle.I_params;
@@ -82,7 +82,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
 
             m_payload = 0.5;
             cog_payload = [0; 0; -0.1];
-            [m_comp, I_comp, cog_comp] = vt.utils.addPayload(m_base, I_base, cog_base, m_payload, cog_payload);
+            [m_comp, I_comp, cog_comp] = fth.utils.addPayload(m_base, I_base, cog_base, m_payload, cog_payload);
             plant.updateParameters(m_comp, cog_comp, I_comp);
 
             H0 = eye(4); H0(3,4) = 5;
@@ -102,10 +102,10 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testDropPayloadConservesGeneralizedMomentum(testCase)
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
-            plant = vt.plant.HexacopterPlant(cfg);
+            plant = fth.plant.HexacopterPlant(cfg);
 
             m_base = cfg.vehicle.m;
             I_base = cfg.vehicle.I_params;
@@ -113,7 +113,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
 
             m_payload = 0.5;
             cog_payload = [0.05; -0.03; -0.1];
-            [m_comp, I_comp, cog_comp] = vt.utils.addPayload(m_base, I_base, cog_base, m_payload, cog_payload);
+            [m_comp, I_comp, cog_comp] = fth.utils.addPayload(m_base, I_base, cog_base, m_payload, cog_payload);
             plant.updateParameters(m_comp, cog_comp, I_comp);
 
             H0 = eye(4); H0(3,4) = 5;
@@ -133,10 +133,10 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testDropPayloadNoOpWhenMassUnchanged(testCase)
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
-            plant = vt.plant.HexacopterPlant(cfg);
+            plant = fth.plant.HexacopterPlant(cfg);
 
             H0 = eye(4); H0(3,4) = 5;
             V0 = [0.1; -0.2; 0.15; 0.8; -0.5; 0.3];

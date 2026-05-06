@@ -6,7 +6,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
             %At hover (identity pose, zero velocity), PD wrench should
             %cancel gravity and have zero error terms.
             cfg = testCase.buildCfg('PD');
-            ctrl = vt.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.WrenchController(cfg);
             Hd = eye(4); Hd(3,4) = 5;
             H = Hd;
             V = zeros(6,1);
@@ -28,7 +28,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
         function testPDWrenchIncreasesWithPoseError(testCase)
             %Larger pose error should produce larger wrench magnitude.
             cfg = testCase.buildCfg('PD');
-            ctrl = vt.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.WrenchController(cfg);
             Hd = eye(4); Hd(3,4) = 5;
             V = zeros(6,1);
             Vd = zeros(6,1);
@@ -49,8 +49,8 @@ classdef TestWrenchController < matlab.unittest.TestCase
             %(Coriolis term is active).
             cfgPD = testCase.buildCfg('PD');
             cfgFL = testCase.buildCfg('FeedLin');
-            ctrlPD = vt.ctrl.WrenchController(cfgPD);
-            ctrlFL = vt.ctrl.WrenchController(cfgFL);
+            ctrlPD = fth.ctrl.WrenchController(cfgPD);
+            ctrlFL = fth.ctrl.WrenchController(cfgFL);
 
             Hd = eye(4); Hd(3,4) = 5;
             H = Hd;
@@ -61,7 +61,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
             W_fl = ctrlFL.computeWrench(Hd, H, Vd, V);
             % The difference should be the Coriolis cancellation term -C
             I6 = cfg_I6(cfgFL);
-            C = vt.se3.adV(V)' * I6 * V;
+            C = fth.se3.adV(V)' * I6 * V;
             testCase.verifyEqual(W_fl - W_pd, -C, 'AbsTol', 1e-10);
         end
 
@@ -69,8 +69,8 @@ classdef TestWrenchController < matlab.unittest.TestCase
             %Feedforward wrench should include reference acceleration term.
             cfgFL = testCase.buildCfg('FeedLin');
             cfgFF = testCase.buildCfg('Feedforward');
-            ctrlFL = vt.ctrl.WrenchController(cfgFL);
-            ctrlFF = vt.ctrl.WrenchController(cfgFF);
+            ctrlFL = fth.ctrl.WrenchController(cfgFL);
+            ctrlFF = fth.ctrl.WrenchController(cfgFF);
 
             Hd = eye(4); Hd(3,4) = 5;
             H = Hd;
@@ -89,7 +89,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
         function testWrenchIsFinite(testCase)
             %Wrench output should always be finite for valid inputs.
             cfg = testCase.buildCfg('Feedforward');
-            ctrl = vt.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.WrenchController(cfg);
             Hd = eye(4); Hd(3,4) = 5;
             H = Hd; H(1,4) = 0.5; H(2,4) = -0.3;
             V = [0.01; -0.02; 0.03; 0.1; -0.1; 0.2];
@@ -104,7 +104,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
             modes = {'PD', 'FeedLin', 'Feedforward'};
             for i = 1:numel(modes)
                 cfg = testCase.buildCfg(modes{i});
-                ctrl = vt.ctrl.WrenchController(cfg);
+                ctrl = fth.ctrl.WrenchController(cfg);
                 W = ctrl.computeWrench(eye(4), eye(4), zeros(6,1), zeros(6,1));
                 testCase.verifySize(W, [6, 1]);
             end
@@ -112,7 +112,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
 
         function testGetEstimateReturnsEmptyForNoAdaptation(testCase)
             cfg = testCase.buildCfg('PD');
-            ctrl = vt.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.WrenchController(cfg);
             [m_hat, cog_hat, I_hat] = ctrl.getEstimate();
             testCase.verifyEmpty(m_hat);
             testCase.verifyEmpty(cog_hat);
@@ -123,7 +123,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
     methods (Static, Access = private)
         function cfg = buildCfg(mode)
             %BUILDCFG Create a minimal Config for controller testing.
-            cfg = vt.config.Config();
+            cfg = fth.config.Config();
             cfg.setTrajectory('hover');
             cfg.setController(mode, 'liealgebra');
             cfg.done();

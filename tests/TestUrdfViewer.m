@@ -17,32 +17,32 @@ classdef TestUrdfViewer < matlab.unittest.TestCase
 
     methods (Test)
         function testSanitizeRemovesSensorTags(testCase)
-            sanitized = vt.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
+            sanitized = fth.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
             txt = fileread(sanitized);
             testCase.verifyEmpty(regexp(txt, '<sensor\b'));
         end
 
         function testSanitizeRemovesPluginTags(testCase)
-            sanitized = vt.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
+            sanitized = fth.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
             txt = fileread(sanitized);
             testCase.verifyEmpty(regexp(txt, '<plugin\b'));
         end
 
         function testSanitizeRemovesPoseTags(testCase)
-            sanitized = vt.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
+            sanitized = fth.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
             txt = fileread(sanitized);
             testCase.verifyEmpty(regexp(txt, '<pose\b'));
         end
 
         function testSanitizeRemovesGravityAndVelocityDecay(testCase)
-            sanitized = vt.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
+            sanitized = fth.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
             txt = fileread(sanitized);
             testCase.verifyEmpty(regexp(txt, '<gravity\b'));
             testCase.verifyEmpty(regexp(txt, '<velocity_decay'));
         end
 
         function testSanitizedUrdfIsValidXml(testCase)
-            sanitized = vt.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
+            sanitized = fth.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
             try
                 xmlread(sanitized);
                 isValid = true;
@@ -56,7 +56,7 @@ classdef TestUrdfViewer < matlab.unittest.TestCase
             if exist('importrobot', 'file') ~= 2
                 testCase.assumeFail('Robotics System Toolbox not available.');
             end
-            sanitized = vt.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
+            sanitized = fth.plot.UrdfViewer.sanitizeUrdf(testCase.urdfPath);
             robot = importrobot(sanitized, 'DataFormat', 'column');
             testCase.verifyNotEmpty(robot);
             testCase.verifyGreaterThan(robot.NumBodies, 0);

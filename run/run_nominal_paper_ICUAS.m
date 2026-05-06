@@ -6,7 +6,7 @@ clear; close all;
 startup;
 
 % Build a fresh configuration with defaults.
-cfg = vt.config.Config();
+cfg = fth.config.Config();
 
 % Timing and simulation horizon.
 cfg.setControlParams(0.005);                 % control dt
@@ -26,7 +26,7 @@ cfg.setKdGains([2.05, 2.05, 2.05, 2.05, 2.05, 2.05]');      % derivative gains
 cfg.done();
 
 % Run the simulation, save plots silently, and skip sim_data.mat.
-sim = vt.sim.SimRunner(cfg);
+sim = fth.sim.SimRunner(cfg);
 sim.setup();
 sim.run( ...
   'all', ...           % plotting mode: 'summary', 'all', or 'none'

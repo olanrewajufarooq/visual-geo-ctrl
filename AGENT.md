@@ -30,7 +30,7 @@ ci_adaptive_release
 
 **Simulation pipeline:** `Config` -> `SimRunner.setup()` -> `SimRunner.run()` -> plot/save
 
-**Key packages** (under `src/+vt/`):
+**Key packages** (under `src/+fth/`):
 | Package | Responsibility |
 |---------|---------------|
 | `+config` | `Config` fluent builder for all simulation parameters |
@@ -48,11 +48,11 @@ ci_adaptive_release
 
 ## Coding Conventions
 
-- **MATLAB packages**: All production code lives under `src/+vt/+<package>/`. Reference via `vt.<package>.<Class>`.
+- **MATLAB packages**: All production code lives under `src/+fth/+<package>/`. Reference via `fth.<package>.<Class>`.
 - **Handle classes**: `SimRunner`, `BatchRunner`, `WrenchController`, `HexacopterPlant`, `Config` are handle classes (reference semantics). `Config.copy()` creates a detached value copy.
 - **Fluent API**: `Config` setters return `obj` for chaining: `cfg.setTrajectory('circle').setController('PD').done()`.
 - **Factory pattern**: `AdaptationFactory`, `PotentialFactory`, `TrajectoryFactory` create strategy objects from config.
-- **SE(3) functions**: Standalone functions in `+se3/`, not a class. Call as `vt.se3.expSE3(...)`.
+- **SE(3) functions**: Standalone functions in `+se3/`, not a class. Call as `fth.se3.expSE3(...)`.
 - **Tests**: MATLAB unittest framework in `tests/`. Class names start with `Test`.
 - **No external toolboxes required** for core simulation. Robotics System Toolbox optional for URDF visualization.
 - **Commit style**: Conventional Commits format (feat, fix, docs, style, refactor, test, chore) with scope: `feat(sim): add batch runner`.
