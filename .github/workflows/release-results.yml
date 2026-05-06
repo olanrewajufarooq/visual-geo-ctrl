@@ -1,0 +1,112 @@
+name: Build MATLAB Results Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: matlab-results-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v3
+
+      - name: Decide run mode
+        id: mode
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "run_nominal=true" >> "$GITHUB_OUTPUT"
+            echo "run_adaptive=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-nom$ ]]; then
+            echo "run_nominal=true" >> "$GITHUB_OUTPUT"
+            echo "run_adaptive=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-adapt$ ]]; then
+            echo "run_nominal=false" >> "$GITHUB_OUTPUT"
+            echo "run_adaptive=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unsupported tag: $TAG"
+            echo "Use vX.X.X, vX.X.X-nom, or vX.X.X-adapt"
+            exit 1
+          fi
+
+      - name: Run nominal release simulation
+        if: steps.mode.outputs.run_nominal == 'true'
+        uses: matlab-actions/run-command@v3
+        with:
+          startup-options: -softwareopengl
+          command: "set(0,'DefaultFigureVisible','off'); addpath('run'); ci_nominal_release;"
+
+      - name: Run adaptive release simulation
+        if: steps.mode.outputs.run_adaptive == 'true'
+        uses: matlab-actions/run-command@v3
+        with:
+          startup-options: -softwareopengl
+          command: "set(0,'DefaultFigureVisible','off'); addpath('run'); ci_adaptive_release;"
+
+      - name: Verify results folder
+        run: |
+          pwd
+          test -d results
+          find results -type f | head
+
+      - name: Build release notes from aggregated command logs
+        shell: bash
+        run: |
+          shopt -s globstar nullglob
+          NOTE_FILE="release-notes.md"
+          {
+            echo "# MATLAB Simulation Results"
+            echo
+            echo "Generated from aggregated simulation command-window logs."
+            echo
+          } > "$NOTE_FILE"
+
+          mapfile -t LOG_FILES < <(find results -name command_window.txt ! -path '*/run_[0-9][0-9][0-9]/command_window.txt' | sort)
+          if [[ ${#LOG_FILES[@]} -eq 0 ]]; then
+            echo "No aggregated command_window.txt files found under results/"
+            exit 1
+          fi
+
+          for log_file in "${LOG_FILES[@]}"; do
+            rel_path="${log_file#results/}"
+            {
+              echo "## ${rel_path}"
+              echo
+              echo '```text'
+              cat "$log_file"
+              echo
+              echo '```'
+              echo
+            } >> "$NOTE_FILE"
+          done
+
+      - name: Package results
+        run: |
+          zip -r "results-${GITHUB_REF_NAME}.zip" results
+
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ github.ref_name }}
+          path: results-${{ github.ref_name }}.zip
+
+      - name: Create GitHub release and upload results
+        uses: softprops/action-gh-release@v2
+        with:
+          files: results-${{ github.ref_name }}.zip
+          body_path: release-notes.md
