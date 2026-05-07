@@ -20,7 +20,7 @@ classdef BatchRunner < handle
         function obj = BatchRunner(cfg, resultsDir, batchSize)
             %BATCHRUNNER Create a batch runner.
             %   Inputs:
-            %     cfg - fth.core.Config instance.
+            %     cfg - fth.sim.Config instance.
             %     resultsDir - root results directory for this batch.
             %     batchSize - total number of runs.
             obj.cfg = cfg;

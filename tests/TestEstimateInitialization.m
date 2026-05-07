@@ -3,7 +3,7 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
 
     methods (Test)
         function testWrenchControllerSetEstimateThetaUpdatesEuclideanAdaptation(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('euclidean');
             cfg.setAdaptiveGains(ones(10,1));
@@ -20,7 +20,7 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
         end
 
         function testEuclideanAdaptationRegressorUsesPositiveCoriolisSign(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('euclidean');
             cfg.setAdaptiveGains([1; zeros(9,1)]);
@@ -48,7 +48,7 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
         end
 
         function testEuclideanAdaptationBasisMatchesGeneralizedInertiaUtility(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('euclidean');
             cfg.done();
@@ -90,13 +90,13 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
         end
 
         function testSetEstimateInitializationAcceptsFixedHigher(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.setEstimateInitialization('fixed-higher');
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed-higher');
         end
 
         function testSetEstimateInitializationCustomVectorStoredAsFixed(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             theta = 1:10;
             cfg.setEstimateInitialization(theta);
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed');
@@ -104,14 +104,14 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
         end
 
         function testSetEstimateInitializationRandomWithSeedSpecStored(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.setEstimateInitialization('random', 1234);
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'random');
             testCase.verifyEqual(cfg.controller.estimateInitialization.spec, 1234);
         end
 
         function testSetEstimateInitializationFixedHigherWithExplicitSpec(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             theta = (21:30).';
             cfg.setEstimateInitialization('fixed-higher', theta);
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed-higher');

@@ -3,7 +3,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
 
     methods (Test)
         function testBuildRunNameSingleAndBatch(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.setTrajectory('circle');
             cfg.setController('Feedforward', 'liealgebra');
 
@@ -35,7 +35,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             metrics = struct('combined', struct('rmse_total', 0.1, 'tracking_score', 99));
             est = struct('mass', 3.5);
             runInfo = struct('isAdaptive', true, 'duration', 1, 'dt', 0.01);
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
 
             fth.io.ResultsManager.persistRun(rootDir, logs, metrics, est, runInfo, cfg);
             saved = fth.io.ResultsManager.loadRun(rootDir);
@@ -91,7 +91,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             mkdir(repoRoot);
             c = onCleanup(@() rmdir(repoRoot, 's'));
 
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.setAdaptation('euclidean');
             runDir = fth.io.ResultsManager.createResultsDir(cfg, repoRoot, 'sample_run');
             testCase.verifyTrue(exist(runDir, 'dir') == 7);
@@ -178,7 +178,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
 
         function testAdaptiveRunWithoutPayloadBuildsMetricsAndNoShapeError(testCase)
             startup;
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setPotentialType('liealgebra');
             cfg.setAdaptation('euclidean');
@@ -206,7 +206,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
 
         function testAdaptiveRunWithPayloadDropBuildsMetricsAndNoShapeError(testCase)
             startup;
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setPotentialType('liealgebra');
             cfg.setAdaptation('euclidean');
@@ -239,7 +239,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             mkdir(rootDir);
             c = onCleanup(@() rmdir(rootDir, 's'));
 
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setPotentialType('liealgebra');
             cfg.setAdaptation('euclidean');
@@ -290,7 +290,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
 
             est = [];
             metrics = struct('combined', struct('rmse_total', 0.12, 'tracking_score', 98.7));
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.setTrajectory('circle');
             if isAdaptive
                 cfg.setAdaptation('euclidean');

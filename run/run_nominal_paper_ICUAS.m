@@ -6,7 +6,7 @@ clear; close all;
 startup;
 
 % Build a fresh configuration with defaults.
-cfg = fth.core.Config();
+cfg = fth.sim.Config();
 
 % Timing and simulation horizon.
 cfg.setControlParams(0.005);                 % control dt

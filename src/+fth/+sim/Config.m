@@ -11,7 +11,7 @@ classdef Config < handle
     %     viz      - live view and plot layout options.
     %
     %   Typical use:
-    %     cfg = fth.core.Config()
+    %     cfg = fth.sim.Config()
     %         .setTrajectory('circle')
     %         .setController('PD')
     %         .setSimParams(0.005, 30);
@@ -329,7 +329,7 @@ classdef Config < handle
 
         function cfgCopy = copy(obj)
             %COPY Create a detached copy of the configuration.
-            cfgCopy = fth.core.Config();
+            cfgCopy = fth.sim.Config();
             cfgCopy.vehicle = obj.vehicle;
             cfgCopy.sim = obj.sim;
             cfgCopy.traj = obj.traj;

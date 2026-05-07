@@ -64,7 +64,7 @@ classdef SimRunner < handle
         function obj = SimRunner(cfg)
             %SIMRUNNER Build a runner from a configuration object.
             %   Inputs:
-            %     cfg - fth.core.Config instance (or equivalent struct).
+            %     cfg - fth.sim.Config instance (or equivalent struct).
             %
             %   Output:
             %     obj - Simulation runner instance.
@@ -134,7 +134,7 @@ classdef SimRunner < handle
             end
 
             obj.traj = fth.traj.TrajectoryFactory.create(obj.cfg);
-            obj.plant = fth.sim.Dynamics(obj.cfg);
+            obj.plant = fth.core.Dynamics(obj.cfg);
             obj.ctrl = obj.createController();
             obj.log = fth.core.Logger();
             obj.log.reserve(obj.N);

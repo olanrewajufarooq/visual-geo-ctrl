@@ -3,8 +3,8 @@ classdef TestDynamics < matlab.unittest.TestCase
 
     methods (Test)
         function testConstructorReadsGroundDefaultsFromConfig(testCase)
-            cfg = fth.core.Config();
-            plant = fth.sim.Dynamics(cfg);
+            cfg = fth.sim.Config();
+            plant = fth.core.Dynamics(cfg);
             testCase.verifyTrue(plant.groundEnable);
             testCase.verifyEqual(plant.groundHeight, 0);
             testCase.verifyEqual(plant.groundStiffness, 5000);
@@ -13,8 +13,8 @@ classdef TestDynamics < matlab.unittest.TestCase
         end
 
         function testResetSetsState(testCase)
-            cfg = fth.core.Config();
-            plant = fth.sim.Dynamics(cfg);
+            cfg = fth.sim.Config();
+            plant = fth.core.Dynamics(cfg);
             H0 = eye(4);
             H0(1:3,4) = [1; 2; 3];
             V0 = (1:6).';
@@ -26,8 +26,8 @@ classdef TestDynamics < matlab.unittest.TestCase
         end
 
         function testStepWithZeroWrenchIsFinite(testCase)
-            cfg = fth.core.Config();
-            plant = fth.sim.Dynamics(cfg);
+            cfg = fth.sim.Config();
+            plant = fth.core.Dynamics(cfg);
             plant.reset(eye(4), zeros(6,1));
             plant.step(0.005, zeros(6,1));
             [H, V] = plant.getState();
@@ -36,10 +36,10 @@ classdef TestDynamics < matlab.unittest.TestCase
         end
 
         function testStepUsesPositiveCoriolisSign(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
-            plant = fth.sim.Dynamics(cfg);
+            plant = fth.core.Dynamics(cfg);
 
             H0 = eye(4);
             H0(3,4) = 5;
@@ -56,8 +56,8 @@ classdef TestDynamics < matlab.unittest.TestCase
         end
 
         function testUpdateParametersChangesMassCogAndInertia(testCase)
-            cfg = fth.core.Config();
-            plant = fth.sim.Dynamics(cfg);
+            cfg = fth.sim.Config();
+            plant = fth.core.Dynamics(cfg);
             newMass = cfg.vehicle.m + 1.0;
             newCoG = [0.1; -0.05; 0.02];
             newI = cfg.vehicle.I_params(:) + 0.01;
@@ -71,10 +71,10 @@ classdef TestDynamics < matlab.unittest.TestCase
         end
 
         function testDropPayloadConservesLinearMomentum(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
-            plant = fth.sim.Dynamics(cfg);
+            plant = fth.core.Dynamics(cfg);
 
             m_base = cfg.vehicle.m;
             I_base = cfg.vehicle.I_params;
@@ -102,10 +102,10 @@ classdef TestDynamics < matlab.unittest.TestCase
         end
 
         function testDropPayloadConservesGeneralizedMomentum(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
-            plant = fth.sim.Dynamics(cfg);
+            plant = fth.core.Dynamics(cfg);
 
             m_base = cfg.vehicle.m;
             I_base = cfg.vehicle.I_params;
@@ -133,10 +133,10 @@ classdef TestDynamics < matlab.unittest.TestCase
         end
 
         function testDropPayloadNoOpWhenMassUnchanged(testCase)
-            cfg = fth.core.Config();
+            cfg = fth.sim.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
-            plant = fth.sim.Dynamics(cfg);
+            plant = fth.core.Dynamics(cfg);
 
             H0 = eye(4); H0(3,4) = 5;
             V0 = [0.1; -0.2; 0.15; 0.8; -0.5; 0.3];
@@ -154,8 +154,8 @@ classdef TestDynamics < matlab.unittest.TestCase
 
         function testUpdateParametersMassOnlyRecomputesI6(testCase)
             % Verify I6 is recomputed even when only mass changes (no Iparams arg).
-            cfg = fth.core.Config();
-            plant = fth.sim.Dynamics(cfg);
+            cfg = fth.sim.Config();
+            plant = fth.core.Dynamics(cfg);
             I6_before = plant.I6;
             plant.updateParameters(plant.m * 2, []);  % double the mass, no Iparams
             testCase.verifyNotEqual(plant.I6, I6_before);
@@ -165,8 +165,8 @@ classdef TestDynamics < matlab.unittest.TestCase
 
         function testUpdateParametersCoGOnlyRecomputesI6(testCase)
             % Verify I6 is recomputed even when only CoG changes (no Iparams arg).
-            cfg = fth.core.Config();
-            plant = fth.sim.Dynamics(cfg);
+            cfg = fth.sim.Config();
+            plant = fth.core.Dynamics(cfg);
             I6_before = plant.I6;
             % new_cog is deliberately non-zero to ensure the off-diagonal
             % coupling terms m*hat3(CoG) in I6 change; default CoG is also
