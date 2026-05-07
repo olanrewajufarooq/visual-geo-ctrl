@@ -23,12 +23,6 @@ function limits = defaultAxisLimits(cfg)
             xMin = -2*scale; xMax = 0;
             yMin = -scale;   yMax = scale;
         case 'infinity'
-            xMin = -scale; xMax = scale;
-            yMin = -scale/2; yMax = scale/2;
-        case 'infinity3d'
-            xMin = -scale; xMax = scale;
-            yMin = -scale/2; yMax = scale/2;
-        case 'infinity3dmod'
             alpha = 0;
             if isfield(cfg.traj, 'inf3dModAlpha')
                 alpha = cfg.traj.inf3dModAlpha;
@@ -63,10 +57,7 @@ function limits = defaultAxisLimits(cfg)
     maxXY = maxXY + pad;
 
     zMin = 0; zMax = alt;
-    if any(strcmpi(cfg.traj.name, {'infinity3d'}))
-        zMin = min(zMin, alt - scale);
-        zMax = max(zMax, alt + scale);
-    elseif any(strcmpi(cfg.traj.name, {'infinity3dmod'}))
+    if any(strcmpi(cfg.traj.name, {'infinity'}))
         beta = 0;
         if isfield(cfg.traj, 'inf3dModBeta')
             beta = cfg.traj.inf3dModBeta;

@@ -284,11 +284,11 @@ classdef SimRunner < handle
     methods (Access = private)
         function [H0, V0] = resolveInitialPlantState(obj)
             %RESOLVEINITIALPLANTSTATE Choose the plant initial condition.
-            %   If startWithHover is disabled, start from ground origin with
+            %   If goToHoverBeforePathStarts is disabled, start from ground origin with
             %   level attitude and zero twist instead of the trajectory's
             %   initial desired state.
-            if isprop(obj.cfg, 'traj') && isfield(obj.cfg.traj, 'startWithHover') ...
-                    && ~logical(obj.cfg.traj.startWithHover)
+            if isprop(obj.cfg, 'traj') && isfield(obj.cfg.traj, 'goToHoverBeforePathStarts') ...
+                    && ~logical(obj.cfg.traj.goToHoverBeforePathStarts)
                 H0 = eye(4);
                 H0(1:3,4) = [0; 0; 0];
                 V0 = zeros(6,1);

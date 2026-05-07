@@ -1,17 +1,29 @@
-classdef PreComputedTrajectory < fth.traj.TrajectoryBase
-    %PRECOMPUTEDTRAJECTORY Generates analytic reference trajectories.
-    %   Supports hover, circle, infinity, Lissajous, helix, and custom
-    %   polynomial paths with optional roll/pitch/yaw profiles.
+classdef AnalyticTraj < fth.traj.TrajectoryBase
+    %ANALYTICTRAJ Generates analytic reference trajectories on SE(3).
+    %   Implements the path/time-scaling decomposition (Modern Robotics §9.1):
+    %   a geometric path H(s) parameterized by s ∈ [0,1] is composed with a
+    %   fifth-order time scaling s(t) to produce smooth desired motion.
+    %
+    %   Supported path names (cfg.traj.name):
+    %     'hover'       - static hover at altitude
+    %     'circle'      - planar circular loop
+    %     'infinity'    - amplitude-modulated 3D figure-eight
+    %     'lissajous3d' - 3D Lissajous curves with configurable amp/freq/phase
+    %     'helix3d'     - helical spiral
+    %     'poly3d'      - custom polynomial path (coefficients from BCs)
+    %     'takeoffland' - takeoff, cruise, and landing sequence
     %
     %   Notes:
-    %     - If startWithHover is enabled, motion begins after a hover window.
-    %     - Yaw can be derived from planar velocity when enabled.
+    %     - goToHoverBeforePathStarts: when true, the vehicle climbs to
+    %       altitude with smooth scaling before the main path begins.
+    %     - Yaw is derived from planar velocity for circle; RPY profiles are
+    %       used for infinity, lissajous3d, helix3d, and poly3d.
     properties
         name
         scale
         period
         altitude
-        startWithHover
+        goToHoverBeforePathStarts
         hoverFrac
         lissajousAmp
         lissajousFreq
@@ -29,8 +41,8 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
     end
 
     methods
-        function obj = PreComputedTrajectory(cfg)
-            %PRECOMPUTEDTRAJECTORY Configure trajectory parameters from cfg.
+        function obj = AnalyticTraj(cfg)
+            %ANALYTICTRAJ Configure trajectory parameters from cfg.
             %   Input:
             %     cfg - config struct with traj fields.
             obj.name = cfg.traj.name;
@@ -43,7 +55,7 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
                 obj.period = 1;
             end
             obj.altitude = cfg.traj.altitude;
-            obj.startWithHover = cfg.traj.startWithHover;
+            obj.goToHoverBeforePathStarts = cfg.traj.goToHoverBeforePathStarts;
             obj.hoverFrac = 0.1;
 
             if isfield(cfg.traj, 'hoverFrac')
@@ -64,7 +76,7 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
             obj.rpyFreq = obj.ensureVec3Field(cfg.traj, 'rpyFreq', [1; 2; 3]);
             obj.rpyPhase = obj.ensureVec3Field(cfg.traj, 'rpyPhase', [0; 0; 0]);
 
-            obj.useYawFromVelocity = ~ismember(lower(obj.name), {'lissajous3d', 'helix3d', 'infinity3dmod', 'poly3d'});
+            obj.useYawFromVelocity = ~ismember(lower(obj.name), {'lissajous3d', 'helix3d', 'infinity', 'poly3d'});
             if isfield(cfg.traj, 'useYawFromVelocity') && ~isempty(cfg.traj.useYawFromVelocity)
                 obj.useYawFromVelocity = logical(cfg.traj.useYawFromVelocity);
             end
@@ -80,11 +92,31 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
                 end
                 obj.polyCoeff = coeff;
             else
-                z_amp = min(obj.scale/2, obj.altitude/2);
-                obj.polyCoeff = [0 16 -32 16 0 0; 32 -80 64 -16 0 0; 0 16 -32 16 0 obj.altitude];
-                obj.polyCoeff(1,:) = obj.polyCoeff(1,:) * obj.scale;
-                obj.polyCoeff(2,:) = obj.polyCoeff(2,:) * obj.scale;
-                obj.polyCoeff(3,1:5) = obj.polyCoeff(3,1:5) * z_amp;
+                % Compute poly3d coefficients from boundary conditions.
+                % Each axis satisfies the 5th-order system:
+                %   p(0)=p_start, dp/ds(0)=0, d²p/ds²(0)=0
+                %   p(1)=p_end,   dp/ds(1)=0, d²p/ds²(1)=0
+                % The BC matrix M is the same 6×6 system used for time scaling.
+                p_start = [0; 0; obj.altitude];
+                if isfield(cfg.traj, 'polyStart') && ~isempty(cfg.traj.polyStart)
+                    p_start = cfg.traj.polyStart(:);
+                end
+                p_end = [obj.scale; 0; obj.altitude];
+                if isfield(cfg.traj, 'polyEnd') && ~isempty(cfg.traj.polyEnd)
+                    p_end = cfg.traj.polyEnd(:);
+                end
+                M = [1 0 0  0  0  0;
+                     0 1 0  0  0  0;
+                     0 0 2  0  0  0;
+                     1 1 1  1  1  1;
+                     0 1 2  3  4  5;
+                     0 0 2  6 12 20];
+                obj.polyCoeff = zeros(3, 6);
+                for i = 1:3
+                    b = [p_start(i); 0; 0; p_end(i); 0; 0];
+                    a = M \ b;               % ascending coefficients
+                    obj.polyCoeff(i,:) = flip(a.');  % descending for polyval
+                end
             end
         end
 
@@ -112,10 +144,10 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
             %     t - time [s].
             %   Outputs:
             %     H, V, A - desired pose, velocity, and acceleration.
-            if obj.startWithHover
+            if obj.goToHoverBeforePathStarts
                 hover_time = obj.hoverFrac * obj.period;
                 if t < hover_time
-                    [s, sd, sdd] = obj.smoothTimeScaling(t, hover_time);
+                    [s, sd, sdd] = fth.traj.TimeScaling.fifthOrder(hover_time).evaluate(t);
                     z = obj.altitude * s;
                     p = [0; 0; z];
                     v = [0; 0; obj.altitude * sd];
@@ -132,8 +164,8 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
 
             T = obj.period;
             tmod = mod(t, T);
-            if obj.startWithHover
-                [s, sdot, sddot] = obj.smoothTimeScaling(tmod, T);
+            if obj.goToHoverBeforePathStarts
+                [s, sdot, sddot] = fth.traj.TimeScaling.fifthOrder(T).evaluate(tmod);
             else
                 s = tmod / T;
                 sdot = 1 / T;
@@ -160,27 +192,30 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
                     [yaw, wyaw, wyawdot] = obj.yawFromVelocity(v, a);
 
                 case 'infinity'
-                    % Planar figure-eight: x = a*sin(theta), y = a*sin(2*theta)/2
-                    a0 = obj.scale;
-                    theta = 2*pi*s;
-                    p = [a0*sin(theta); a0*sin(2*theta)/2; obj.altitude];
-                    dp = 2*pi * [a0*cos(theta); a0*cos(2*theta); 0];
-                    d2p = (2*pi)^2 * [-a0*sin(theta); -2*a0*sin(2*theta); 0];
-                    v = dp * sdot;
-                    a = d2p * (sdot^2) + dp * sddot;
-                    [yaw, wyaw, wyawdot] = obj.yawFromVelocity(v, a);
-
-                case 'infinity3d'
-                    % 3D figure-eight: adds z = z_amp*sin(theta) oscillation
+                    % Amplitude-modulated 3D figure-eight.
+                    % x = a*sin(t)*(1+alpha*sin(2t)), similar for y, z.
                     a0 = obj.scale;
                     z_amp = min(obj.scale/2, obj.altitude/2);
+                    alpha = obj.inf3dModAlpha;
+                    beta = obj.inf3dModBeta;
                     theta = 2*pi*s;
-                    p = [a0*sin(theta); a0*sin(2*theta)/2; obj.altitude + z_amp*sin(theta)];
-                    dp = 2*pi * [a0*cos(theta); a0*cos(2*theta); z_amp*cos(theta)];
-                    d2p = (2*pi)^2 * [-a0*sin(theta); -2*a0*sin(2*theta); -z_amp*sin(theta)];
+                    s1 = sin(theta); c1 = cos(theta);
+                    s2 = sin(2*theta); c2 = cos(2*theta);
+                    x = a0 * s1 * (1 + alpha*s2);
+                    y = (a0/2) * s2 * (1 + alpha*s1);
+                    z = obj.altitude + z_amp * s1 * (1 + beta*s2);
+                    p = [x; y; z];
+                    dx_dtheta = a0 * (c1 + alpha*(c1*s2 + 2*s1*c2));
+                    dy_dtheta = (a0/2) * (2*c2 + alpha*(c1*s2 + 2*s1*c2));
+                    dz_dtheta = z_amp * (c1 + beta*(c1*s2 + 2*s1*c2));
+                    d2x_dtheta2 = a0 * (-s1 + alpha*(-5*s1*s2 + 4*c1*c2));
+                    d2y_dtheta2 = (a0/2) * (-4*s2 + alpha*(-5*s1*s2 + 4*c1*c2));
+                    d2z_dtheta2 = z_amp * (-s1 + beta*(-5*s1*s2 + 4*c1*c2));
+                    dp = 2*pi * [dx_dtheta; dy_dtheta; dz_dtheta];
+                    d2p = (2*pi)^2 * [d2x_dtheta2; d2y_dtheta2; d2z_dtheta2];
                     v = dp * sdot;
                     a = d2p * (sdot^2) + dp * sddot;
-                    [yaw, wyaw, wyawdot] = obj.yawFromVelocity(v, a);
+                    use_rpy_profile = true;
 
                 case 'lissajous3d'
                     % p_i(s) = amp_i * sin(2*pi*freq_i*s + phase_i), centered
@@ -211,34 +246,6 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
                     a = d2p * (sdot^2) + dp * sddot;
                     use_rpy_profile = true;
 
-                case 'infinity3dmod'
-                    % Modified 3D figure-eight with amplitude modulation:
-                    % x = a*sin(t)*(1+alpha*sin(2t)), similar for y,z
-                    a0 = obj.scale;
-                    z_amp = min(obj.scale/2, obj.altitude/2);
-                    alpha = obj.inf3dModAlpha;
-                    beta = obj.inf3dModBeta;
-                    theta = 2*pi*s;
-                    s1 = sin(theta); c1 = cos(theta);
-                    s2 = sin(2*theta); c2 = cos(2*theta);
-                    x = a0 * s1 * (1 + alpha*s2);
-                    y = (a0/2) * s2 * (1 + alpha*s1);
-                    z = obj.altitude + z_amp * s1 * (1 + beta*s2);
-                    p = [x; y; z];
-                    p0 = [0; 0; obj.altitude];
-                    p = p - p0 + [0; 0; obj.altitude];
-                    dx_dtheta = a0 * (c1 + alpha*(c1*s2 + 2*s1*c2));
-                    dy_dtheta = (a0/2) * (2*c2 + alpha*(c1*s2 + 2*s1*c2));
-                    dz_dtheta = z_amp * (c1 + beta*(c1*s2 + 2*s1*c2));
-                    d2x_dtheta2 = a0 * (-s1 + alpha*(-5*s1*s2 + 4*c1*c2));
-                    d2y_dtheta2 = (a0/2) * (-4*s2 + alpha*(-5*s1*s2 + 4*c1*c2));
-                    d2z_dtheta2 = z_amp * (-s1 + beta*(-5*s1*s2 + 4*c1*c2));
-                    dp = 2*pi * [dx_dtheta; dy_dtheta; dz_dtheta];
-                    d2p = (2*pi)^2 * [d2x_dtheta2; d2y_dtheta2; d2z_dtheta2];
-                    v = dp * sdot;
-                    a = d2p * (sdot^2) + dp * sddot;
-                    use_rpy_profile = true;
-
                 case 'poly3d'
                     coeff = obj.polyCoeff;
                     p = [polyval(coeff(1,:), s); polyval(coeff(2,:), s); polyval(coeff(3,:), s)];
@@ -253,19 +260,19 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
                 case 'takeoffland'
                     t1 = 0.25*T; t2 = 0.75*T;
                     if tmod < t1
-                        [s1, sd1, sdd1] = obj.smoothTimeScaling(tmod, t1);
+                        [s1, sd1, sdd1] = fth.traj.TimeScaling.fifthOrder(t1).evaluate(tmod);
                         z = obj.altitude * s1;
                         p = [0; 0; z];
                         v = [0; 0; obj.altitude * sd1];
                         a = [0; 0; obj.altitude * sdd1];
                     elseif tmod < t2
-                        [s2, sd2, sdd2] = obj.smoothTimeScaling(tmod - t1, t2 - t1);
+                        [s2, sd2, sdd2] = fth.traj.TimeScaling.fifthOrder(t2 - t1).evaluate(tmod - t1);
                         x = obj.scale * s2;
                         p = [x; 0; obj.altitude];
                         v = [obj.scale * sd2; 0; 0];
                         a = [obj.scale * sdd2; 0; 0];
                     else
-                        [s3, sd3, sdd3] = obj.smoothTimeScaling(tmod - t2, T - t2);
+                        [s3, sd3, sdd3] = fth.traj.TimeScaling.fifthOrder(T - t2).evaluate(tmod - t2);
                         z = obj.altitude * (1 - s3);
                         p = [obj.scale; 0; z];
                         v = [0; 0; -obj.altitude * sd3];
@@ -304,27 +311,6 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
     end
 
     methods (Access = private)
-        function [s, sd, sdd] = smoothTimeScaling(~, t, T)
-            %SMOOTHTIMESCALING Fifth-order time scaling for smooth start/stop.
-            %   Inputs:
-            %     t - current time.
-            %     T - scaling horizon.
-            %   Outputs:
-            %     s, sd, sdd - scale, velocity, and acceleration.
-            if T <= 0
-                s = 1; sd = 0; sdd = 0;
-                return;
-            end
-            tau = min(max(t / T, 0), 1);
-            % Fifth-order polynomial s(tau) = 10*tau^3 - 15*tau^4 + 6*tau^5
-            % guarantees s(0)=0, s(1)=1 with s'(0)=s'(1)=s''(0)=s''(1)=0,
-            % providing C^2-smooth transitions for position, velocity, and
-            % acceleration continuity.
-            s = 10*tau^3 - 15*tau^4 + 6*tau^5;
-            sd = (30*tau^2 - 60*tau^3 + 30*tau^4) / T;
-            sdd = (60*tau - 180*tau^2 + 120*tau^3) / (T^2);
-        end
-
         function [yaw, wyaw, wyawdot] = yawFromVelocity(obj, v, a)
             %YAWFROMVELOCITY Compute yaw and yaw rate from planar velocity.
             %   Inputs:
@@ -359,12 +345,6 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
 
         function v = ensureVec3Field(~, cfg, field, default)
             %ENSUREVEC3FIELD Read a field as 3x1 vector with defaults.
-            %   Inputs:
-            %     cfg - struct with candidate field.
-            %     field - field name.
-            %     default - default 3x1 value.
-            %   Output:
-            %     v - 3x1 vector.
             if isfield(cfg, field) && ~isempty(cfg.(field))
                 v = cfg.(field);
             else
@@ -381,12 +361,6 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
 
         function v = getScalarField(~, cfg, field, default)
             %GETSCALARFIELD Read scalar field with default.
-            %   Inputs:
-            %     cfg - struct with candidate field.
-            %     field - field name.
-            %     default - default scalar.
-            %   Output:
-            %     v - scalar value.
             if isfield(cfg, field) && ~isempty(cfg.(field))
                 v = cfg.(field);
             else
@@ -418,10 +392,6 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
 
         function R = rotFromRpy(~, rpy)
             %ROTFROMRPY Convert roll-pitch-yaw to rotation matrix.
-            %   Input:
-            %     rpy - 3x1 roll/pitch/yaw.
-            %   Output:
-            %     R - 3x3 rotation matrix.
             phi = rpy(1); theta = rpy(2); psi = rpy(3);
             cphi = cos(phi); sphi = sin(phi);
             cth = cos(theta); sth = sin(theta);
@@ -433,11 +403,6 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
 
         function omega = rpyRatesToBodyOmega(~, rpy, rpy_dot)
             %RPYRATESTOBODYOMEGA Map RPY rates to body angular velocity.
-            %   Inputs:
-            %     rpy - 3x1 roll/pitch/yaw.
-            %     rpy_dot - 3x1 roll/pitch/yaw rates.
-            %   Output:
-            %     omega - 3x1 body angular velocity.
             phi = rpy(1); theta = rpy(2);
             sphi = sin(phi); cphi = cos(phi);
             sth = sin(theta); cth = cos(theta);
@@ -449,12 +414,6 @@ classdef PreComputedTrajectory < fth.traj.TrajectoryBase
 
         function omega_dot = rpyRatesToBodyOmegaDot(~, rpy, rpy_dot, rpy_ddot)
             %RPYRATESTOBODYOMEGADOT Time derivative of body angular velocity.
-            %   Inputs:
-            %     rpy - 3x1 roll/pitch/yaw.
-            %     rpy_dot - 3x1 rpy rates.
-            %     rpy_ddot - 3x1 rpy accelerations.
-            %   Output:
-            %     omega_dot - 3x1 body angular acceleration.
             phi = rpy(1); theta = rpy(2);
             phi_dot = rpy_dot(1); theta_dot = rpy_dot(2);
             sphi = sin(phi); cphi = cos(phi);

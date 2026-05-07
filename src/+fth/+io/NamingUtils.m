@@ -8,8 +8,6 @@ classdef NamingUtils
             switch lower(name)
                 case 'circle',       label = 'circle';
                 case 'infinity',     label = 'inf';
-                case 'infinity3d',   label = 'inf3d';
-                case 'infinity3dmod',label = 'inf3dmod';
                 case 'lissajous3d',  label = 'liss3d';
                 case 'helix3d',      label = 'helix3d';
                 case 'poly3d',       label = 'poly3d';

@@ -1,28 +1,14 @@
 classdef TrajectoryFactory
     %TRAJECTORYFACTORY Build trajectory generators from config.
-    %   Uses cfg.traj.method to select a trajectory implementation.
-    %
-    %   Supported methods: 'precomputed', 'modelreference'.
+    %   Returns an AnalyticTraj configured from cfg.traj.
     methods (Static)
         function traj = create(cfg)
-            %CREATE Instantiate trajectory implementation.
+            %CREATE Instantiate a trajectory generator.
             %   Input:
-            %     cfg - configuration struct with traj.method.
+            %     cfg - configuration struct with traj fields.
             %   Output:
             %     traj - TrajectoryBase implementation.
-            method = 'precomputed';
-            if isfield(cfg.traj, 'method') && ~isempty(cfg.traj.method)
-                method = lower(cfg.traj.method);
-            end
-
-            switch method
-                case 'precomputed'
-                    traj = fth.traj.PreComputedTrajectory(cfg);
-                case 'modelreference'
-                    traj = fth.traj.ModelReferenceTrajectory(cfg);
-                otherwise
-                    error('Unknown trajectory method: %s', method);
-            end
+            traj = fth.traj.AnalyticTraj(cfg);
         end
     end
 end
