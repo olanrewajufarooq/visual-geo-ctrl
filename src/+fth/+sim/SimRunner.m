@@ -134,7 +134,7 @@ classdef SimRunner < handle
             end
 
             obj.traj = fth.traj.TrajectoryFactory.create(obj.cfg);
-            obj.plant = fth.plant.HexacopterPlant(obj.cfg);
+            obj.plant = fth.sim.Dynamics(obj.cfg);
             obj.ctrl = obj.createController();
             obj.log = fth.core.Logger();
             obj.log.reserve(obj.N);

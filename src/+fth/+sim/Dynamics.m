@@ -1,4 +1,4 @@
-classdef HexacopterPlant < handle
+classdef Dynamics < handle
     %HEXACOPTERPLANT Rigid-body hexacopter plant model with ground contact.
     %   Integrates SE(3) dynamics using body wrench inputs and optional
     %   ground contact forces.
@@ -22,7 +22,7 @@ classdef HexacopterPlant < handle
     end
 
     methods
-        function obj = HexacopterPlant(cfg)
+        function obj = Dynamics(cfg)
             %HEXACOPTERPLANT Initialize mass/inertia and ground settings.
             %   Input:
             %     cfg - config with vehicle and sim fields.
