@@ -4,8 +4,18 @@ classdef TrajPlotter
     %   running a full simulation.
     %
     %   Typical usage (from a run script):
-    %     fth.plot.TrajPlotter.run()                        % all trajectories
-    %     fth.plot.TrajPlotter.run({'circle','infinity'})   % subset
+    %     fth.plot.TrajPlotter.run()
+    %     fth.plot.TrajPlotter.run(struct('names', {{'circle','infinity'}}))
+    %     fth.plot.TrajPlotter.run(struct('scale', 3, 'duration', 20, ...
+    %                                     'goToHoverBeforePathStarts', false))
+    %
+    %   opts fields (all optional):
+    %     .names    - cell array of trajectory names; {} = all
+    %     .scale    - path scale [m]; overrides per-trajectory default
+    %     .altitude - hover altitude [m]; default 5
+    %     .duration - time horizon [s]; default 30
+    %     .goToHoverBeforePathStarts - logical; overrides per-trajectory default
+    %     .dt       - sampling interval [s]; default 0.02
     %
     %   Lower-level API for custom workflows:
     %     data = fth.plot.TrajPlotter.sampleTrajectory(cfg, dt)
@@ -13,42 +23,66 @@ classdef TrajPlotter
     %     fig  = fth.plot.TrajPlotter.plotSummary(allData, allCfg)
 
     methods (Static)
-        function run(names)
+        function run(opts)
             %RUN Sample and plot trajectories, saving PNGs to results/trajectories/.
             %   Input:
-            %     names - (optional) cell array of trajectory name strings to plot.
-            %             Omit or pass {} to plot all available trajectories.
-            %   Example:
+            %     opts - (optional) struct with any of these fields:
+            %       .names    - cell array of trajectory names; {} = all (default)
+            %       .scale    - path scale [m]; overrides per-trajectory default
+            %       .altitude - hover altitude [m]; default 5
+            %       .duration - time horizon [s]; default 30
+            %       .goToHoverBeforePathStarts - logical; overrides per-trajectory default
+            %       .dt       - sampling interval [s]; default 0.02
+            %
+            %   Examples:
             %     fth.plot.TrajPlotter.run()
-            %     fth.plot.TrajPlotter.run({'circle', 'infinity'})
-            if nargin < 1 || isempty(names)
-                names = {};
+            %     fth.plot.TrajPlotter.run(struct('names', {{'circle','infinity'}}))
+            %     fth.plot.TrajPlotter.run(struct('scale', 3, 'duration', 20))
+            if nargin < 1
+                opts = struct();
             end
 
-            specs  = fth.plot.TrajPlotter.defaultSpecs();
-            outDir = fth.plot.TrajPlotter.resolveOutDir();
+            names    = fth.plot.TrajPlotter.getopt(opts, 'names',    {});
+            scale    = fth.plot.TrajPlotter.getopt(opts, 'scale',    []);
+            altitude = fth.plot.TrajPlotter.getopt(opts, 'altitude', []);
+            duration = fth.plot.TrajPlotter.getopt(opts, 'duration', 30);
+            hover    = fth.plot.TrajPlotter.getopt(opts, 'goToHoverBeforePathStarts', []);
+            dt       = fth.plot.TrajPlotter.getopt(opts, 'dt',       0.02);
+
+            specs = fth.plot.TrajPlotter.defaultSpecs();
 
             if ~isempty(names)
-                keep  = cellfun(@(s) any(strcmpi(s, names)), specs(:,1));
-                specs = specs(keep, :);
+                keep  = cellfun(@(s) any(strcmpi(s, names)), specs);
+                specs = specs(keep);
                 if isempty(specs)
                     error('fth:TrajPlotter:UnknownName', ...
                         'None of the requested names match available trajectories.');
                 end
             end
 
-            n       = size(specs, 1);
+            outDir  = fth.plot.TrajPlotter.resolveOutDir();
+            n       = numel(specs);
             allData = cell(n, 1);
             allCfg  = cell(n, 1);
 
             for i = 1:n
                 cfg = fth.sim.Config();
-                cfg.setSimParams(0.005, specs{i,3});
-                cfg.setTrajectory(specs{i,1}, specs{i,2});
+                cfg.setSimParams(0.005, duration);
+                if isempty(goToHoverBeforePathStarts)
+                    cfg.setTrajectory(specs{i});
+                else
+                    cfg.setTrajectory(specs{i}, 1, goToHoverBeforePathStarts);
+                end
+                if ~isempty(scale)
+                    cfg.traj.scale = scale;
+                end
+                if ~isempty(altitude)
+                    cfg.traj.altitude = altitude;
+                end
                 cfg.done();
 
                 allCfg{i}  = cfg;
-                allData{i} = fth.plot.TrajPlotter.sampleTrajectory(cfg, 0.02);
+                allData{i} = fth.plot.TrajPlotter.sampleTrajectory(cfg, dt);
                 fth.plot.TrajPlotter.plotSingle(allData{i}, cfg, outDir);
             end
 
@@ -243,15 +277,26 @@ classdef TrajPlotter
         end
 
         function specs = defaultSpecs()
-            %DEFAULTSPECS Cell array of {name, scale, duration} for all trajectories.
+            %DEFAULTSPECS Cell array of trajectory names available for plotting.
+            %   Scale and goToHoverBeforePathStarts use per-trajectory defaults
+            %   from Config.applyTrajectoryDefinition unless overridden via opts.
             specs = {
-                'circle',      5,  30;
-                'infinity',    5,  30;
-                'lissajous3d', 5,  30;
-                'helix3d',     5,  30;
-                'poly3d',      5,  30;
-                'takeoffland', 5,  30;
+                'circle';
+                'infinity';
+                'lissajous3d';
+                'helix3d';
+                'poly3d';
+                'takeoffland';
             };
+        end
+
+        function val = getopt(opts, field, default)
+            %GETOPT Read a field from an options struct, falling back to default.
+            if isfield(opts, field) && ~isempty(opts.(field))
+                val = opts.(field);
+            else
+                val = default;
+            end
         end
 
         function outDir = resolveOutDir()
