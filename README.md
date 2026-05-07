@@ -1,6 +1,56 @@
-# Hexacopter MATLAB Simulation Framework
+# Adaptive Control MATLAB Simulation Framework
 
 A comprehensive MATLAB framework for simulating, controlling, and analyzing rigid-body hexacopter dynamics with advanced trajectory planning, multiple controller options, and geometric adaptive control capabilities.
+
+## Table of Contents
+
+- [Adaptive Control MATLAB Simulation Framework](#adaptive-control-matlab-simulation-framework)
+  - [Table of Contents](#table-of-contents)
+  - [Project Overview](#project-overview)
+  - [Quick Start](#quick-start)
+  - [Architecture](#architecture)
+  - [Architecture](#architecture-1)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+    - [Running Demos](#running-demos)
+    - [Paper Result Reproduction](#paper-result-reproduction)
+  - [Configuration Guide](#configuration-guide)
+    - [Basic Configuration](#basic-configuration)
+    - [Adaptive Payload-Drop Example](#adaptive-payload-drop-example)
+    - [Configuration Reference](#configuration-reference)
+  - [Batch Simulations](#batch-simulations)
+  - [Features](#features)
+    - [Dynamics Engine](#dynamics-engine)
+    - [Trajectory Generation](#trajectory-generation)
+    - [Controller Options](#controller-options)
+    - [Visualization](#visualization)
+  - [Project Structure](#project-structure)
+  - [Simulation Outputs](#simulation-outputs)
+    - [Single-Run Results](#single-run-results)
+    - [Batch Results](#batch-results)
+    - [Summary Plots](#summary-plots)
+    - [Standalone Replotting](#standalone-replotting)
+  - [CI/CD: Release Automation](#cicd-release-automation)
+  - [Customization](#customization)
+    - [Adding New Controllers](#adding-new-controllers)
+    - [Custom Trajectories](#custom-trajectories)
+    - [Visualization Customization](#visualization-customization)
+  - [Troubleshooting](#troubleshooting)
+    - [Common Issues](#common-issues)
+      - [MATLAB Path Issues](#matlab-path-issues)
+      - [Visualization Problems](#visualization-problems)
+      - [Simulation Stability](#simulation-stability)
+    - [Performance Optimization](#performance-optimization)
+  - [License](#license)
+  - [Contributing](#contributing)
+    - [Development Setup](#development-setup)
+  - [Support](#support)
+  - [Citations](#citations)
+    - [Geometrically-Consistent Adaptive Control on SE(3) for Fully-Actuated Aerial Vehicles](#geometrically-consistent-adaptive-control-on-se3-for-fully-actuated-aerial-vehicles)
+  - [Coding Conventions](#coding-conventions)
+
+---
 
 ## Project Overview
 
@@ -11,6 +61,8 @@ inertial vector online.
 
 The framework is designed for controller research: rapid iteration in MATLAB, reproducible
 batch sweeps, and paper-quality result generation.
+
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
 
 ## Quick Start
 
@@ -27,6 +79,8 @@ run_adaptive_demo
 % Reproduce paper results
 run_adaptive_paper
 ```
+
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
 
 ## Architecture
 
@@ -66,6 +120,8 @@ Config  -->  SimRunner.setup()  -->  SimRunner.run()
 | `Logger` | `fth.core` | Structured time-series data collection |
 
 **Design patterns**: Factory pattern (trajectories, adaptation, potentials), abstract base classes, fluent builder (Config), handle semantics.
+
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
 
 ## Getting Started
 
@@ -186,6 +242,8 @@ cfg.setPayloadScenario(1.5, [0.115; 0.05; -0.05], 20);
 cfg.setEstimateInitialization('fixed');
 ```
 
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+
 ## Batch Simulations
 
 Batch mode runs multiple trajectories and/or multiple gain configurations in a single call. Pass a cell array of trajectory names and a matrix of adaptive gains (one row per run):
@@ -216,6 +274,8 @@ sim.run('all', false, false);
 
 This produces `5 trajectories x 3 gain rows = 15 runs`, each saved in its own subdirectory under `results/adaptive/<timestamp>_multi_traj/`.
 
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+
 ## Features
 
 ### Dynamics Engine
@@ -229,7 +289,7 @@ This produces `5 trajectories x 3 gain rows = 15 runs`, each saved in its own su
 |-----------|-------------|
 | `hover` | Stationary position maintenance |
 | `circle` | Circular path following |
-| `infinity` | Planar figure-eight |
+
 | `lissajous3d` | Complex 3D Lissajous patterns |
 | `helix3d` | Helical spiral motion |
 | `poly3d` | Polynomial trajectory |
@@ -248,6 +308,8 @@ This produces `5 trajectories x 3 gain rows = 15 runs`, each saved in its own su
 - **Fallback Model**: Lightweight stick model when URDF unavailable
 - **Live Updates**: Real-time state visualization during simulation (has known rendering issues)
 - **Summary Plots**: Comprehensive post-simulation analysis figures
+
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
 
 ## Project Structure
 
@@ -322,6 +384,8 @@ adaptive-geo-ctrl/
 ├── LICENSE                           % MIT License
 └── README.md
 ```
+
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
 
 ## Simulation Outputs
 
@@ -407,6 +471,8 @@ fth.io.ResultsManager.plotSavedRun( ...
 
 This standalone plotter requires `sim_data.mat`; it will error if the original run used `saveSimData=false`.
 
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+
 ## CI/CD: Release Automation
 
 The repository includes a GitHub Actions workflow (`.github/workflows/release-results.yml`) that automatically runs simulations and publishes results when you push a version tag.
@@ -424,6 +490,8 @@ The repository includes a GitHub Actions workflow (`.github/workflows/release-re
 2. Runs `ci_nominal_release` and/or `ci_release` (headless, off-screen rendering)
 3. Aggregates command-window logs into release notes
 4. Packages results as a `.zip` and creates a GitHub Release
+
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
 
 ## Customization
 
@@ -452,6 +520,8 @@ cfg.setPlotLayout('row-major');       % 'row-major' | 'column-major'
 cfg.viz.dynamicAxis = true;
 cfg.viz.axisPadding = 2.0;
 ```
+
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
 
 ## Troubleshooting
 
@@ -491,9 +561,13 @@ cfg.setLiveUrdfEmbedding(false);
 cfg.setLiveUpdateRate(500);
 ```
 
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
 
 ## Contributing
 
@@ -514,6 +588,8 @@ startup
 run_nominal_demo
 ```
 
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+
 ## Support
 
 For questions and support:
@@ -522,19 +598,23 @@ For questions and support:
 - **Discussions**: [GitHub Discussions](https://github.com/kfupm-arm-lab/adaptive-geo-ctrl/discussions)
 - **Email**: <g202404900@kfupm.edu.sa>, <olanrewajufarooq@yahoo.com>
 
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+
 ## Citations
 
 If you use this framework in your research, please cite our paper:
 
-### Indirect Geometric Adaptive Control on SE(3) for a Hexacopter With Online Generalized Inertia and CoG Estimation
+### Geometrically-Consistent Adaptive Control on SE(3) for Fully-Actuated Aerial Vehicles
 
 ```bibtex
-@misc{olanrewaju_indirect_geometric_adaptive_control,
-  title  = {Indirect Geometric Adaptive Control on SE(3) for a Hexacopter With Online Generalized Inertia and CoG Estimation},
-  author = {Farooq Olanrewaju and Aymen Benyahia and Ramy Rashad and Sami El-Ferik},
+@misc{olanrewaju_geometrically_consistent_adaptive_control,
+  title  = {Geometrically-Consistent Adaptive Control on SE(3) for Fully-Actuated Aerial Vehicles},
+  author = {Farooq Olanrewaju, Sami El-Ferik, Muhammed Emzir, Ramy Rashad},
   note   = {Please replace this entry with the final publication details (venue/year/DOI) once available.}
 }
 ```
+
+<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
 
 ## Coding Conventions
 
