@@ -35,25 +35,28 @@ classdef BatchRunner < handle
             %   Input: runArgs - cell array of arguments for child.run().
             cfgs = obj.cfg.expandBatchConfigs(obj.resultsDir);
             obj.childDirs = cell(obj.batchSize, 1);
-            failed = {};
+            failed = cell(obj.batchSize, 1);
+            failedCount = 0;
             for i = 1:obj.batchSize
                 child = fth.sim.SimRunner(cfgs{i});
                 runLog = obj.console.capture(@() obj.executeChild(child, runArgs));
                 childLogPath = fullfile(child.resultsDir, 'command_window.txt');
                 fth.io.ResultsManager.writeTextFile(childLogPath, strtrim(runLog));
                 obj.childDirs{i} = child.resultsDir;
-                if contains(runLog, 'Error')
-                    failed{end+1} = child.resultsDir; %#ok<AGROW>
+                if contains(runLog, 'Error using') || contains(runLog, 'Error in') || ...
+                        contains(runLog, 'Unrecognized') || contains(runLog, 'Undefined')
+                    failedCount = failedCount + 1;
+                    failed{failedCount} = child.resultsDir;
                 end
                 clear child
             end
-            if ~isempty(failed)
-                warning('fth:BatchRunner:childFailed', ...
-                    '%d/%d runs failed. Check command_window.txt in:\n%s', ...
-                    numel(failed), obj.batchSize, strjoin(failed, '\n'));
-            end
             obj.writeAggregateArtifacts();
             fprintf('Batch results saved to: %s\n', obj.resultsDir);
+            if failedCount > 0
+                warning('fth:BatchRunner:childFailed', ...
+                    '%d/%d runs failed. Check command_window.txt in:\n%s', ...
+                    failedCount, obj.batchSize, strjoin(failed(1:failedCount), '\n'));
+            end
         end
 
         function plotAll(obj, plotType, displayPlots)
