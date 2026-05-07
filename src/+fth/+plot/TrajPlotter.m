@@ -9,13 +9,17 @@ classdef TrajPlotter
     %     fth.plot.TrajPlotter.run(struct('scale', 3, 'duration', 20, ...
     %                                     'goToHoverBeforePathStarts', false))
     %
-    %   opts fields (all optional):
-    %     .names    - cell array of trajectory names; {} = all
-    %     .scale    - path scale [m]; overrides per-trajectory default
-    %     .altitude - hover altitude [m]; default 5
-    %     .duration - time horizon [s]; default 30
+    %   opts fields (all optional; numeric fields accept a scalar or N-vector
+    %   when opts.names lists N trajectories):
+    %     .names                    - cell array of trajectory names; {} = all
+    %     .scale                    - path scale [m]; overrides per-trajectory default
+    %     .altitude                 - hover altitude [m]; default 5
+    %     .period                   - path cycle duration [s]; preferred over duration
+    %     .goToHoverDuration        - hover climb duration [s]; default 30
     %     .goToHoverBeforePathStarts - logical; overrides per-trajectory default
-    %     .dt       - sampling interval [s]; default 0.02
+    %     .duration                 - total sim horizon [s]; default 30 (ignored when
+    %                                 period is given — duration is then derived)
+    %     .dt                       - sampling interval [s]; default 0.02
     %
     %   Lower-level API for custom workflows:
     %     data = fth.plot.TrajPlotter.sampleTrajectory(cfg, dt)
@@ -27,27 +31,33 @@ classdef TrajPlotter
             %RUN Sample and plot trajectories, saving PNGs to results/trajectories/.
             %   Input:
             %     opts - (optional) struct with any of these fields:
-            %       .names    - cell array of trajectory names; {} = all (default)
-            %       .scale    - path scale [m]; overrides per-trajectory default
-            %       .altitude - hover altitude [m]; default 5
-            %       .duration - time horizon [s]; default 30
-            %       .goToHoverBeforePathStarts - logical; overrides per-trajectory default
-            %       .dt       - sampling interval [s]; default 0.02
+            %       .names                    - cell array of trajectory names; {} = all (default)
+            %       .scale                    - path scale [m]; scalar or N-vec
+            %       .altitude                 - hover altitude [m]; scalar or N-vec; default 5
+            %       .period                   - path cycle duration [s]; scalar or N-vec
+            %       .goToHoverDuration        - hover climb duration [s]; scalar or N-vec; default 30
+            %       .goToHoverBeforePathStarts - logical; scalar or N-vec
+            %       .duration                 - total sim horizon [s]; scalar or N-vec; default 30
+            %                                   (ignored per-trajectory when period is given)
+            %       .dt                       - sampling interval [s]; scalar or N-vec; default 0.02
             %
             %   Examples:
             %     fth.plot.TrajPlotter.run()
-            %     fth.plot.TrajPlotter.run(struct('names', {{'circle','infinity'}}))
-            %     fth.plot.TrajPlotter.run(struct('scale', 3, 'duration', 20))
+            %     fth.plot.TrajPlotter.run(struct('names', {{'circle','lissajous3d'}}, ...
+            %                                     'scale', [3 5], 'period', [40 60]))
+            %     fth.plot.TrajPlotter.run(struct('period', 60, 'goToHoverDuration', 30))
             if nargin < 1
                 opts = struct();
             end
 
-            names    = fth.plot.TrajPlotter.getopt(opts, 'names',    {});
-            scale    = fth.plot.TrajPlotter.getopt(opts, 'scale',    []);
-            altitude = fth.plot.TrajPlotter.getopt(opts, 'altitude', []);
-            duration = fth.plot.TrajPlotter.getopt(opts, 'duration', 30);
-            goToHoverBeforePathStarts = fth.plot.TrajPlotter.getopt(opts, 'goToHoverBeforePathStarts', []);
-            dt       = fth.plot.TrajPlotter.getopt(opts, 'dt',       0.02);
+            names                    = fth.plot.TrajPlotter.getopt(opts, 'names',                    {});
+            scaleOpt                 = fth.plot.TrajPlotter.getopt(opts, 'scale',                    []);
+            altitudeOpt              = fth.plot.TrajPlotter.getopt(opts, 'altitude',                 []);
+            periodOpt                = fth.plot.TrajPlotter.getopt(opts, 'period',                   []);
+            goToHoverDurationOpt     = fth.plot.TrajPlotter.getopt(opts, 'goToHoverDuration',        []);
+            hoverOpt                 = fth.plot.TrajPlotter.getopt(opts, 'goToHoverBeforePathStarts', []);
+            durationOpt              = fth.plot.TrajPlotter.getopt(opts, 'duration',                 30);
+            dtOpt                    = fth.plot.TrajPlotter.getopt(opts, 'dt',                       0.02);
 
             specs = fth.plot.TrajPlotter.defaultSpecs();
 
@@ -60,29 +70,78 @@ classdef TrajPlotter
                 end
             end
 
-            outDir  = fth.plot.TrajPlotter.resolveOutDir();
-            n       = numel(specs);
+            outDir = fth.plot.TrajPlotter.resolveOutDir();
+            n      = numel(specs);
+
+            % Expand all per-trajectory opts to length n.
+            scales            = fth.plot.TrajPlotter.expandOpt(scaleOpt,             n, 'scale');
+            altitudes         = fth.plot.TrajPlotter.expandOpt(altitudeOpt,          n, 'altitude');
+            periods           = fth.plot.TrajPlotter.expandOpt(periodOpt,            n, 'period');
+            goToHoverDurs     = fth.plot.TrajPlotter.expandOpt(goToHoverDurationOpt, n, 'goToHoverDuration');
+            hovers            = fth.plot.TrajPlotter.expandOpt(hoverOpt,             n, 'goToHoverBeforePathStarts');
+            durations         = fth.plot.TrajPlotter.expandOpt(durationOpt,          n, 'duration');
+            dts               = fth.plot.TrajPlotter.expandOpt(dtOpt,               n, 'dt');
+
             allData = cell(n, 1);
             allCfg  = cell(n, 1);
 
             for i = 1:n
+                hover_i           = hovers(i);
+                period_i          = periods(i);
+                goToHoverDur_i    = goToHoverDurs(i);
+                duration_i        = durations(i);
+
+                % Determine simulation time horizon.
+                % If period was given, derive duration; otherwise use duration directly.
+                hasPeriod = ~isnan(period_i);
+                if hasPeriod
+                    if isnan(goToHoverDur_i)
+                        goToHoverDur_i = 30;
+                    end
+                    % hover is unknown until setTrajectory resolves defaults;
+                    % use the override if given, else assume true for duration calc.
+                    hoverForDur = true;
+                    if ~isnan(hover_i)
+                        hoverForDur = logical(hover_i);
+                    end
+                    if hoverForDur
+                        dur_i = period_i + goToHoverDur_i;
+                    else
+                        dur_i = period_i;
+                    end
+                else
+                    dur_i = duration_i;
+                end
+
                 cfg = fth.sim.Config();
-                cfg.setSimParams(0.005, duration);
-                if isempty(goToHoverBeforePathStarts)
+                cfg.setSimParams(0.005, dur_i);
+                if isnan(hover_i)
                     cfg.setTrajectory(specs{i});
                 else
-                    cfg.setTrajectory(specs{i}, 1, goToHoverBeforePathStarts);
+                    cfg.setTrajectory(specs{i}, 1, logical(hover_i));
                 end
-                if ~isempty(scale)
-                    cfg.traj.scale = scale;
+
+                % Override period after setTrajectory to prevent syncTrajectoryPeriod clobbering.
+                if hasPeriod
+                    cfg.traj.period      = period_i;
+                    cfg.traj.useDuration = false;
                 end
-                if ~isempty(altitude)
-                    cfg.traj.altitude = altitude;
+                if ~isnan(goToHoverDur_i)
+                    cfg.traj.goToHoverDuration = goToHoverDur_i;
+                end
+                if ~isnan(scales(i))
+                    cfg.traj.scale = scales(i);
+                end
+                if ~isnan(altitudes(i))
+                    cfg.traj.altitude = altitudes(i);
                 end
                 cfg.done();
 
+                dt_i = dts(i);
+                if isnan(dt_i), dt_i = 0.02; end
+
                 allCfg{i}  = cfg;
-                allData{i} = fth.plot.TrajPlotter.sampleTrajectory(cfg, dt);
+                allData{i} = fth.plot.TrajPlotter.sampleTrajectory(cfg, dt_i);
                 fth.plot.TrajPlotter.plotSingle(allData{i}, cfg, outDir);
             end
 
@@ -282,7 +341,6 @@ classdef TrajPlotter
             %   from Config.applyTrajectoryDefinition unless overridden via opts.
             specs = {
                 'circle';
-                'infinity';
                 'lissajous3d';
                 'helix3d';
                 'poly3d';
@@ -296,6 +354,26 @@ classdef TrajPlotter
                 val = opts.(field);
             else
                 val = default;
+            end
+        end
+
+        function out = expandOpt(val, n, name)
+            %EXPANDOPT Expand a scalar opt to an n-element row vector.
+            %   Empty → NaN-filled (treated as "not set").
+            %   Scalar → repeated n times.
+            %   n-element vector → returned as-is.
+            %   Other size → error.
+            if isempty(val)
+                out = nan(1, n);
+                return;
+            end
+            if numel(val) == 1
+                out = repmat(double(val), 1, n);
+            elseif numel(val) == n
+                out = double(val(:).');
+            else
+                error('fth:TrajPlotter:BadOptSize', ...
+                    'opts.%s must be scalar or length %d (got %d).', name, n, numel(val));
             end
         end
 

@@ -24,7 +24,7 @@ classdef AnalyticTraj < fth.traj.TrajectoryBase
         period
         altitude
         goToHoverBeforePathStarts
-        hoverFrac
+        goToHoverDuration
         lissajousAmp
         lissajousFreq
         lissajousPhase
@@ -56,10 +56,16 @@ classdef AnalyticTraj < fth.traj.TrajectoryBase
             end
             obj.altitude = cfg.traj.altitude;
             obj.goToHoverBeforePathStarts = cfg.traj.goToHoverBeforePathStarts;
-            obj.hoverFrac = 0.1;
-
-            if isfield(cfg.traj, 'hoverFrac')
-                obj.hoverFrac = cfg.traj.hoverFrac;
+            if isfield(cfg.traj, 'goToHoverDuration') && ~isempty(cfg.traj.goToHoverDuration)
+                % Explicit duration takes priority.
+                obj.goToHoverDuration = cfg.traj.goToHoverDuration;
+            else
+                % Fallback: 10 % of the trajectory period (legacy hoverFrac behaviour).
+                hoverFrac = 0.1;
+                if isfield(cfg.traj, 'hoverFrac') && ~isempty(cfg.traj.hoverFrac)
+                    hoverFrac = cfg.traj.hoverFrac;
+                end
+                obj.goToHoverDuration = hoverFrac * obj.period;
             end
 
             obj.lissajousAmp = obj.ensureVec3Field(cfg.traj, 'lissajousAmp', [obj.scale; obj.scale; min(obj.scale/2, obj.altitude/2)]);
@@ -157,17 +163,27 @@ classdef AnalyticTraj < fth.traj.TrajectoryBase
             %   Outputs:
             %     H, V, A - desired pose, velocity, and acceleration.
             if obj.goToHoverBeforePathStarts
-                hover_time = obj.hoverFrac * obj.period;
+                hover_time = obj.goToHoverDuration;
                 if t < hover_time
                     [s, sd, sdd] = fth.traj.TimeScaling.fifthOrder(hover_time).evaluate(t);
-                    z = obj.altitude * s;
-                    p = [0; 0; z];
-                    v = [0; 0; obj.altitude * sd];
-                    a = [0; 0; obj.altitude * sdd];
-                    yaw = 0; wyaw = 0; wyawdot = 0;
-                    H = obj.poseFromYawPos(yaw, p);
-                    V = [0;0;wyaw; v];
-                    A = [0;0;wyawdot; a];
+                    p          = [0; 0; obj.altitude * s];
+                    v_inertial = [0; 0; obj.altitude * sd];
+                    a_inertial = [0; 0; obj.altitude * sdd];
+                    % Smoothly rotate from identity to the path's initial orientation,
+                    % mirroring the position interpolation above.
+                    rpy0     = obj.computePathStartRpy();
+                    rpy      = rpy0 * s;
+                    rpy_dot  = rpy0 * sd;
+                    rpy_ddot = rpy0 * sdd;
+                    R = obj.rotFromRpy(rpy);
+                    H = [R, p; 0 0 0 1];
+                    omega     = obj.rpyRatesToBodyOmega(rpy, rpy_dot);
+                    omega_dot = obj.rpyRatesToBodyOmegaDot(rpy, rpy_dot, rpy_ddot);
+                    v_des = R' * v_inertial;
+                    a_des = R' * a_inertial - cross(omega, v_des);
+                    V = [omega; v_des];
+                    A = [omega_dot; a_des];
+                    obj.lastYaw = rpy0(3);  % prime for smooth handoff when path begins
                     return;
                 else
                     t = t - hover_time;
@@ -324,6 +340,30 @@ classdef AnalyticTraj < fth.traj.TrajectoryBase
     end
 
     methods (Access = private)
+        function rpy0 = computePathStartRpy(obj)
+            %COMPUTEPATHSTARTRPY Return the desired RPY at the start of the path (s=0).
+            %   Used by the hover phase to know where to rotate towards so that
+            %   orientation is continuous when the path begins.
+            switch lower(obj.name)
+                case {'hover', 'takeoffland'}
+                    rpy0 = [0; 0; 0];
+
+                case 'circle'
+                    % Path velocity direction at s=0: dp = 2*pi*[-r*sin(0); r*cos(0); 0]
+                    % = [0; 2*pi*r; 0]  →  yaw = atan2(2*pi*r, 0) = pi/2.
+                    r    = obj.scale;
+                    yaw0 = atan2(2*pi*r, 0);
+                    rpy0 = [0; 0; yaw0];
+
+                otherwise
+                    % rpyProfile trajectories (infinity, lissajous3d, helix3d, poly3d).
+                    % useYawFromVelocity is false for all of these, so rpy is purely
+                    % from the profile.  At s=0 with default phase=[0,0,0] this is
+                    % [0;0;0], but non-default phases are handled correctly.
+                    [rpy0, ~, ~] = obj.rpyProfile(0, 1, 0);
+            end
+        end
+
         function [yaw, wyaw, wyawdot] = yawFromVelocity(obj, v, a)
             %YAWFROMVELOCITY Compute yaw and yaw rate from planar velocity.
             %   Inputs:

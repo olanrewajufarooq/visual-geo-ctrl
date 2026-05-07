@@ -4,22 +4,33 @@
 clear; close all;
 startup;
 
-opts.duration = 60;                        % time horizon [s]
-opts.goToHoverBeforePathStarts = true;    % skip hover phase
-opts.dt       = 0.01;                      % sampling interval [s]
+opts.period                   = 90;    % path cycle [s]
+opts.goToHoverDuration        = 30;    % hover climb before path starts [s]
+opts.goToHoverBeforePathStarts = true;
+opts.dt                       = 0.01;  % sampling interval [s]
 fth.plot.TrajPlotter.run(opts);
 
-% ----- Plot all ---------
+% ----- Plot all with defaults ---------
 
 % Plot all trajectories with default parameters.
 % fth.plot.TrajPlotter.run();
 
 % ---- Customization (uncomment and edit as needed) --------------------
 %
-% opts.names    = {'circle', 'infinity'};    % subset of trajectories
-% opts.scale    = 3;                         % path scale [m]
-% opts.altitude = 8;                         % hover altitude [m]
-% opts.duration = 20;                        % time horizon [s]
-% opts.goToHoverBeforePathStarts = false;    % skip hover phase
-% opts.dt       = 0.01;                      % sampling interval [s]
+% % Scalar opts apply to all trajectories:
+% opts.names                    = {'circle', 'lissajous3d'};
+% opts.scale                    = 3;                    % path scale [m]
+% opts.altitude                 = 8;                    % hover altitude [m]
+% opts.period                   = 60;                   % path cycle [s]
+% opts.goToHoverDuration        = 30;                   % hover climb [s]
+% opts.goToHoverBeforePathStarts = true;
+% opts.dt                       = 0.01;
+% fth.plot.TrajPlotter.run(opts);
+%
+% % Per-trajectory vector opts (one value per name):
+% opts.names                    = {'circle', 'lissajous3d'};
+% opts.scale                    = [3, 5];               % one per trajectory
+% opts.period                   = [40, 60];             % one per trajectory
+% opts.goToHoverDuration        = [20, 30];             % one per trajectory
+% opts.goToHoverBeforePathStarts = [true, false];       % one per trajectory
 % fth.plot.TrajPlotter.run(opts);
