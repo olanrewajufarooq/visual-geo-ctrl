@@ -1,5 +1,12 @@
 function [m_total, Iparams_total, cog_total] = addPayload(m_base, Iparams_base, cog_base, m_payload, cog_payload)
-%ADDPAYLOAD Combine payload mass/CoG with base parameters
+%ADDPAYLOAD Combine payload mass/CoG with base parameters.
+%   CoG: 3x1 offset of center of mass from body frame origin, in body frame [m].
+    assert(isscalar(m_base) && m_base > 0, 'fth:addPayload: m_base must be a positive scalar');
+    assert(numel(Iparams_base) == 6, 'fth:addPayload: Iparams_base must have 6 elements');
+    assert(numel(cog_base) == 3, 'fth:addPayload: cog_base must be a 3-element vector');
+    assert(isscalar(m_payload) && m_payload >= 0, 'fth:addPayload: m_payload must be a non-negative scalar');
+    assert(numel(cog_payload) == 3, 'fth:addPayload: cog_payload must be a 3-element vector');
+
     m_total = m_base + m_payload;
     cog_total = (m_base * cog_base + m_payload * cog_payload(:)) / m_total;
 

@@ -137,6 +137,7 @@ classdef SimRunner < handle
             obj.plant = fth.plant.HexacopterPlant(obj.cfg);
             obj.ctrl = obj.createController();
             obj.log = fth.core.Logger();
+            obj.log.reserve(obj.N);
 
             [H0, V0] = obj.resolveInitialPlantState();
             obj.plant.reset(H0, V0);

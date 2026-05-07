@@ -3,6 +3,7 @@ function R = rpy2rotm(rpy)
 %   R = rpy2rotm(rpy) converts [roll; pitch; yaw] to a rotation matrix
 %   using ZYX convention: R = Rz(yaw) * Ry(pitch) * Rx(roll).
 
+    assert(numel(rpy) == 3, 'fth:rpy2rotm: rpy must have 3 elements');
     rpy = rpy(:);
     roll = rpy(1);
     pitch = rpy(2);
