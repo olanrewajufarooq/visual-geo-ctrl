@@ -36,8 +36,13 @@ classdef Logger < handle
         function reserve(obj, n)
             %RESERVE Preallocate buffers for n samples.
             %   Call once before the simulation loop with the expected sample count.
+            %   Errors if called after any append() to prevent silent data loss.
             %   Input:
             %     n - number of samples to preallocate.
+            if obj.count > 0
+                error('fth:Logger:reserveAfterAppend', ...
+                    'reserve() must be called before any append().');
+            end
             obj.capacity = n;
             obj.count = 0;
             obj.t = zeros(n, 1);

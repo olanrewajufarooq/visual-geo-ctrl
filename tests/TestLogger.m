@@ -49,6 +49,31 @@ classdef TestLogger < matlab.unittest.TestCase
             testCase.verifyEqual(logs.actual.pos(1,:), [1, 2, 3], 'AbsTol', 1e-12);
             testCase.verifyEqual(logs.actual.pos(3,:), [3, 4, 5], 'AbsTol', 1e-12);
         end
+
+        function testExplicitTimingWrittenAndTruncated(testCase)
+            % Verify that explicit timing structs are written correctly and
+            % finalize() returns the right Nx1 shape (not zero-padded).
+            logger = fth.core.Logger();
+            logger.reserve(4);
+            for k = 1:3
+                timing.controlTime    = k * 0.01;
+                timing.adaptationTime = k * 0.02;
+                logger.append(k * 0.01, testCase.dummyActual(), ...
+                    testCase.dummyDesired(), testCase.dummyCmd(), timing);
+            end
+            logs = logger.finalize();
+            testCase.verifyEqual(size(logs.timing.controlTime), [3 1]);
+            testCase.verifyEqual(logs.timing.controlTime, [0.01; 0.02; 0.03], 'AbsTol', 1e-14);
+            testCase.verifyEqual(logs.timing.adaptationTime, [0.02; 0.04; 0.06], 'AbsTol', 1e-14);
+        end
+
+        function testReserveAfterAppendErrors(testCase)
+            % reserve() after any append() must error to prevent silent data loss.
+            logger = fth.core.Logger();
+            logger.reserve(10);
+            logger.append(0.01, testCase.dummyActual(), testCase.dummyDesired(), testCase.dummyCmd());
+            testCase.verifyError(@() logger.reserve(20), 'fth:Logger:reserveAfterAppend');
+        end
     end
 
     methods (Access = private)
