@@ -773,7 +773,7 @@ classdef SimRunner < handle
                 logs.est = est;
             end
 
-            metricsObj = fth.metrics.TrackingMetrics(logs, obj.cfg.traj.name);
+            metricsObj = fth.core.TrackingMetrics(logs, obj.cfg.traj.name);
             metrics = metricsObj.computeAll();
             metricsObj.printReport();
             fprintf('%s', fth.io.ConsoleFormatter.headline(metrics, isAdaptive));

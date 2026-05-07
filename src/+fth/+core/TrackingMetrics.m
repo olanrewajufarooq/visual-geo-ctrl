@@ -1,7 +1,7 @@
 classdef TrackingMetrics < handle
     %TRACKINGMETRICS Compute and report trajectory tracking metrics.
     %   Usage:
-    %     metricsObj = fth.metrics.TrackingMetrics(logger, 'Run 1');
+    %     metricsObj = fth.core.TrackingMetrics(logger, 'Run 1');
     %     metrics = metricsObj.computeAll();
     %     metricsObj.printReport(metrics);
 

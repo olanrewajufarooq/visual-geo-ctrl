@@ -8,7 +8,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             pos = repmat([1 2 3], N, 1);
             rpy = repmat([0.1 0.2 0.3], N, 1);
             logs = testCase.buildLogs(pos, pos, rpy, rpy);
-            tm = fth.metrics.TrackingMetrics(logs, 'ZeroError');
+            tm = fth.core.TrackingMetrics(logs, 'ZeroError');
             m = tm.computeAll();
             testCase.verifyEqual(m.position.rmse_total, 0, 'AbsTol', 1e-14);
             testCase.verifyEqual(m.position.tracking_score, 100, 'AbsTol', 1e-10);
@@ -23,7 +23,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             actPos = repmat([1 0 0], N, 1);
             rpy = zeros(N, 3);
             logs = testCase.buildLogs(actPos, desPos, rpy, rpy);
-            tm = fth.metrics.TrackingMetrics(logs, 'ConstOffset');
+            tm = fth.core.TrackingMetrics(logs, 'ConstOffset');
             m = tm.computePosition();
             testCase.verifyEqual(m.rmse_total, 1.0, 'AbsTol', 1e-14);
             testCase.verifyEqual(m.rmse_xyz, [1 0 0], 'AbsTol', 1e-14);
@@ -40,7 +40,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             actPos = [sin(t), zeros(N, 1), zeros(N, 1)];
             rpy = zeros(N, 3);
             logs = testCase.buildLogs(actPos, desPos, rpy, rpy);
-            tm = fth.metrics.TrackingMetrics(logs, 'Sinusoidal');
+            tm = fth.core.TrackingMetrics(logs, 'Sinusoidal');
             m = tm.computePosition();
             % RMS of sin(t) over a full period is 1/sqrt(2)
             expected_rmse = 1 / sqrt(2);
@@ -51,7 +51,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             N = 50;
             rpy = repmat([0.1 -0.2 0.5], N, 1);
             logs = testCase.buildLogs(zeros(N,3), zeros(N,3), rpy, rpy);
-            tm = fth.metrics.TrackingMetrics(logs, 'OriZero');
+            tm = fth.core.TrackingMetrics(logs, 'OriZero');
             m = tm.computeOrientation();
             testCase.verifyEqual(m.rmse_total, 0, 'AbsTol', 1e-12);
         end
@@ -64,7 +64,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             rpy = zeros(N, 3);
             desRpy = rpy;
             logs = testCase.buildLogs(actPos, desPos, rpy, desRpy);
-            tm = fth.metrics.TrackingMetrics(logs, 'Bounded');
+            tm = fth.core.TrackingMetrics(logs, 'Bounded');
             m = tm.computeCombined();
             testCase.verifyGreaterThanOrEqual(m.tracking_score, 0);
             testCase.verifyLessThanOrEqual(m.tracking_score, 100);
@@ -77,7 +77,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             actPos = repmat([0.5 0.5 0.5], N, 1);
             rpy = zeros(N, 3);
             logs = testCase.buildLogs(actPos, desPos, rpy, rpy);
-            tm = fth.metrics.TrackingMetrics(logs, 'Cache');
+            tm = fth.core.TrackingMetrics(logs, 'Cache');
             m1 = tm.computePosition();
             m2 = tm.computePosition();
             testCase.verifyEqual(m1.rmse_total, m2.rmse_total);
@@ -91,7 +91,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             expectedRMSE = abs(4.0 - 3.646);
             logs = testCase.buildAdaptiveLogs(N, estMass, actualMass, ...
                 zeros(N, 3), zeros(N, 3), zeros(N, 6), zeros(N, 6));
-            tm = fth.metrics.TrackingMetrics(logs, 'MassRMSE');
+            tm = fth.core.TrackingMetrics(logs, 'MassRMSE');
             m = tm.computeAll();
             testCase.verifyEqual(m.parameters.mass.rmse, expectedRMSE, 'AbsTol', 1e-12);
         end
@@ -102,7 +102,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             mass = 3.646 * ones(N, 1);
             logs = testCase.buildAdaptiveLogs(N, mass, mass, ...
                 zeros(N, 3), zeros(N, 3), zeros(N, 6), zeros(N, 6));
-            tm = fth.metrics.TrackingMetrics(logs, 'PerfectMass');
+            tm = fth.core.TrackingMetrics(logs, 'PerfectMass');
             m = tm.computeAll();
             testCase.verifyEqual(m.parameters.mass.rmse, 0, 'AbsTol', 1e-14);
         end
@@ -113,7 +113,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             ident = struct('infoMatrix', F, 'updateCount', N);
             logs = testCase.buildAdaptiveLogs(N, ones(N, 1), ones(N, 1), ...
                 zeros(N, 3), zeros(N, 3), zeros(N, 6), zeros(N, 6), ident);
-            tm = fth.metrics.TrackingMetrics(logs, 'IdentHigh');
+            tm = fth.core.TrackingMetrics(logs, 'IdentHigh');
             m = tm.computeAll();
 
             testCase.verifyEqual(m.parameters.identifiability.mass.score, 100, 'AbsTol', 1e-12);
@@ -132,7 +132,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             ident = struct('infoMatrix', F, 'updateCount', N);
             logs = testCase.buildAdaptiveLogs(N, ones(N, 1), ones(N, 1), ...
                 zeros(N, 3), zeros(N, 3), zeros(N, 6), zeros(N, 6), ident);
-            tm = fth.metrics.TrackingMetrics(logs, 'IdentMassLow');
+            tm = fth.core.TrackingMetrics(logs, 'IdentMassLow');
             m = tm.computeAll();
 
             testCase.verifyLessThan(m.parameters.identifiability.mass.score, 1e-9);
@@ -145,7 +145,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             ident = struct('infoMatrix', F, 'updateCount', N);
             logs = testCase.buildAdaptiveLogs(N, ones(N, 1), ones(N, 1), ...
                 zeros(N, 3), zeros(N, 3), zeros(N, 6), zeros(N, 6), ident);
-            tm = fth.metrics.TrackingMetrics(logs, 'IdentMcogLow');
+            tm = fth.core.TrackingMetrics(logs, 'IdentMcogLow');
             m = tm.computeAll();
 
             testCase.verifyEqual(m.parameters.identifiability.mcog.rank, 2);
@@ -156,7 +156,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             N = 10;
             logs = testCase.buildAdaptiveLogs(N, ones(N, 1), ones(N, 1), ...
                 zeros(N, 3), zeros(N, 3), zeros(N, 6), zeros(N, 6));
-            tm = fth.metrics.TrackingMetrics(logs, 'IdentMissing');
+            tm = fth.core.TrackingMetrics(logs, 'IdentMissing');
             m = tm.computeAll();
 
             testCase.verifyTrue(isnan(m.parameters.identifiability.mass.score));
@@ -165,14 +165,14 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
         end
 
         function testMissingLogsThrows(testCase)
-            tm = fth.metrics.TrackingMetrics();
+            tm = fth.core.TrackingMetrics();
             testCase.verifyError(@() tm.computeAll(), 'TrackingMetrics:MissingLogs');
         end
 
         function testComputeAllHasExpectedFields(testCase)
             N = 50;
             logs = testCase.buildLogs(zeros(N,3), zeros(N,3), zeros(N,3), zeros(N,3));
-            tm = fth.metrics.TrackingMetrics(logs, 'Fields');
+            tm = fth.core.TrackingMetrics(logs, 'Fields');
             m = tm.computeAll();
             testCase.verifyTrue(isfield(m, 'position'));
             testCase.verifyTrue(isfield(m, 'orientation'));
