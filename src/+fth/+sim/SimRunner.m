@@ -411,7 +411,9 @@ classdef SimRunner < handle
                 return;
             end
 
-            [m_base, I_base, cog_base] = fth.utils.baseParams(obj.cfg);
+            m_base   = obj.cfg.vehicle.m;
+            I_base   = obj.cfg.vehicle.I_params;
+            cog_base = obj.cfg.vehicle.CoG(:);
             [m_with, I_with, cog_with] = fth.utils.addPayload(m_base, I_base, cog_base, payloadMass, payloadCoG);
 
             obj.plant.updateParameters(m_with, cog_with, I_with);
@@ -430,12 +432,9 @@ classdef SimRunner < handle
 
         function runNominalLoop(obj)
             %RUNNOMINALLOOP Main loop for nominal control.
-            %   Integrates plant dynamics with fixed parameters.
             for k = 1:obj.N
-                if obj.stopped_
-                    break;
-                end
-                obj.simulationStepNominal(k);
+                if obj.stopped_; break; end
+                obj.simulationStep(k, struct());
                 obj.tCurrent = obj.tCurrent + obj.dt;
                 obj.kCurrent = k;
             end
@@ -445,16 +444,16 @@ classdef SimRunner < handle
             %RUNADAPTIVELOOP Main loop for adaptive control.
             %   Handles payload drop timing and updates estimates.
             dropped = false;
-            [m_base, I_base, cog_base] = fth.utils.baseParams(obj.cfg);
+            m_base     = obj.cfg.vehicle.m;
+            I_base     = obj.cfg.vehicle.I_params;
+            cog_base   = obj.cfg.vehicle.CoG(:);
             for k = 1:obj.N
-                if obj.stopped_
-                    break;
-                end
+                if obj.stopped_; break; end
                 if ~dropped && obj.tCurrent >= dropTime
                     obj.plant.dropPayload(m_base, cog_base, I_base);
                     dropped = true;
                 end
-                obj.simulationStepAdaptive(k);
+                obj.simulationStep(k, obj.getAdaptiveParams());
                 obj.tCurrent = obj.tCurrent + obj.dt;
                 obj.kCurrent = k;
             end
@@ -469,26 +468,13 @@ classdef SimRunner < handle
             obj.estTimeLog = [];
         end
 
-        function simulationStepNominal(obj, k)
-            %SIMULATIONSTEPNOMINAL Single-step nominal update.
+        function simulationStep(obj, k, tparams)
+            %SIMULATIONSTEP Single-step update.
             %   Inputs:
-            %     k - step index.
+            %     k       - step index.
+            %     tparams - struct of trajectory params (empty struct for nominal).
             [H, V] = obj.plant.getState();
-            [Hd, Vd, Ad] = obj.traj.generate(obj.tCurrent, H, V, struct());
-
-            obj.maybeUpdateAdaptation(Hd, H, Vd, V, Ad);
-            W_cmd = obj.computeControl(Hd, H, Vd, V, Ad);
-            obj.logStep(Hd, Vd, Ad, W_cmd, k);
-            obj.recordEstimate();
-        end
-
-        function simulationStepAdaptive(obj, k)
-            %SIMULATIONSTEPADAPTIVE Single-step adaptive update.
-            %   Inputs:
-            %     k - step index.
-            [H, V] = obj.plant.getState();
-            params = obj.getAdaptiveParams();
-            [Hd, Vd, Ad] = obj.traj.generate(obj.tCurrent, H, V, params);
+            [Hd, Vd, Ad] = obj.traj.generate(obj.tCurrent, H, V, tparams);
             obj.maybeUpdateAdaptation(Hd, H, Vd, V, Ad);
             W_cmd = obj.computeControl(Hd, H, Vd, V, Ad);
             obj.logStep(Hd, Vd, Ad, W_cmd, k);
@@ -933,7 +919,9 @@ classdef SimRunner < handle
             est.t = t;
             est.identifiability = obj.ctrl.getAdaptationDiagnostics();
 
-            [m_base, I_base, cog_base] = fth.utils.baseParams(obj.cfg);
+            m_base   = obj.cfg.vehicle.m;
+            I_base   = obj.cfg.vehicle.I_params;
+            cog_base = obj.cfg.vehicle.CoG(:);
             m_base_scalar = m_base;
             I_base_row = I_base(:).';
             cog_base_col = cog_base(:);
