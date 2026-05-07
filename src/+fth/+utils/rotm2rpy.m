@@ -12,7 +12,7 @@ function rpy = rotm2rpy(R)
         warning('fth:gimbalLock', ...
             'rotm2rpy: near gimbal lock (pitch ≈ ±90°). Roll/yaw are not uniquely defined.');
         roll  = atan2(-R(2,3), R(2,2));
-        pitch = atan2(-R(3,1), cy);
+        pitch = atan2(-R(3,1), 0);  % cy ≈ 0 at lock; explicit 0 is clearer
         yaw   = 0;
     else
         pitch = atan2(-R(3,1), cy);

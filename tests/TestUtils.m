@@ -51,5 +51,20 @@ classdef TestUtils < matlab.unittest.TestCase
             [m_total, ~, ~] = fth.utils.addPayload(m_base, Ip, cog, m_payload, cog_p);
             testCase.verifyEqual(m_total, 2.5, 'AbsTol', 1e-12);
         end
+
+        function testAddPayloadRoundTripOffDiagonal(testCase)
+            % Round-trip: addPayload -> inertiaFromParams must preserve
+            % off-diagonal terms. Catches Iyz/Ixz packing order bugs.
+            m_base = 2.0;
+            % Non-diagonal Iparams: [Ixx Iyy Izz Ixy Iyz Ixz]
+            Ip = [0.10, 0.20, 0.30, 0.01, 0.02, 0.03];
+            cog = [0; 0; 0];
+            % Zero payload so combined inertia equals base inertia exactly.
+            [~, Ip_out, ~] = fth.utils.addPayload(m_base, Ip, cog, 0, [0;0;0]);
+            J_in  = fth.utils.inertiaFromParams(Ip);
+            J_out = fth.utils.inertiaFromParams(Ip_out);
+            testCase.verifyEqual(J_out, J_in, 'AbsTol', 1e-12, ...
+                'Off-diagonal inertia terms corrupted by addPayload packing');
+        end
     end
 end
