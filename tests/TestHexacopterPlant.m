@@ -151,5 +151,27 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
             [~, V_after] = plant.getState();
             testCase.verifyEqual(V_after, V0, 'AbsTol', 1e-12);
         end
+
+        function testUpdateParametersMassOnlyRecomputesI6(testCase)
+            % Verify I6 is recomputed even when only mass changes (no Iparams arg).
+            cfg = fth.config.Config();
+            plant = fth.plant.HexacopterPlant(cfg);
+            I6_before = plant.I6;
+            plant.updateParameters(plant.m * 2, []);  % double the mass, no Iparams
+            testCase.verifyNotEqual(plant.I6, I6_before);
+            % Also verify mass actually changed.
+            testCase.verifyEqual(plant.m, cfg.vehicle.m * 2, 'AbsTol', 1e-12);
+        end
+
+        function testUpdateParametersCoGOnlyRecomputesI6(testCase)
+            % Verify I6 is recomputed even when only CoG changes (no Iparams arg).
+            cfg = fth.config.Config();
+            plant = fth.plant.HexacopterPlant(cfg);
+            I6_before = plant.I6;
+            new_cog = [0.01; 0.02; -0.03];
+            plant.updateParameters([], new_cog);  % CoG only, no Iparams
+            testCase.verifyNotEqual(plant.I6, I6_before);
+            testCase.verifyEqual(plant.CoG, new_cog, 'AbsTol', 1e-12);
+        end
     end
 end

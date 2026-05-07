@@ -13,6 +13,7 @@ classdef HexacopterPlant < handle
         g
         CoG
         I6
+        Iparams
         groundEnable
         groundHeight
         groundStiffness
@@ -31,10 +32,11 @@ classdef HexacopterPlant < handle
             obj.m = cfg.vehicle.m;
             obj.g = cfg.vehicle.g;
             obj.CoG = cfg.vehicle.CoG(:);
+            obj.Iparams = cfg.vehicle.I_params;
             if isfield(cfg.vehicle,'I6') && ~isempty(cfg.vehicle.I6)
                 obj.I6 = cfg.vehicle.I6;
             else
-                obj.I6 = fth.utils.getGeneralizedInertia(obj.m, cfg.vehicle.I_params, obj.CoG);
+                obj.I6 = fth.utils.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
             end
             obj.H = eye(4);
             obj.V = zeros(6,1);
@@ -110,10 +112,11 @@ classdef HexacopterPlant < handle
 
         function updateParameters(obj, m, CoG, Iparams)
             %UPDATEPARAMETERS Update mass, CoG, and inertia parameters.
+            %   I6 is always recomputed at the end to stay consistent.
             %   Inputs:
-            %     m - mass [kg].
-            %     CoG - 3x1 center of gravity [m].
-            %     Iparams - 1x6 inertia parameters.
+            %     m - mass [kg] (optional, pass [] to skip).
+            %     CoG - 3x1 center of gravity [m] (optional, pass [] to skip).
+            %     Iparams - 1x6 inertia parameters (optional, pass [] to skip).
             if nargin >= 2 && ~isempty(m)
                 obj.m = m;
             end
@@ -121,8 +124,9 @@ classdef HexacopterPlant < handle
                 obj.CoG = CoG(:);
             end
             if nargin >= 4 && ~isempty(Iparams)
-                obj.I6 = fth.utils.getGeneralizedInertia(obj.m, Iparams, obj.CoG);
+                obj.Iparams = Iparams;
             end
+            obj.I6 = fth.utils.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
         end
 
         function dropPayload(obj, m_new, CoG_new, Iparams_new)
