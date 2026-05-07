@@ -6,7 +6,7 @@ clear; close all;
 startup;
 
 % Build a fresh configuration with defaults.
-cfg = fth.config.Config();
+cfg = fth.core.Config();
 
 % Scenario duration in seconds.
 duration = 60;

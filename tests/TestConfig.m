@@ -3,7 +3,7 @@ classdef TestConfig < matlab.unittest.TestCase
 
     methods (Test)
         function testDefaultConstruction(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             testCase.verifyEqual(cfg.traj.name, 'hover');
             testCase.verifyEqual(cfg.controller.type, 'PD');
             testCase.verifyEqual(cfg.controller.adaptation, 'none');
@@ -12,27 +12,27 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testSetTrajectoryValid(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory('circle');
             testCase.verifyEqual(cfg.traj.name, 'circle');
         end
 
         function testSetTrajectoryWithCycles(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory('infinity', 3);
             testCase.verifyEqual(cfg.traj.name, 'infinity');
             testCase.verifyEqual(cfg.traj.cycles, 3);
         end
 
         function testSetTrajectoryWithScalarHoverOverride(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory({'circle', 'infinity'}, 2, false);
             testCase.verifyFalse(cfg.traj.startWithHover);
             testCase.verifyEqual(cfg.traj.batch.startWithHover, [false false]);
         end
 
         function testSetTrajectoryWithVectorHoverOverride(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory({'circle', 'takeoffland'}, [1.5 2.0], [true false]);
             cfg.setController('PD');
             cfg.done();
@@ -44,7 +44,7 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testSetTrajectoryWithoutHoverOverridePreservesDefaults(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory({'circle', 'takeoffland'}, [1 1]);
             cfg.setController('PD');
             cfg.done();
@@ -54,31 +54,31 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testTrajectoryHoverLengthMismatchThrows(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             testCase.verifyError(@() cfg.setTrajectory({'circle', 'infinity'}, [1 1], [true false true]), ...
                 'Config:InvalidTrajectoryHover');
         end
 
         function testSetControllerPD(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setController('PD');
             testCase.verifyEqual(lower(cfg.controller.type), 'pd');
         end
 
         function testSetControllerFeedLin(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setController('FeedLin');
             testCase.verifyEqual(lower(cfg.controller.type), 'feedlin');
         end
 
         function testSetControllerFeedforward(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setController('Feedforward');
             testCase.verifyEqual(lower(cfg.controller.type), 'feedforward');
         end
 
         function testSetControllerInvalidThrows(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             try
                 cfg.setController('BadType');
                 testCase.assertFail('Expected invalid controller type to throw.');
@@ -89,81 +89,81 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testSetPotentialType(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setController('PD', 'separate');
             testCase.verifyEqual(cfg.controller.potential, 'separate');
         end
 
         function testDefaultPotentialIsLieAlgebra(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setController('PD');
             testCase.verifyEqual(cfg.controller.potential, 'liealgebra');
         end
 
         function testSetAdaptationEuclidean(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setAdaptation('euclidean');
             testCase.verifyEqual(cfg.controller.adaptation, 'euclidean');
             testCase.verifyTrue(~isempty(cfg.controller.Gamma));
         end
 
         function testSetAdaptationNone(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setAdaptation('none');
             testCase.verifyEqual(cfg.controller.adaptation, 'none');
         end
 
         function testSetSimParams(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setSimParams(0.01, 20);
             testCase.verifyEqual(cfg.sim.dt, 0.01);
             testCase.verifyEqual(cfg.sim.duration, 20);
         end
 
         function testSetKpGainsVector(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             Kp = [1; 2; 3; 4; 5; 6];
             cfg.setKpGains(Kp);
             testCase.verifyEqual(cfg.controller.Kp, Kp);
         end
 
         function testSetKpGainsRowVector(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             Kp = [1, 2, 3, 4, 5, 6];
             cfg.setKpGains(Kp);
             testCase.verifyEqual(cfg.controller.Kp, Kp(:));
         end
 
         function testSetKpGainsMatrix(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             Kp = [1 2 3 4 5 6; 7 8 9 10 11 12];
             cfg.setKpGains(Kp);
             testCase.verifyEqual(cfg.controller.Kp, Kp);
         end
 
         function testSetKdGainsVector(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             Kd = [1; 2; 3; 4; 5; 6];
             cfg.setKdGains(Kd);
             testCase.verifyEqual(cfg.controller.Kd, Kd);
         end
 
         function testSetAdaptiveGainsVector(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             Gamma = ones(10, 1);
             cfg.setAdaptiveGains(Gamma);
             testCase.verifyEqual(cfg.controller.Gamma, Gamma);
         end
 
         function testSetAdaptiveGainsMatrix(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             Gamma = [ones(1, 10); 2*ones(1, 10)];
             cfg.setAdaptiveGains(Gamma);
             testCase.verifyEqual(cfg.controller.Gamma, Gamma);
         end
 
         function testFluentChaining(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg = cfg.setTrajectory('circle') ...
                      .setController('Feedforward') ...
                      .setSimParams(0.005, 30);
@@ -173,7 +173,7 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testDoneNormalizesDefaults(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory('circle');
             cfg.setController('PD');
             cfg.done();
@@ -184,7 +184,7 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testDoneAdaptiveGetsGamma(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory('circle');
             cfg.setController('Feedforward');
             cfg.setAdaptation('euclidean');
@@ -194,7 +194,7 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testCopyIsIndependent(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory('circle');
             cfgCopy = cfg.copy();
             cfgCopy.setTrajectory('hover');
@@ -203,7 +203,7 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testGetBatchCountSingle(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory('circle');
             cfg.setController('PD');
             cfg.done();
@@ -211,7 +211,7 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testGetBatchCountMultiTrajectory(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory({'circle', 'infinity'});
             cfg.setController('PD');
             cfg.done();
@@ -219,7 +219,7 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testGetBatchCountMultiGain(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory('circle');
             cfg.setController('PD');
             cfg.setKpGains([1 2 3 4 5 6; 7 8 9 10 11 12]);
@@ -229,7 +229,7 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testInconsistentBatchCountsThrow(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory('circle');
             cfg.setController('PD');
             cfg.setKpGains([1 2 3 4 5 6; 7 8 9 10 11 12]);  % 2 runs
@@ -239,7 +239,7 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testSetPayloadScenario(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setPayloadScenario(0.5, [0.01; 0; -0.02], 15);
             testCase.verifyEqual(cfg.payload.mass, 0.5);
             testCase.verifyEqual(cfg.payload.CoG, [0.01; 0; -0.02]);
@@ -247,26 +247,26 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testDeprecatedSetPayloadWithInitFlagThrows(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             testCase.verifyError(@() cfg.setPayload(0.5, [0; 0; 0], 10, false), ...
                 'Config:DeprecatedSetPayload');
         end
 
         function testSetEstimateInitializationNominal(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setEstimateInitialization('nominal');
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'nominal');
         end
 
         function testSetEstimateInitializationFixedHigher(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setEstimateInitialization('fixed-higher');
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed-higher');
             testCase.verifyEmpty(cfg.controller.estimateInitialization.spec);
         end
 
         function testSetEstimateInitializationFixed(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             theta = (1:10)';
             cfg.setEstimateInitialization(theta);
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed');
@@ -274,14 +274,14 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testSetEstimateInitializationFixedRowVector(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             theta = 1:10;
             cfg.setEstimateInitialization(theta);
             testCase.verifyEqual(cfg.controller.estimateInitialization.spec, theta(:));
         end
 
         function testSetEstimateInitializationFixedWithExplicitSpec(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             theta = (11:20)';
             cfg.setEstimateInitialization('fixed', theta);
             testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed');
@@ -289,18 +289,18 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testSetEstimateInitializationFixedBadLengthThrows(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             testCase.verifyError(@() cfg.setEstimateInitialization([1 2 3]), 'MATLAB:incorrectNumel');
         end
 
         function testSetEstimateInitializationInvalidModeThrows(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             testCase.verifyError(@() cfg.setEstimateInitialization('badmode'), ...
                 'Config:InvalidEstimateInitializationMode');
         end
 
         function testExpandBatchConfigsTrajectoryMajorOrderingAndOverrides(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory({'circle', 'takeoffland'}, [1.0 2.0], [true false]);
             cfg.setController('PD');
             cfg.setKpGains([1 2 3 4 5 6; 7 8 9 10 11 12]);
@@ -324,26 +324,26 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testSetPlotLayoutValid(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setPlotLayout('row-major');
             testCase.verifyEqual(cfg.viz.plotLayout, 'row-major');
         end
 
         function testSetControlParams(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setControlParams(0.01);
             testCase.verifyEqual(cfg.sim.control_dt, 0.01);
         end
 
         function testSetAdaptationParams(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setAdaptationParams(0.002);
             testCase.verifyEqual(cfg.sim.adaptation_dt, 0.002);
             testCase.verifyFalse(cfg.sim.adaptation_dt_auto);
         end
 
         function testVehicleI6Computed(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             testCase.verifyTrue(isfield(cfg.vehicle, 'I6'));
             testCase.verifyEqual(size(cfg.vehicle.I6), [6, 6]);
             % I6 should be symmetric positive-definite
@@ -352,7 +352,7 @@ classdef TestConfig < matlab.unittest.TestCase
         end
 
         function testVisualizationDefaults(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             testCase.verifyFalse(cfg.viz.enable);
             testCase.verifyTrue(cfg.viz.dynamicAxis);
             testCase.verifyEqual(cfg.viz.plotLayout, 'column-major');

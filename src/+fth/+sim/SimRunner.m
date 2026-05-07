@@ -64,7 +64,7 @@ classdef SimRunner < handle
         function obj = SimRunner(cfg)
             %SIMRUNNER Build a runner from a configuration object.
             %   Inputs:
-            %     cfg - fth.config.Config instance (or equivalent struct).
+            %     cfg - fth.core.Config instance (or equivalent struct).
             %
             %   Output:
             %     obj - Simulation runner instance.

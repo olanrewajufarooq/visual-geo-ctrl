@@ -14,14 +14,14 @@ classdef TestNamingUtils < matlab.unittest.TestCase
         end
 
         function testControllerAndPotentialLabels(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setController('Feedforward', 'liealgebra');
             testCase.verifyEqual(fth.io.NamingUtils.controllerLabel(cfg), 'ff');
             testCase.verifyEqual(fth.io.NamingUtils.potentialLabel(cfg), 'lie');
         end
 
         function testBatchTrajectoryLabelSingleAndMulti(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory('circle');
             testCase.verifyEqual(fth.io.NamingUtils.batchTrajectoryLabel(cfg), 'circle');
 

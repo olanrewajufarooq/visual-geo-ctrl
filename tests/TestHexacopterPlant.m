@@ -3,7 +3,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
 
     methods (Test)
         function testConstructorReadsGroundDefaultsFromConfig(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             plant = fth.plant.HexacopterPlant(cfg);
             testCase.verifyTrue(plant.groundEnable);
             testCase.verifyEqual(plant.groundHeight, 0);
@@ -13,7 +13,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testResetSetsState(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             plant = fth.plant.HexacopterPlant(cfg);
             H0 = eye(4);
             H0(1:3,4) = [1; 2; 3];
@@ -26,7 +26,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testStepWithZeroWrenchIsFinite(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             plant = fth.plant.HexacopterPlant(cfg);
             plant.reset(eye(4), zeros(6,1));
             plant.step(0.005, zeros(6,1));
@@ -36,7 +36,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testStepUsesPositiveCoriolisSign(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
             plant = fth.plant.HexacopterPlant(cfg);
@@ -56,7 +56,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testUpdateParametersChangesMassCogAndInertia(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             plant = fth.plant.HexacopterPlant(cfg);
             newMass = cfg.vehicle.m + 1.0;
             newCoG = [0.1; -0.05; 0.02];
@@ -71,7 +71,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testDropPayloadConservesLinearMomentum(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
             plant = fth.plant.HexacopterPlant(cfg);
@@ -102,7 +102,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testDropPayloadConservesGeneralizedMomentum(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
             plant = fth.plant.HexacopterPlant(cfg);
@@ -133,7 +133,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
         end
 
         function testDropPayloadNoOpWhenMassUnchanged(testCase)
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.vehicle.g = 0;
             cfg.sim.groundEnable = false;
             plant = fth.plant.HexacopterPlant(cfg);
@@ -154,7 +154,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
 
         function testUpdateParametersMassOnlyRecomputesI6(testCase)
             % Verify I6 is recomputed even when only mass changes (no Iparams arg).
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             plant = fth.plant.HexacopterPlant(cfg);
             I6_before = plant.I6;
             plant.updateParameters(plant.m * 2, []);  % double the mass, no Iparams
@@ -165,7 +165,7 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
 
         function testUpdateParametersCoGOnlyRecomputesI6(testCase)
             % Verify I6 is recomputed even when only CoG changes (no Iparams arg).
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             plant = fth.plant.HexacopterPlant(cfg);
             I6_before = plant.I6;
             % new_cog is deliberately non-zero to ensure the off-diagonal

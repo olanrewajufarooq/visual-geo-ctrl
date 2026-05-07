@@ -123,7 +123,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
     methods (Static, Access = private)
         function cfg = buildCfg(mode)
             %BUILDCFG Create a minimal Config for controller testing.
-            cfg = fth.config.Config();
+            cfg = fth.core.Config();
             cfg.setTrajectory('hover');
             cfg.setController(mode, 'liealgebra');
             cfg.done();

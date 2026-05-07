@@ -19,7 +19,7 @@ classdef WrenchController < handle
         function obj = WrenchController(cfg)
             %WRENCHCONTROLLER Configure controller, potential, and adaptation.
             %   Inputs:
-            %     cfg - fth.config.Config instance or equivalent struct.
+            %     cfg - fth.core.Config instance or equivalent struct.
             %
             %   Output:
             %     obj - WrenchController instance.
