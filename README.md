@@ -40,17 +40,15 @@ run_adaptive_paper_ICUAS
 
 | Package | Responsibility |
 |---------|---------------|
-| `+config` | `Config` fluent builder for all simulation parameters |
-| `+sim` | `SimRunner`, `BatchRunner`, `ResultsManager` |
+| `+sim` | `Config` fluent builder, `SimRunner`, `BatchRunner` |
+| `+core` | `Dynamics` (SE(3) rigid-body plant), `Logger`, `TrackingMetrics` |
 | `+ctrl` | `WrenchController` (PD / FeedLin / Feedforward modes) |
 | `+ctrl/+adapt` | Adaptation strategies: `NoAdaptation`, `EuclideanAdaptation`, `GeoAwareAdaptation` |
 | `+ctrl/+potential` | Pose error potentials: `LieAlgebraPotential`, `SeparatePotential` |
-| `+plant` | `HexacopterPlant` — SE(3) rigid-body dynamics with momentum-correct payload drop |
 | `+traj` | `PreComputedTrajectory`, `ModelReferenceTrajectory` |
 | `+se3` | Lie group utilities: exp, log, Ad, hat, vee, inv |
-| `+metrics` | `TrackingMetrics` for RMSE/NRMSE/score computation |
+| `+io` | `ConsoleCapture`, `ConsoleFormatter`, `NamingUtils`, `ResultsManager` |
 | `+plot` | `Plotter`, `UrdfViewer` |
-| `+core` | `Logger` for time-series data capture |
 | `+utils` | Rotation conversions, inertia helpers, payload utilities |
 
 ## Coding Conventions

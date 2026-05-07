@@ -33,23 +33,21 @@ ci_adaptive_release
 **Key packages** (under `src/+fth/`):
 | Package | Responsibility |
 |---------|---------------|
-| `+config` | `Config` fluent builder for all simulation parameters |
-| `+sim` | `SimRunner`, `BatchRunner`, `ResultsManager`, `ConsoleCapture`, `NamingUtils` |
+| `+sim` | `Config` fluent builder, `SimRunner`, `BatchRunner` |
+| `+core` | `Dynamics` (SE(3) rigid-body plant), `Logger`, `TrackingMetrics` |
 | `+ctrl` | `WrenchController` (PD / FeedLin / Feedforward modes) |
 | `+ctrl/+adapt` | Adaptation strategies: `NoAdaptation`, `EuclideanAdaptation`, `GeoAwareAdaptation` |
 | `+ctrl/+potential` | Pose error potentials: `LieAlgebraPotential`, `SeparatePotential` |
-| `+plant` | `HexacopterPlant` SE(3) rigid-body dynamics |
 | `+traj` | `PreComputedTrajectory`, `ModelReferenceTrajectory` |
 | `+se3` | Lie group utilities: exp, log, Ad, hat, vee, inv |
-| `+metrics` | `TrackingMetrics` for RMSE/NRMSE/score computation |
+| `+io` | `ConsoleCapture`, `ConsoleFormatter`, `NamingUtils`, `ResultsManager` |
 | `+plot` | `Plotter` for summary and standalone figures |
-| `+core` | `Logger` for time-series data capture |
 | `+utils` | Rotation conversions, inertia helpers, payload utilities |
 
 ## Coding Conventions
 
 - **MATLAB packages**: All production code lives under `src/+fth/+<package>/`. Reference via `fth.<package>.<Class>`.
-- **Handle classes**: `SimRunner`, `BatchRunner`, `WrenchController`, `HexacopterPlant`, `Config` are handle classes (reference semantics). `Config.copy()` creates a detached value copy.
+- **Handle classes**: `SimRunner`, `BatchRunner`, `WrenchController`, `Dynamics`, `Config` are handle classes (reference semantics). `Config.copy()` creates a detached value copy.
 - **Fluent API**: `Config` setters return `obj` for chaining: `cfg.setTrajectory('circle').setController('PD').done()`.
 - **Factory pattern**: `AdaptationFactory`, `PotentialFactory`, `TrajectoryFactory` create strategy objects from config.
 - **SE(3) functions**: Standalone functions in `+se3/`, not a class. Call as `fth.se3.expSE3(...)`.
