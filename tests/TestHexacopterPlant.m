@@ -168,6 +168,9 @@ classdef TestHexacopterPlant < matlab.unittest.TestCase
             cfg = fth.config.Config();
             plant = fth.plant.HexacopterPlant(cfg);
             I6_before = plant.I6;
+            % new_cog is deliberately non-zero to ensure the off-diagonal
+            % coupling terms m*hat3(CoG) in I6 change; default CoG is also
+            % non-zero, so any different value guarantees I6 changes.
             new_cog = [0.01; 0.02; -0.03];
             plant.updateParameters([], new_cog);  % CoG only, no Iparams
             testCase.verifyNotEqual(plant.I6, I6_before);

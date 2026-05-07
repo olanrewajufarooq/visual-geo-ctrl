@@ -34,6 +34,9 @@ classdef HexacopterPlant < handle
             obj.CoG = cfg.vehicle.CoG(:);
             obj.Iparams = cfg.vehicle.I_params;
             if isfield(cfg.vehicle,'I6') && ~isempty(cfg.vehicle.I6)
+                % Direct I6 supplied — used as-is at construction. Note: any
+                % subsequent updateParameters call will recompute I6 from
+                % obj.Iparams, discarding this override.
                 obj.I6 = cfg.vehicle.I6;
             else
                 obj.I6 = fth.utils.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
