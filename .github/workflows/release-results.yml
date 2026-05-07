@@ -56,7 +56,7 @@ jobs:
         uses: matlab-actions/run-command@v3
         with:
           startup-options: -softwareopengl
-          command: "set(0,'DefaultFigureVisible','off'); addpath('run'); ci_adaptive_release;"
+          command: "set(0,'DefaultFigureVisible','off'); addpath('run'); ci_release;"
 
       - name: Verify results folder
         run: |
