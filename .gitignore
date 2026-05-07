@@ -2,3 +2,5 @@ results/
 **/results/
 tmp/
 docs/
+.claude/settings.local.json
+opencode.jsonc
