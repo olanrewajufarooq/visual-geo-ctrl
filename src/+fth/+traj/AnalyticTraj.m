@@ -64,7 +64,7 @@ classdef AnalyticTraj < fth.traj.TrajectoryBase
 
             obj.lissajousAmp = obj.ensureVec3Field(cfg.traj, 'lissajousAmp', [obj.scale; obj.scale; min(obj.scale/2, obj.altitude/2)]);
             obj.lissajousFreq = obj.ensureVec3Field(cfg.traj, 'lissajousFreq', [1; 2; 3]);
-            obj.lissajousPhase = obj.ensureVec3Field(cfg.traj, 'lissajousPhase', [0; pi/2; pi/4]);
+            obj.lissajousPhase = obj.ensureVec3Field(cfg.traj, 'lissajousPhase', [0; 0; 0]);
 
             obj.helixTurns = obj.getScalarField(cfg.traj, 'helixTurns', 1);
             obj.helixZAmp = obj.getScalarField(cfg.traj, 'helixZAmp', min(obj.scale/2, obj.altitude/2));
@@ -101,7 +101,12 @@ classdef AnalyticTraj < fth.traj.TrajectoryBase
                 if isfield(cfg.traj, 'polyStart') && ~isempty(cfg.traj.polyStart)
                     p_start = cfg.traj.polyStart(:);
                 end
-                p_end = [obj.scale; 0; obj.altitude];
+                % Default: x sweeps 0→scale, y arches 0→0 (lateral curve),
+                % z descends slightly. This avoids the straight-line degenerate
+                % case that occurs when all axes use zero-velocity BCs (which
+                % forces all axes to share the same normalised polynomial shape).
+                z_drop = min(obj.scale / 4, obj.altitude / 4);
+                p_end  = [obj.scale; 0; obj.altitude - z_drop];
                 if isfield(cfg.traj, 'polyEnd') && ~isempty(cfg.traj.polyEnd)
                     p_end = cfg.traj.polyEnd(:);
                 end
@@ -112,8 +117,15 @@ classdef AnalyticTraj < fth.traj.TrajectoryBase
                      0 1 2  3  4  5;
                      0 0 2  6 12 20];
                 obj.polyCoeff = zeros(3, 6);
+                % y-axis: arch via non-zero endpoint velocities; peak ≈ 0.31*v_arch.
+                v_arch = 2 * obj.scale;
                 for i = 1:3
-                    b = [p_start(i); 0; 0; p_end(i); 0; 0];
+                    if i == 2
+                        % Lateral arch: same y at start/end, outward velocity at both ends.
+                        b = [p_start(2); v_arch; 0; p_end(2); -v_arch; 0];
+                    else
+                        b = [p_start(i); 0; 0; p_end(i); 0; 0];
+                    end
                     a = M \ b;               % ascending coefficients
                     obj.polyCoeff(i,:) = flip(a.');  % descending for polyval
                 end
@@ -218,14 +230,13 @@ classdef AnalyticTraj < fth.traj.TrajectoryBase
                     use_rpy_profile = true;
 
                 case 'lissajous3d'
-                    % p_i(s) = amp_i * sin(2*pi*freq_i*s + phase_i), centered
+                    % p_i(s) = amp_i * sin(2*pi*freq_i*s + phase_i)
+                    % Naturally centered at (0, 0, altitude); no offset needed.
                     amp = obj.lissajousAmp;
                     freq = obj.lissajousFreq;
                     phase = obj.lissajousPhase;
                     theta = 2*pi*(freq .* s) + phase;
                     p = [amp(1)*sin(theta(1)); amp(2)*sin(theta(2)); obj.altitude + amp(3)*sin(theta(3))];
-                    p0 = [amp(1)*sin(phase(1)); amp(2)*sin(phase(2)); obj.altitude + amp(3)*sin(phase(3))];
-                    p = p - p0 + [0; 0; obj.altitude];
                     dp = 2*pi * [amp(1)*freq(1)*cos(theta(1)); amp(2)*freq(2)*cos(theta(2)); amp(3)*freq(3)*cos(theta(3))];
                     d2p = -(2*pi)^2 * [amp(1)*(freq(1)^2)*sin(theta(1)); amp(2)*(freq(2)^2)*sin(theta(2)); amp(3)*(freq(3)^2)*sin(theta(3))];
                     v = dp * sdot;
@@ -233,15 +244,17 @@ classdef AnalyticTraj < fth.traj.TrajectoryBase
                     use_rpy_profile = true;
 
                 case 'helix3d'
-                    r = obj.scale;
+                    % True helix: circular xy motion + linear z ascent.
+                    % x uses (cos(θ)−1) so the path starts at (0,0,altitude),
+                    % matching the hover end-point and avoiding a position jump.
+                    % z starts at altitude and climbs by z_amp over the full path.
+                    r     = obj.scale;
                     turns = obj.helixTurns;
                     z_amp = obj.helixZAmp;
                     theta = 2*pi*turns*s;
-                    p = [r*cos(theta); r*sin(theta); obj.altitude + z_amp*sin(theta)];
-                    p0 = [r; 0; obj.altitude];
-                    p = p - p0 + [0; 0; obj.altitude];
-                    dp = 2*pi*turns * [-r*sin(theta); r*cos(theta); z_amp*cos(theta)];
-                    d2p = (2*pi*turns)^2 * [-r*cos(theta); -r*sin(theta); -z_amp*sin(theta)];
+                    p   = [r*(cos(theta)-1); r*sin(theta); obj.altitude + z_amp*s];
+                    dp  = 2*pi*turns * [-r*sin(theta); r*cos(theta); 0] + [0; 0; z_amp];
+                    d2p = (2*pi*turns)^2 * [-r*cos(theta); -r*sin(theta); 0];
                     v = dp * sdot;
                     a = d2p * (sdot^2) + dp * sddot;
                     use_rpy_profile = true;

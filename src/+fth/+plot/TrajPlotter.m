@@ -46,7 +46,7 @@ classdef TrajPlotter
             scale    = fth.plot.TrajPlotter.getopt(opts, 'scale',    []);
             altitude = fth.plot.TrajPlotter.getopt(opts, 'altitude', []);
             duration = fth.plot.TrajPlotter.getopt(opts, 'duration', 30);
-            hover    = fth.plot.TrajPlotter.getopt(opts, 'goToHoverBeforePathStarts', []);
+            goToHoverBeforePathStarts = fth.plot.TrajPlotter.getopt(opts, 'goToHoverBeforePathStarts', []);
             dt       = fth.plot.TrajPlotter.getopt(opts, 'dt',       0.02);
 
             specs = fth.plot.TrajPlotter.defaultSpecs();

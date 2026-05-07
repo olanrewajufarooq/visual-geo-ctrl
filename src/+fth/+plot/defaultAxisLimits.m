@@ -40,8 +40,8 @@ function limits = defaultAxisLimits(cfg)
             xMin = -abs(amp(1)); xMax = abs(amp(1));
             yMin = -abs(amp(2)); yMax = abs(amp(2));
         case 'helix3d'
-            xMin = -scale; xMax = scale;
-            yMin = -scale; yMax = scale;
+            xMin = -2*scale; xMax = 0;
+            yMin = -scale;   yMax = scale;
         case 'poly3d'
             xMin = -scale; xMax = scale;
             yMin = -scale; yMax = scale;
@@ -83,7 +83,7 @@ function limits = defaultAxisLimits(cfg)
         if isfield(cfg.traj, 'helixZAmp') && ~isempty(cfg.traj.helixZAmp)
             z_amp = abs(cfg.traj.helixZAmp);
         end
-        zMin = min(zMin, alt - z_amp);
+        % z ascends from alt to alt+z_amp; no path below alt.
         zMax = max(zMax, alt + z_amp);
     end
     zMax = zMax + pad;
