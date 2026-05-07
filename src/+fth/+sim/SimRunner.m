@@ -254,9 +254,12 @@ classdef SimRunner < handle
 
         function logs = getLogs(obj)
             %GETLOGS Return the finalized log structure.
+            %   Works regardless of whether saveSimData was used.
             %   Output:
             %     logs - struct of time-series arrays.
-            if ~isempty(obj.log)
+            if ~isempty(obj.lastLogs)
+                logs = obj.lastLogs;
+            elseif ~isempty(obj.log)
                 logs = obj.log.finalize();
             else
                 saved = fth.io.ResultsManager.loadRun(obj.resultsDir);
@@ -803,7 +806,7 @@ classdef SimRunner < handle
 
         function releaseRunMemory(obj)
             %RELEASERUNMEMORY Clear heavy in-memory run state after persistence.
-            obj.lastLogs = [];
+            %   lastLogs is intentionally kept so getLogs() works after saveSimData=false.
             obj.lastMetrics = [];
             obj.lastEst = [];
             obj.massLog = [];

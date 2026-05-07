@@ -1,17 +1,15 @@
 classdef GeoAwareAdaptation < fth.ctrl.adapt.EuclideanAdaptation
-    %GEOAWAREADAPTATION Placeholder for geometry-aware adaptation.
-    %   Currently falls back to Euclidean adaptation.
-    %
-    %   This class is kept for future extension.
+    %GEOAWAREADAPTATION Stub for geometry-aware adaptation (not yet implemented).
+    %   Errors on construction until the geo-aware law is ready.
+    %   Remove the error and add implementation here when implementing.
     methods
         function obj = GeoAwareAdaptation(cfg)
-            %GEOAWAREADAPTATION Initialize (falls back to Euclidean).
+            %GEOAWAREADAPTATION Stub constructor — errors until implemented.
             %   Input:
             %     cfg - configuration struct.
-            %   Output:
-            %     obj - GeoAwareAdaptation instance.
             obj@fth.ctrl.adapt.EuclideanAdaptation(cfg);
-            warning('Geo-aware adaptation not implemented; using euclidean.');
+            error('fth:GeoAwareAdaptation:NotImplemented', ...
+                'Geo-aware adaptation is not yet implemented. Use ''euclidean'' or ''none''.');
         end
     end
 end

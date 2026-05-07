@@ -165,14 +165,21 @@ classdef Config < handle
 
         function obj = setAdaptation(obj, type)
             %SETADAPTATION Select parameter adaptation mode.
-            %   type: 'none','euclidean','geo-aware','geo-enforced','euclidean-boxed'
+            %   type: 'none' | 'euclidean' | 'geo-aware' (not yet implemented)
             %
             %   Output:
             %     obj - Config instance (for chaining).
             if nargin < 2 || isempty(type)
                 type = 'none';
             end
-            obj.controller.adaptation = lower(type);
+            validModes = {'none', 'euclidean', 'geo-aware'};
+            type = lower(type);
+            if ~ismember(type, validModes)
+                error('fth:Config:InvalidAdaptationMode', ...
+                    'Unknown adaptation mode ''%s''. Valid modes: %s', ...
+                    type, strjoin(validModes, ', '));
+            end
+            obj.controller.adaptation = type;
             if ~strcmpi(type, 'none')
                 if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
                     obj.controller.Gamma = 4e-3 * [20;20;30;1;1;1;90;30;30;60];

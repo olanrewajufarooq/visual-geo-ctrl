@@ -2,7 +2,7 @@ classdef AdaptationFactory
     %ADAPTATIONFACTORY Create adaptation implementations from config.
     %   Uses cfg.controller.adaptation to choose the strategy.
     %
-    %   Supported modes: none, euclidean, geo-aware, geo-enforced.
+    %   Supported modes: none, euclidean, geo-aware (not yet implemented).
     methods (Static)
         function adaptation = create(cfg)
             %CREATE Instantiate the configured adaptation strategy.
@@ -26,8 +26,8 @@ classdef AdaptationFactory
                 case 'geo-aware'
                     adaptation = fth.ctrl.adapt.GeoAwareAdaptation(cfg);
                 otherwise
-                    warning('Adaptation type %s not implemented; using euclidean.', adaptType);
-                    adaptation = fth.ctrl.adapt.EuclideanAdaptation(cfg);
+                    error('fth:AdaptationFactory:UnknownMode', ...
+                        'Unrecognised adaptation mode: ''%s''.', adaptType);
             end
         end
     end
