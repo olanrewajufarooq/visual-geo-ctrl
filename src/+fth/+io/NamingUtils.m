@@ -59,10 +59,10 @@ classdef NamingUtils
                     label = 'multi_traj';
                     return;
                 end
-                label = fth.sim.NamingUtils.trajectoryLabel(cfg.traj.batch.names{1});
+                label = fth.io.NamingUtils.trajectoryLabel(cfg.traj.batch.names{1});
                 return;
             end
-            label = fth.sim.NamingUtils.trajectoryLabel(cfg.traj.name);
+            label = fth.io.NamingUtils.trajectoryLabel(cfg.traj.name);
         end
 
         function label = runLabel(saved, resultsDir)

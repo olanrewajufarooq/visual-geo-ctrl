@@ -3,7 +3,7 @@ classdef ConsoleCapture < handle
     %   Wraps MATLAB's diary and evalc for console output interception.
     %
     %   Usage:
-    %     cc = fth.sim.ConsoleCapture();
+    %     cc = fth.io.ConsoleCapture();
     %     cc.beginDiary(resultsDir);
     %     ... simulation code ...
     %     cc.endDiary();

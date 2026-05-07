@@ -83,7 +83,7 @@ classdef SimRunner < handle
             obj.pendingRunArgs = {};
             obj.captureConsoleExternally = isfield(cfg.sim, 'captureConsoleExternally') ...
                 && logical(cfg.sim.captureConsoleExternally);
-            obj.console_ = fth.sim.ConsoleCapture();
+            obj.console_ = fth.io.ConsoleCapture();
             obj.setupResultsDir();
         end
 
@@ -98,17 +98,17 @@ classdef SimRunner < handle
             if ~obj.captureConsoleExternally
                 obj.console_.beginDiary(obj.resultsDir);
             end
-            fprintf('%s', fth.sim.ConsoleFormatter.section('Setup'));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Trajectory', obj.cfg.traj.name));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Controller', ...
+            fprintf('%s', fth.io.ConsoleFormatter.section('Setup'));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Trajectory', obj.cfg.traj.name));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Controller', ...
                 sprintf('%s (%s)', obj.cfg.controller.type, obj.cfg.controller.potential)));
             if isfield(obj.cfg.controller, 'adaptation') && ~strcmpi(obj.cfg.controller.adaptation, 'none')
-                fprintf('%s', fth.sim.ConsoleFormatter.kv('Adaptation', obj.cfg.controller.adaptation));
+                fprintf('%s', fth.io.ConsoleFormatter.kv('Adaptation', obj.cfg.controller.adaptation));
             end
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Duration', sprintf('%.1f s', obj.duration)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Duration', sprintf('%.1f s', obj.duration)));
             fprintf('\n');
-            fprintf('%s', fth.sim.ConsoleFormatter.subsection('Timesteps'));
-            fprintf('%s', fth.sim.ConsoleFormatter.timing(obj.dt, obj.control_dt, obj.adaptation_dt, ...
+            fprintf('%s', fth.io.ConsoleFormatter.subsection('Timesteps'));
+            fprintf('%s', fth.io.ConsoleFormatter.timing(obj.dt, obj.control_dt, obj.adaptation_dt, ...
                 isfield(obj.cfg.controller, 'adaptation') && ~strcmpi(obj.cfg.controller.adaptation, 'none')));
             
             % Display gains if available
@@ -116,20 +116,20 @@ classdef SimRunner < handle
                 Kp = obj.cfg.controller.Kp;
                 if isvector(Kp) && numel(Kp) == 6
                     fprintf('\n');
-                    fprintf('%s', fth.sim.ConsoleFormatter.subsection('Gains'));
-                    fprintf('%s', fth.sim.ConsoleFormatter.vector('Kp', Kp, '%.2f'));
+                    fprintf('%s', fth.io.ConsoleFormatter.subsection('Gains'));
+                    fprintf('%s', fth.io.ConsoleFormatter.vector('Kp', Kp, '%.2f'));
                 end
             end
             if isfield(obj.cfg.controller, 'Kd')
                 Kd = obj.cfg.controller.Kd;
                 if isvector(Kd) && numel(Kd) == 6
-                    fprintf('%s', fth.sim.ConsoleFormatter.vector('Kd', Kd, '%.2f'));
+                    fprintf('%s', fth.io.ConsoleFormatter.vector('Kd', Kd, '%.2f'));
                 end
             end
             if isfield(obj.cfg.controller, 'Gamma') && ~strcmpi(obj.cfg.controller.adaptation, 'none')
                 Gamma = obj.cfg.controller.Gamma;
                 if isvector(Gamma) && numel(Gamma) == 10
-                    fprintf('%s', fth.sim.ConsoleFormatter.vector('Adaptive Gains', Gamma, '%.4f'));
+                    fprintf('%s', fth.io.ConsoleFormatter.vector('Adaptive Gains', Gamma, '%.4f'));
                 end
             end
 
@@ -258,7 +258,7 @@ classdef SimRunner < handle
             if ~isempty(obj.log)
                 logs = obj.log.finalize();
             else
-                saved = fth.sim.ResultsManager.loadRun(obj.resultsDir);
+                saved = fth.io.ResultsManager.loadRun(obj.resultsDir);
                 logs = saved.logs;
             end
         end
@@ -313,9 +313,9 @@ classdef SimRunner < handle
                 return;
             end
 
-            obj.runName = fth.sim.ResultsManager.buildRunName(obj.cfg, obj.isBatchMode());
-            obj.resultsDir = fth.sim.ResultsManager.createResultsDir( ...
-                obj.cfg, fth.sim.ResultsManager.repoRoot(), obj.runName);
+            obj.runName = fth.io.ResultsManager.buildRunName(obj.cfg, obj.isBatchMode());
+            obj.resultsDir = fth.io.ResultsManager.createResultsDir( ...
+                obj.cfg, fth.io.ResultsManager.repoRoot(), obj.runName);
         end
 
         function batchCount = resolveBatchSize(obj)
@@ -348,7 +348,7 @@ classdef SimRunner < handle
 
         function root = repoRoot(~)
             %REPOROOT Return repository root path.
-            root = fth.sim.ResultsManager.repoRoot();
+            root = fth.io.ResultsManager.repoRoot();
         end
 
         function setupVisualization(obj)
@@ -415,15 +415,15 @@ classdef SimRunner < handle
 
             obj.plant.updateParameters(m_with, cog_with, I_with);
             if payloadMass > 0
-                fprintf('%s', fth.sim.ConsoleFormatter.kv('Plant mass', sprintf('%.3f kg (with payload)', m_with)));
+                fprintf('%s', fth.io.ConsoleFormatter.kv('Plant mass', sprintf('%.3f kg (with payload)', m_with)));
             else
-                fprintf('%s', fth.sim.ConsoleFormatter.kv('Plant mass', sprintf('%.3f kg', m_with)));
+                fprintf('%s', fth.io.ConsoleFormatter.kv('Plant mass', sprintf('%.3f kg', m_with)));
             end
 
             [theta0, initLabel] = obj.resolveEstimateInitializationTheta( ...
                 estimateInitialization, m_base, I_base, cog_base, m_with, I_with, cog_with);
             obj.ctrl.setEstimateTheta(theta0);
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Estimate init', ...
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Estimate init', ...
                 sprintf('%s values (mass=%.3f kg)', initLabel, theta0(7))));
         end
 
@@ -774,11 +774,11 @@ classdef SimRunner < handle
             logs = fth.utils.cleanNearZero(logs);
             obj.executionFinishedAt = datetime('now');
             elapsedWallSeconds = toc(obj.executionWallClockStart);
-            fprintf('%s', fth.sim.ConsoleFormatter.section('Execution'));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Started', char(datetime(obj.executionStartedAt, 'Format', 'yyyy-MM-dd HH:mm:ss'))));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Finished', char(datetime(obj.executionFinishedAt, 'Format', 'yyyy-MM-dd HH:mm:ss'))));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Elapsed', sprintf('%.3f s', elapsedWallSeconds)));
-            fprintf('%s\n', fth.sim.ConsoleFormatter.note('Simulation completed.'));
+            fprintf('%s', fth.io.ConsoleFormatter.section('Execution'));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Started', char(datetime(obj.executionStartedAt, 'Format', 'yyyy-MM-dd HH:mm:ss'))));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Finished', char(datetime(obj.executionFinishedAt, 'Format', 'yyyy-MM-dd HH:mm:ss'))));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Elapsed', sprintf('%.3f s', elapsedWallSeconds)));
+            fprintf('%s\n', fth.io.ConsoleFormatter.note('Simulation completed.'));
 
             est = [];
             if isAdaptive
@@ -789,7 +789,7 @@ classdef SimRunner < handle
             metricsObj = fth.metrics.TrackingMetrics(logs, obj.cfg.traj.name);
             metrics = metricsObj.computeAll();
             metricsObj.printReport();
-            fprintf('%s', fth.sim.ConsoleFormatter.headline(metrics, isAdaptive));
+            fprintf('%s', fth.io.ConsoleFormatter.headline(metrics, isAdaptive));
 
             obj.lastLogs = logs;
             obj.lastMetrics = metrics;
@@ -804,13 +804,13 @@ classdef SimRunner < handle
 
         function persistCurrentRun(obj)
             %PERSISTCURRENTRUN Save finalized run data to sim_data.mat.
-            fth.sim.ResultsManager.persistRun(obj.resultsDir, ...
+            fth.io.ResultsManager.persistRun(obj.resultsDir, ...
                 obj.lastLogs, obj.lastMetrics, obj.lastEst, obj.lastRunInfo, obj.cfg);
         end
 
         function persistMetricsFile(obj)
             %PERSISTMETRICSFILE Save lightweight metrics.txt for every run.
-            fth.sim.ResultsManager.writeMetricsFile(obj.resultsDir, ...
+            fth.io.ResultsManager.writeMetricsFile(obj.resultsDir, ...
                 obj.lastMetrics, obj.lastRunInfo, obj.cfg);
         end
 
@@ -828,13 +828,13 @@ classdef SimRunner < handle
 
         function plotCurrentRun(obj, plotType, displayPlots)
             %PLOTCURRENTRUN Plot finalized in-memory run data and save PNGs.
-            fth.sim.ResultsManager.plotRunData(obj.resultsDir, obj.lastLogs, obj.lastEst, ...
+            fth.io.ResultsManager.plotRunData(obj.resultsDir, obj.lastLogs, obj.lastEst, ...
                 obj.lastRunInfo, obj.cfg, plotType, displayPlots);
         end
 
         function plotSavedRun(~, resultsDir, plotType, displayPlots)
             %PLOTSAVEDRUN Generate plots for one saved run directory.
-            fth.sim.ResultsManager.plotSavedRun(resultsDir, plotType, displayPlots);
+            fth.io.ResultsManager.plotSavedRun(resultsDir, plotType, displayPlots);
         end
 
         function [isAdaptive, payloadMass, payloadCoG, payloadDropTime, estimateInitialization, ...

@@ -46,10 +46,10 @@ classdef ConsoleFormatter
         function text = timing(simDt, controlDt, adaptationDt, showAdaptation)
             %TIMING Build simulation timing block.
             text = '';
-            text = [text, fth.sim.ConsoleFormatter.kv('sim_dt', sprintf('%.4f s', simDt))];
-            text = [text, fth.sim.ConsoleFormatter.kv('control_dt', sprintf('%.4f s', controlDt))];
+            text = [text, fth.io.ConsoleFormatter.kv('sim_dt', sprintf('%.4f s', simDt))];
+            text = [text, fth.io.ConsoleFormatter.kv('control_dt', sprintf('%.4f s', controlDt))];
             if nargin >= 4 && showAdaptation
-                text = [text, fth.sim.ConsoleFormatter.kv('adaptation_dt', sprintf('%.4f s', adaptationDt))];
+                text = [text, fth.io.ConsoleFormatter.kv('adaptation_dt', sprintf('%.4f s', adaptationDt))];
             end
         end
 

@@ -7,8 +7,8 @@ classdef TestResultsManager < matlab.unittest.TestCase
             cfg.setTrajectory('circle');
             cfg.setController('Feedforward', 'liealgebra');
 
-            singleName = fth.sim.ResultsManager.buildRunName(cfg, false);
-            batchName = fth.sim.ResultsManager.buildRunName(cfg, true);
+            singleName = fth.io.ResultsManager.buildRunName(cfg, false);
+            batchName = fth.io.ResultsManager.buildRunName(cfg, true);
 
             testCase.verifyTrue(~isempty(regexp(singleName, '^\d{8}_\d{6}_circle_ff_lie$', 'once')));
             testCase.verifyTrue(~isempty(regexp(batchName, '^\d{8}_\d{6}_circle$', 'once')));
@@ -20,8 +20,8 @@ classdef TestResultsManager < matlab.unittest.TestCase
             c = onCleanup(@() rmdir(rootDir, 's'));
             filePath = fullfile(rootDir, 'notes.txt');
 
-            fth.sim.ResultsManager.writeTextFile(filePath, sprintf('hello%sworld', newline));
-            content = fth.sim.ResultsManager.readTextFile(filePath);
+            fth.io.ResultsManager.writeTextFile(filePath, sprintf('hello%sworld', newline));
+            content = fth.io.ResultsManager.readTextFile(filePath);
             testCase.verifyTrue(contains(content, 'hello'));
             testCase.verifyTrue(contains(content, 'world'));
         end
@@ -37,8 +37,8 @@ classdef TestResultsManager < matlab.unittest.TestCase
             runInfo = struct('isAdaptive', true, 'duration', 1, 'dt', 0.01);
             cfg = fth.config.Config();
 
-            fth.sim.ResultsManager.persistRun(rootDir, logs, metrics, est, runInfo, cfg);
-            saved = fth.sim.ResultsManager.loadRun(rootDir);
+            fth.io.ResultsManager.persistRun(rootDir, logs, metrics, est, runInfo, cfg);
+            saved = fth.io.ResultsManager.loadRun(rootDir);
 
             testCase.verifyEqual(saved.metrics.combined.rmse_total, 0.1);
             testCase.verifyEqual(saved.est.mass, 3.5);
@@ -50,7 +50,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             rootDir = tempname;
             mkdir(rootDir);
             c = onCleanup(@() rmdir(rootDir, 's'));
-            testCase.verifyError(@() fth.sim.ResultsManager.loadRun(rootDir), ...
+            testCase.verifyError(@() fth.io.ResultsManager.loadRun(rootDir), ...
                 'ResultsManager:MissingSavedData');
         end
 
@@ -66,7 +66,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             save(fullfile(run1, 'sim_data.mat'), 'rootDir');
             save(fullfile(run2, 'sim_data.mat'), 'rootDir');
 
-            dirs = fth.sim.ResultsManager.findChildResultDirs(rootDir);
+            dirs = fth.io.ResultsManager.findChildResultDirs(rootDir);
             testCase.verifyEqual(dirs, sort({run1; run2}));
         end
 
@@ -79,10 +79,10 @@ classdef TestResultsManager < matlab.unittest.TestCase
             run2 = fullfile(rootDir, 't01_circle', 'run_001');
             mkdir(run1);
             mkdir(run2);
-            fth.sim.ResultsManager.writeTextFile(fullfile(run1, 'metrics.txt'), 'trajectory=infinity3d');
-            fth.sim.ResultsManager.writeTextFile(fullfile(run2, 'metrics.txt'), 'trajectory=circle');
+            fth.io.ResultsManager.writeTextFile(fullfile(run1, 'metrics.txt'), 'trajectory=infinity3d');
+            fth.io.ResultsManager.writeTextFile(fullfile(run2, 'metrics.txt'), 'trajectory=circle');
 
-            dirs = fth.sim.ResultsManager.findChildResultDirs(rootDir);
+            dirs = fth.io.ResultsManager.findChildResultDirs(rootDir);
             testCase.verifyEqual(dirs, sort({run1; run2}));
         end
 
@@ -93,7 +93,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
 
             cfg = fth.config.Config();
             cfg.setAdaptation('euclidean');
-            runDir = fth.sim.ResultsManager.createResultsDir(cfg, repoRoot, 'sample_run');
+            runDir = fth.io.ResultsManager.createResultsDir(cfg, repoRoot, 'sample_run');
             testCase.verifyTrue(exist(runDir, 'dir') == 7);
             testCase.verifyTrue(contains(runDir, fullfile('results', 'adaptive', 'sample_run')));
         end
@@ -103,10 +103,10 @@ classdef TestResultsManager < matlab.unittest.TestCase
             mkdir(rootDir);
             c = onCleanup(@() rmdir(rootDir, 's'));
             [cfg, logs, est, runInfo, metrics] = testCase.buildSavedRunFixture(false);
-            fth.sim.ResultsManager.persistRun(rootDir, logs, metrics, est, runInfo, cfg);
+            fth.io.ResultsManager.persistRun(rootDir, logs, metrics, est, runInfo, cfg);
 
             beforeFigures = findall(groot, 'Type', 'figure');
-            fth.sim.ResultsManager.plotSavedRun(rootDir, 'summary');
+            fth.io.ResultsManager.plotSavedRun(rootDir, 'summary');
             afterFigures = findall(groot, 'Type', 'figure');
 
             testCase.verifyEqual(numel(afterFigures), numel(beforeFigures));
@@ -118,10 +118,10 @@ classdef TestResultsManager < matlab.unittest.TestCase
             mkdir(rootDir);
             c = onCleanup(@() rmdir(rootDir, 's'));
             [cfg, logs, est, runInfo, metrics] = testCase.buildSavedRunFixture(false);
-            fth.sim.ResultsManager.persistRun(rootDir, logs, metrics, est, runInfo, cfg);
+            fth.io.ResultsManager.persistRun(rootDir, logs, metrics, est, runInfo, cfg);
 
             simDataPath = fullfile(rootDir, 'sim_data.mat');
-            fth.sim.ResultsManager.plotSavedRun(simDataPath, 'summary', false);
+            fth.io.ResultsManager.plotSavedRun(simDataPath, 'summary', false);
 
             testCase.verifyTrue(exist(fullfile(rootDir, 'summary_nominal.png'), 'file') == 2);
         end
@@ -131,10 +131,10 @@ classdef TestResultsManager < matlab.unittest.TestCase
             mkdir(rootDir);
             c = onCleanup(@() rmdir(rootDir, 's'));
             [cfg, logs, est, runInfo, metrics] = testCase.buildSavedRunFixture(true);
-            fth.sim.ResultsManager.persistRun(rootDir, logs, metrics, est, runInfo, cfg);
+            fth.io.ResultsManager.persistRun(rootDir, logs, metrics, est, runInfo, cfg);
 
             beforeFigures = findall(groot, 'Type', 'figure');
-            fth.sim.ResultsManager.plotSavedRun(rootDir, 'all', false);
+            fth.io.ResultsManager.plotSavedRun(rootDir, 'all', false);
             afterFigures = findall(groot, 'Type', 'figure');
 
             testCase.verifyEqual(numel(afterFigures), numel(beforeFigures));
@@ -149,9 +149,9 @@ classdef TestResultsManager < matlab.unittest.TestCase
             mkdir(rootDir);
             c = onCleanup(@() rmdir(rootDir, 's'));
             [cfg, logs, est, runInfo, metrics] = testCase.buildSavedRunFixture(false);
-            fth.sim.ResultsManager.persistRun(rootDir, logs, metrics, est, runInfo, cfg);
+            fth.io.ResultsManager.persistRun(rootDir, logs, metrics, est, runInfo, cfg);
 
-            fth.sim.ResultsManager.plotSavedRun(rootDir, 'none', false);
+            fth.io.ResultsManager.plotSavedRun(rootDir, 'none', false);
 
             testCase.verifyFalse(exist(fullfile(rootDir, 'summary_nominal.png'), 'file') == 2);
         end
@@ -163,8 +163,8 @@ classdef TestResultsManager < matlab.unittest.TestCase
             [cfg, ~, ~, runInfo, metrics] = testCase.buildSavedRunFixture(true);
             cfg.sim.batchRunIndex = 3;
 
-            fth.sim.ResultsManager.writeMetricsFile(rootDir, metrics, runInfo, cfg);
-            entry = fth.sim.ResultsManager.loadMetricsFile(rootDir);
+            fth.io.ResultsManager.writeMetricsFile(rootDir, metrics, runInfo, cfg);
+            entry = fth.io.ResultsManager.loadMetricsFile(rootDir);
 
             testCase.verifyEqual(entry.trajectory, 'circle');
             testCase.verifyEqual(entry.run_label, 'Run 3');
@@ -195,7 +195,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             sim.run('none', false, false);
 
             testCase.verifyTrue(exist(fullfile(sim.resultsDir, 'metrics.txt'), 'file') == 2);
-            metricsEntry = fth.sim.ResultsManager.loadMetricsFile(sim.resultsDir);
+            metricsEntry = fth.io.ResultsManager.loadMetricsFile(sim.resultsDir);
             testCase.verifyEqual(metricsEntry.is_adaptive, true);
             testCase.verifyTrue(isfinite(metricsEntry.cog_rmse));
             testCase.verifyTrue(isfinite(metricsEntry.mass_nrmse));
@@ -224,7 +224,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             sim.run(true, 0.5, [0.01; 0; -0.02], 0.01, 'nominal', 'none', false, false);
 
             testCase.verifyTrue(exist(fullfile(sim.resultsDir, 'metrics.txt'), 'file') == 2);
-            metricsEntry = fth.sim.ResultsManager.loadMetricsFile(sim.resultsDir);
+            metricsEntry = fth.io.ResultsManager.loadMetricsFile(sim.resultsDir);
             testCase.verifyEqual(metricsEntry.is_adaptive, true);
             testCase.verifyTrue(isfinite(metricsEntry.cog_rmse));
             testCase.verifyTrue(isfinite(metricsEntry.mass_nrmse));
@@ -258,7 +258,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
 
             identPath = fullfile(sim.resultsDir, 'ident_report.txt');
             testCase.verifyTrue(exist(identPath, 'file') == 2);
-            content = fth.sim.ResultsManager.readTextFile(identPath);
+            content = fth.io.ResultsManager.readTextFile(identPath);
             testCase.verifyTrue(contains(content, 'Batch Identifiability Report'));
             testCase.verifyTrue(contains(content, 'Gain 002'));
             testCase.verifyFalse(contains(content, 'Gain 001'));

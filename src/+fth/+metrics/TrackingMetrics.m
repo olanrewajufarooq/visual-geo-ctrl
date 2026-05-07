@@ -202,7 +202,7 @@ classdef TrackingMetrics < handle
                 name = 'Tracking';
             end
 
-            fprintf('%s', fth.sim.ConsoleFormatter.section(sprintf('Tracking Metrics: %s', name)));
+            fprintf('%s', fth.io.ConsoleFormatter.section(sprintf('Tracking Metrics: %s', name)));
 
             obj.printPosition();
             obj.printOrientation();
@@ -216,66 +216,66 @@ classdef TrackingMetrics < handle
         function printPosition(obj)
             metrics = obj.computePosition();
 
-            fprintf('%s', fth.sim.ConsoleFormatter.subsection('Position Metrics'));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('RMSE Total', sprintf('%.4f m', metrics.rmse_total)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('NRMSE Total', sprintf('%.4f', metrics.nrmse_total)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Tracking Score', sprintf('%.2f %%', metrics.tracking_score)));
-            fprintf('%s', fth.sim.ConsoleFormatter.vector('RMSE XYZ', metrics.rmse_xyz, '%.4f', 'm'));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Max Error', sprintf('%.4f m', metrics.max_error)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Mean Error', sprintf('%.4f m', metrics.mean_error)));
-            fprintf('%s\n', fth.sim.ConsoleFormatter.kv('Std Error', sprintf('%.4f m', metrics.std_error)));
+            fprintf('%s', fth.io.ConsoleFormatter.subsection('Position Metrics'));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('RMSE Total', sprintf('%.4f m', metrics.rmse_total)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('NRMSE Total', sprintf('%.4f', metrics.nrmse_total)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Tracking Score', sprintf('%.2f %%', metrics.tracking_score)));
+            fprintf('%s', fth.io.ConsoleFormatter.vector('RMSE XYZ', metrics.rmse_xyz, '%.4f', 'm'));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Max Error', sprintf('%.4f m', metrics.max_error)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Mean Error', sprintf('%.4f m', metrics.mean_error)));
+            fprintf('%s\n', fth.io.ConsoleFormatter.kv('Std Error', sprintf('%.4f m', metrics.std_error)));
         end
 
         function printOrientation(obj)
             metrics = obj.computeOrientation();
 
-            fprintf('%s', fth.sim.ConsoleFormatter.subsection('Orientation Metrics (SO(3))'));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('RMSE Total', sprintf('%.4f rad', metrics.rmse_total)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('NRMSE Total', sprintf('%.4f', metrics.nrmse_total)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Tracking Score', sprintf('%.2f %%', metrics.tracking_score)));
-            fprintf('%s', fth.sim.ConsoleFormatter.vector('RMSE RPY', metrics.rmse_rpy, '%.4f', 'rad'));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Max Error', sprintf('%.4f rad', metrics.max_error)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Mean Error', sprintf('%.4f rad', metrics.mean_error)));
-            fprintf('%s\n', fth.sim.ConsoleFormatter.kv('Std Error', sprintf('%.4f rad', metrics.std_error)));
+            fprintf('%s', fth.io.ConsoleFormatter.subsection('Orientation Metrics (SO(3))'));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('RMSE Total', sprintf('%.4f rad', metrics.rmse_total)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('NRMSE Total', sprintf('%.4f', metrics.nrmse_total)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Tracking Score', sprintf('%.2f %%', metrics.tracking_score)));
+            fprintf('%s', fth.io.ConsoleFormatter.vector('RMSE RPY', metrics.rmse_rpy, '%.4f', 'rad'));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Max Error', sprintf('%.4f rad', metrics.max_error)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Mean Error', sprintf('%.4f rad', metrics.mean_error)));
+            fprintf('%s\n', fth.io.ConsoleFormatter.kv('Std Error', sprintf('%.4f rad', metrics.std_error)));
         end
 
         function printCombined(obj)
             metrics = obj.computeCombined();
 
-            fprintf('%s', fth.sim.ConsoleFormatter.subsection('Combined Pose Metrics (SE(3))'));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('RMSE Total', sprintf('%.4f', metrics.rmse_total)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('NRMSE Total', sprintf('%.4f', metrics.nrmse_total)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Tracking Score', sprintf('%.2f %%', metrics.tracking_score)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Max Error', sprintf('%.4f', metrics.max_error)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Mean Error', sprintf('%.4f', metrics.mean_error)));
-            fprintf('%s\n', fth.sim.ConsoleFormatter.kv('Std Error', sprintf('%.4f', metrics.std_error)));
+            fprintf('%s', fth.io.ConsoleFormatter.subsection('Combined Pose Metrics (SE(3))'));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('RMSE Total', sprintf('%.4f', metrics.rmse_total)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('NRMSE Total', sprintf('%.4f', metrics.nrmse_total)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Tracking Score', sprintf('%.2f %%', metrics.tracking_score)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Max Error', sprintf('%.4f', metrics.max_error)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Mean Error', sprintf('%.4f', metrics.mean_error)));
+            fprintf('%s\n', fth.io.ConsoleFormatter.kv('Std Error', sprintf('%.4f', metrics.std_error)));
         end
 
         function printParameterEstimation(obj)
             metrics = obj.computeParameterEstimation();
 
-            fprintf('%s', fth.sim.ConsoleFormatter.subsection('Parameter Estimation Metrics (Diagnostic Only)'));
-            fprintf('%s', fth.sim.ConsoleFormatter.note('Convergence requires persistent excitation.'));
+            fprintf('%s', fth.io.ConsoleFormatter.subsection('Parameter Estimation Metrics (Diagnostic Only)'));
+            fprintf('%s', fth.io.ConsoleFormatter.note('Convergence requires persistent excitation.'));
             ident = metrics.identifiability;
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Mass RMSE', sprintf('%.4f kg', metrics.mass.rmse)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Mass NRMSE', sprintf('%.4f', metrics.mass.nrmse)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Mass Tracking Score', sprintf('%.2f %%', metrics.mass.tracking_score)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Mass Identification Metric', sprintf('%.4f', ident.mass.sigma_min)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Mass Identification Score', sprintf('%.2f %%', ident.mass.score)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Mass RMSE', sprintf('%.4f kg', metrics.mass.rmse)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Mass NRMSE', sprintf('%.4f', metrics.mass.nrmse)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Mass Tracking Score', sprintf('%.2f %%', metrics.mass.tracking_score)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Mass Identification Metric', sprintf('%.4f', ident.mass.sigma_min)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Mass Identification Score', sprintf('%.2f %%', ident.mass.score)));
 
-            fprintf('%s', fth.sim.ConsoleFormatter.vector('CoG RMSE', metrics.cog.rmse_xyz, '%.4f', 'm'));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('CoG RMSE Total', sprintf('%.4f m', metrics.cog.rmse_total)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('CoG NRMSE', sprintf('%.4f', metrics.cog.nrmse_total)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('CoG Tracking Score', sprintf('%.2f %%', metrics.cog.tracking_score)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('CoG Identification Metric', sprintf('%.4f', ident.mcog.sigma_min)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('CoG Identification Score', sprintf('%.2f %%', ident.mcog.score)));
+            fprintf('%s', fth.io.ConsoleFormatter.vector('CoG RMSE', metrics.cog.rmse_xyz, '%.4f', 'm'));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('CoG RMSE Total', sprintf('%.4f m', metrics.cog.rmse_total)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('CoG NRMSE', sprintf('%.4f', metrics.cog.nrmse_total)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('CoG Tracking Score', sprintf('%.2f %%', metrics.cog.tracking_score)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('CoG Identification Metric', sprintf('%.4f', ident.mcog.sigma_min)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('CoG Identification Score', sprintf('%.2f %%', ident.mcog.score)));
 
-            fprintf('%s', fth.sim.ConsoleFormatter.vector('Inertia RMSE', metrics.inertia.rmse_params, '%.4f'));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Inertia RMSE Total', sprintf('%.4f', metrics.inertia.rmse_total)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Inertia NRMSE', sprintf('%.4f', metrics.inertia.nrmse_total)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Inertia Tracking Score', sprintf('%.2f %%', metrics.inertia.tracking_score)));
-            fprintf('%s', fth.sim.ConsoleFormatter.kv('Inertia Identification Metric', sprintf('%.4f', ident.inertia.sigma_min)));
-            fprintf('%s\n', fth.sim.ConsoleFormatter.kv('Inertia Identification Score', sprintf('%.2f %%', ident.inertia.score)));
+            fprintf('%s', fth.io.ConsoleFormatter.vector('Inertia RMSE', metrics.inertia.rmse_params, '%.4f'));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Inertia RMSE Total', sprintf('%.4f', metrics.inertia.rmse_total)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Inertia NRMSE', sprintf('%.4f', metrics.inertia.nrmse_total)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Inertia Tracking Score', sprintf('%.2f %%', metrics.inertia.tracking_score)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Inertia Identification Metric', sprintf('%.4f', ident.inertia.sigma_min)));
+            fprintf('%s\n', fth.io.ConsoleFormatter.kv('Inertia Identification Score', sprintf('%.2f %%', ident.inertia.score)));
         end
     end
 

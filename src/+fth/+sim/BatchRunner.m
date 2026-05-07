@@ -27,7 +27,7 @@ classdef BatchRunner < handle
             obj.resultsDir = resultsDir;
             obj.batchSize = batchSize;
             obj.childDirs = {};
-            obj.console = fth.sim.ConsoleCapture();
+            obj.console = fth.io.ConsoleCapture();
         end
 
         function runAll(obj, runArgs)
@@ -39,7 +39,7 @@ classdef BatchRunner < handle
                 child = fth.sim.SimRunner(cfgs{i});
                 runLog = obj.console.capture(@() obj.executeChild(child, runArgs));
                 childLogPath = fullfile(child.resultsDir, 'command_window.txt');
-                fth.sim.ResultsManager.writeTextFile(childLogPath, strtrim(runLog));
+                fth.io.ResultsManager.writeTextFile(childLogPath, strtrim(runLog));
                 obj.childDirs{i} = child.resultsDir;
                 clear child
             end
@@ -53,13 +53,13 @@ classdef BatchRunner < handle
                 displayPlots = false;
             end
             if isempty(obj.childDirs)
-                obj.childDirs = fth.sim.ResultsManager.findChildResultDirs(obj.resultsDir);
+                obj.childDirs = fth.io.ResultsManager.findChildResultDirs(obj.resultsDir);
             end
             if isempty(obj.childDirs)
                 error('BatchRunner:NotRun', 'Batch simulation has not been run yet.');
             end
             for i = 1:numel(obj.childDirs)
-                fth.sim.ResultsManager.plotSavedRun(obj.childDirs{i}, char(plotType), displayPlots);
+                fth.io.ResultsManager.plotSavedRun(obj.childDirs{i}, char(plotType), displayPlots);
             end
             obj.writeAggregateArtifacts();
         end
@@ -80,25 +80,25 @@ classdef BatchRunner < handle
         function writeAggregateArtifacts(obj)
             %WRITEAGGREGATEARTIFACTS Rebuild aggregate logs and reports from saved runs.
             if isempty(obj.childDirs)
-                obj.childDirs = fth.sim.ResultsManager.findChildResultDirs(obj.resultsDir);
+                obj.childDirs = fth.io.ResultsManager.findChildResultDirs(obj.resultsDir);
             end
             aggregateChunks = cell(numel(obj.childDirs), 1);
             for i = 1:numel(obj.childDirs)
-                metricsEntry = fth.sim.ResultsManager.loadMetricsFile(obj.childDirs{i});
+                metricsEntry = fth.io.ResultsManager.loadMetricsFile(obj.childDirs{i});
                 childLogPath = fullfile(obj.childDirs{i}, 'command_window.txt');
-                childLog = fth.sim.ResultsManager.readTextFile(childLogPath);
+                childLog = fth.io.ResultsManager.readTextFile(childLogPath);
                 aggregateChunks{i} = sprintf('%s%s\n', ...
-                    fth.sim.ConsoleFormatter.runBanner( ...
+                    fth.io.ConsoleFormatter.runBanner( ...
                     metricsEntry.trajectory, metricsEntry.run_label, metricsEntry.is_adaptive), ...
                     strtrim(childLog));
             end
             aggregatePath = fullfile(obj.resultsDir, 'command_window.txt');
-            fth.sim.ResultsManager.writeTextFile(aggregatePath, strjoin(aggregateChunks, newline));
+            fth.io.ResultsManager.writeTextFile(aggregatePath, strjoin(aggregateChunks, newline));
             if obj.isAdaptiveBatch()
                 summaryPath = fullfile(obj.resultsDir, 'adaptive_report.txt');
-                fth.sim.ResultsManager.writeTextFile(summaryPath, obj.buildSummaryTable());
+                fth.io.ResultsManager.writeTextFile(summaryPath, obj.buildSummaryTable());
                 identPath = fullfile(obj.resultsDir, 'ident_report.txt');
-                fth.sim.ResultsManager.writeTextFile(identPath, obj.buildIdentifiabilityReport());
+                fth.io.ResultsManager.writeTextFile(identPath, obj.buildIdentifiabilityReport());
             end
         end
 
@@ -107,7 +107,7 @@ classdef BatchRunner < handle
             tf = ~isempty(obj.childDirs);
             if ~tf, return; end
             for i = 1:numel(obj.childDirs)
-                metricsEntry = fth.sim.ResultsManager.loadMetricsFile(obj.childDirs{i});
+                metricsEntry = fth.io.ResultsManager.loadMetricsFile(obj.childDirs{i});
                 if ~isfield(metricsEntry, 'is_adaptive') || ~metricsEntry.is_adaptive
                     tf = false;
                     return;
@@ -131,7 +131,7 @@ classdef BatchRunner < handle
                 true, true, false, false, false];
 
             for i = 1:nRuns
-                metrics = fth.sim.ResultsManager.loadMetricsFile(obj.childDirs{i});
+                metrics = fth.io.ResultsManager.loadMetricsFile(obj.childDirs{i});
                 trajectoryNames{i} = metrics.trajectory;
                 rawRows{i,1} = trajectoryNames{i};
                 rawRows{i,2} = metrics.run_label;
@@ -280,7 +280,7 @@ classdef BatchRunner < handle
                 'inertiaScore', NaN), numel(obj.childDirs), 1);
 
             for i = 1:numel(obj.childDirs)
-                metricsEntry = fth.sim.ResultsManager.loadMetricsFile(obj.childDirs{i});
+                metricsEntry = fth.io.ResultsManager.loadMetricsFile(obj.childDirs{i});
                 entries(i).trajectory = metricsEntry.trajectory;
                 entries(i).runLabel = metricsEntry.run_label;
                 entries(i).gainIndex = obj.readGainIndex(metricsEntry.run_label);

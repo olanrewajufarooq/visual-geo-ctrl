@@ -920,7 +920,7 @@ classdef Config < handle
 
         function folderName = getTrajectoryFolderName(~, name, index)
             %GETTRAJECTORYFOLDERNAME Build a compact trajectory folder name.
-            shortName = fth.sim.NamingUtils.trajectoryLabel(name);
+            shortName = fth.io.NamingUtils.trajectoryLabel(name);
             folderName = sprintf('t%02d_%s', index, shortName);
         end
     end
