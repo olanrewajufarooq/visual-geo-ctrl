@@ -4,7 +4,31 @@ A comprehensive MATLAB framework for simulating, controlling, and analyzing rigi
 
 ## Project Overview
 
-This framework provides a complete simulation environment for hexacopter research and development, featuring:
+This project implements and validates adaptive geometric controllers for a fully-actuated
+fixed-tilt hexacopter. All dynamics use the Euler-Poincaré formulation on SE(3) (body-frame
+rigid-body dynamics), and adaptation uses a regressor-based law that estimates the 10-parameter
+inertial vector online.
+
+The framework is designed for controller research: rapid iteration in MATLAB, reproducible
+batch sweeps, and paper-quality result generation.
+
+## Quick Start
+
+```matlab
+% Setup (run once per MATLAB session)
+startup
+
+% Nominal control demo
+run_nominal_demo
+
+% Adaptive control demo (with payload drop)
+run_adaptive_demo
+
+% Reproduce paper results
+run_adaptive_paper
+```
+
+## Architecture
 
 - **Advanced Dynamics**: SE(3) rigid-body dynamics with optional ground contact modeling
 - **Trajectory Generation**: Multiple predefined trajectories (hover, circle, infinity, Lissajous, helix, etc.)
@@ -511,3 +535,8 @@ If you use this framework in your research, please cite our paper:
   note   = {Please replace this entry with the final publication details (venue/year/DOI) once available.}
 }
 ```
+
+## Coding Conventions
+
+- **Namespace:** `fth.<package>.<Class>` (e.g. `fth.sim.SimRunner`, `fth.se3.expSE3(...)`)
+- **Commit style:** Conventional Commits (`feat`, `fix`, `refactor`, `test`, `chore`) with scope.
