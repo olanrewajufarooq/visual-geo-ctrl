@@ -62,7 +62,7 @@ inertial vector online.
 The framework is designed for controller research: rapid iteration in MATLAB, reproducible
 batch sweeps, and paper-quality result generation.
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Quick Start
 
@@ -80,7 +80,7 @@ run_adaptive_demo
 run_adaptive_paper
 ```
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Architecture
 
@@ -121,7 +121,7 @@ Config  -->  SimRunner.setup()  -->  SimRunner.run()
 
 **Design patterns**: Factory pattern (trajectories, adaptation, potentials), abstract base classes, fluent builder (Config), handle semantics.
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Getting Started
 
@@ -242,7 +242,7 @@ cfg.setPayloadScenario(1.5, [0.115; 0.05; -0.05], 20);
 cfg.setEstimateInitialization('fixed');
 ```
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Batch Simulations
 
@@ -274,7 +274,7 @@ sim.run('all', false, false);
 
 This produces `5 trajectories x 3 gain rows = 15 runs`, each saved in its own subdirectory under `results/adaptive/<timestamp>_multi_traj/`.
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Features
 
@@ -309,7 +309,7 @@ This produces `5 trajectories x 3 gain rows = 15 runs`, each saved in its own su
 - **Live Updates**: Real-time state visualization during simulation (has known rendering issues)
 - **Summary Plots**: Comprehensive post-simulation analysis figures
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Project Structure
 
@@ -385,7 +385,7 @@ adaptive-geo-ctrl/
 └── README.md
 ```
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Simulation Outputs
 
@@ -471,7 +471,7 @@ fth.io.ResultsManager.plotSavedRun( ...
 
 This standalone plotter requires `sim_data.mat`; it will error if the original run used `saveSimData=false`.
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## CI/CD: Release Automation
 
@@ -491,7 +491,7 @@ The repository includes a GitHub Actions workflow (`.github/workflows/release-re
 3. Aggregates command-window logs into release notes
 4. Packages results as a `.zip` and creates a GitHub Release
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Customization
 
@@ -521,7 +521,7 @@ cfg.viz.dynamicAxis = true;
 cfg.viz.axisPadding = 2.0;
 ```
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Troubleshooting
 
@@ -561,13 +561,13 @@ cfg.setLiveUrdfEmbedding(false);
 cfg.setLiveUpdateRate(500);
 ```
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Contributing
 
@@ -588,7 +588,7 @@ startup
 run_nominal_demo
 ```
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Support
 
@@ -598,7 +598,7 @@ For questions and support:
 - **Discussions**: [GitHub Discussions](https://github.com/kfupm-arm-lab/adaptive-geo-ctrl/discussions)
 - **Email**: <g202404900@kfupm.edu.sa>, <olanrewajufarooq@yahoo.com>
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Citations
 
@@ -614,7 +614,7 @@ If you use this framework in your research, please cite our paper:
 }
 ```
 
-<div align="right">[< Back to Table of Contents >](#table-of-contents)</div>
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
 ## Coding Conventions
 
