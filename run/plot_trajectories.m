@@ -5,8 +5,8 @@ clear; close all;
 startup;
 
 opts.duration = 60;                        % time horizon [s]
-opts.goToHoverBeforePathStarts = false;    % skip hover phase
-opts.dt       = 0.001;                      % sampling interval [s]
+opts.goToHoverBeforePathStarts = true;    % skip hover phase
+opts.dt       = 0.01;                      % sampling interval [s]
 fth.plot.TrajPlotter.run(opts);
 
 % ----- Plot all ---------
