@@ -48,11 +48,10 @@ classdef Config < handle
         
         %% Setters (Fluent Interface)
         
-        function obj = setTrajectory(obj, name, cycles, goToHoverBeforePathStarts)
-            %SETTRAJECTORY Configure the reference trajectory type and cycle count.
+        function obj = setTrajectory(obj, name, goToHoverBeforePathStarts)
+            %SETTRAJECTORY Configure the reference trajectory type.
             %   name: 'circle','hover','infinity','lissajous3d','helix3d',
             %         'poly3d','takeoffland'
-            %   cycles: number of cycles to run (default 1)
             %   goToHoverBeforePathStarts: logical flag, scalar or one-per-trajectory (optional)
             %
             %   Output:
@@ -61,27 +60,19 @@ classdef Config < handle
             obj.initTrajectory();
             trajNames = obj.normalizeTrajectoryNames(name);
             if nargin > 2
-                cycleInput = cycles;
-                hasCycles = true;
-            else
-                cycleInput = [];
-                hasCycles = false;
-            end
-            if nargin > 3
                 hoverInput = goToHoverBeforePathStarts;
                 hasHover = true;
             else
                 hoverInput = [];
                 hasHover = false;
             end
-            trajCycles = obj.normalizeTrajectoryCycles(hasCycles, cycleInput, numel(trajNames));
             if hasHover
                 trajHover = obj.normalizeTrajectoryHover(hoverInput, numel(trajNames));
-                obj.traj.batch = struct('names', {trajNames}, 'cycles', trajCycles, 'goToHoverBeforePathStarts', trajHover);
-                obj.applyTrajectoryDefinition(trajNames{1}, trajCycles(1), trajHover(1));
+                obj.traj.batch = struct('names', {trajNames}, 'goToHoverBeforePathStarts', trajHover);
+                obj.applyTrajectoryDefinition(trajNames{1}, trajHover(1));
             else
-                obj.traj.batch = struct('names', {trajNames}, 'cycles', trajCycles);
-                obj.applyTrajectoryDefinition(trajNames{1}, trajCycles(1));
+                obj.traj.batch = struct('names', {trajNames});
+                obj.applyTrajectoryDefinition(trajNames{1});
             end
         end
 
@@ -262,26 +253,23 @@ classdef Config < handle
                 parentResultsDir = '';
             end
             gainBatchCount = obj.getSharedGainBatchCount();
-            [trajNames, trajCycles, trajHover, hasHoverOverride] = obj.getTrajectoryBatchEntries();
+            [trajNames, trajHover, hasHoverOverride] = obj.getTrajectoryBatchEntries();
             batchCount = gainBatchCount * numel(trajNames);
             cfgs = cell(batchCount, 1);
             cfgIndex = 1;
             for trajIdx = 1:numel(trajNames)
                 currentTrajName = trajNames(trajIdx);
-                currentTrajCycles = trajCycles(trajIdx);
                 for gainIdx = 1:gainBatchCount
                     cfgCopy = obj.copy();
                     if hasHoverOverride
-                        cfgCopy.applyTrajectoryDefinition(currentTrajName{1}, currentTrajCycles, trajHover(trajIdx));
+                        cfgCopy.applyTrajectoryDefinition(currentTrajName{1}, trajHover(trajIdx));
                         cfgCopy.traj.batch = struct( ...
                             'names', {currentTrajName}, ...
-                            'cycles', currentTrajCycles, ...
                             'goToHoverBeforePathStarts', trajHover(trajIdx));
                     else
-                        cfgCopy.applyTrajectoryDefinition(currentTrajName{1}, currentTrajCycles);
+                        cfgCopy.applyTrajectoryDefinition(currentTrajName{1});
                         cfgCopy.traj.batch = struct( ...
-                            'names', {currentTrajName}, ...
-                            'cycles', currentTrajCycles);
+                            'names', {currentTrajName});
                     end
                     cfgCopy.controller.Kp = obj.selectGainRow(obj.controller.Kp, gainIdx);
                     cfgCopy.controller.Kd = obj.selectGainRow(obj.controller.Kd, gainIdx);
@@ -470,15 +458,6 @@ classdef Config < handle
             end
         end
         
-        function obj = setActuationMethod(obj, method)
-            %SETACTUATIONMETHOD Set the actuation mapping strategy.
-            %   method: string identifier for allocation/mapping.
-            %
-            %   Output:
-            %     obj - Config instance (for chaining).
-            obj.act.method = method;
-        end
-        
         function obj = setPotentialType(obj, potential)
             %SETPOTENTIALTYPE Select the controller potential model.
             %   potential: 'log','inertia-gain','body-gain','ref-gain','sym-inv'.
@@ -518,16 +497,17 @@ classdef Config < handle
         end
 
         function obj = useTrajectoryOptions(obj, opts)
-            %USETRAJECTORIOPTIONS Apply trajectory settings from a struct.
-            %   Mirrors the opts used by fth.plot.TrajPlotter.run.
+            %USETRAJECTORYOPTIONS Apply trajectory settings from a struct.
+            %   Accepts the same fields as fth.plot.TrajPlotter.run(opts).
             %   Recognised fields:
-            %     .name / .names             - trajectory name or cell array of names
-            %     .cycles                    - number of cycles (scalar or per-trajectory)
-            %     .goToHoverBeforePathStarts - logical; override hover flag
-            %     .scale                     - path scale [m]
-            %     .altitude                  - hover altitude [m]
-            %     .hoverFrac                 - fraction of sim duration for hover climb
-            %     .method                    - trajectory generation method
+            %     .name / .names              - trajectory name or cell array of names
+            %     .goToHoverBeforePathStarts  - logical; override hover flag
+            %     .scale                      - path scale [m]
+            %     .altitude                   - hover altitude [m]
+            %     .period                     - trajectory cycle duration [s]; if set,
+            %                                   overrides duration-based period from done()
+            %     .goToHoverDuration          - hover climb duration [s]
+            %     .goToHoverPeriod            - alias for goToHoverDuration
             %
             %   Output:
             %     obj - Config instance (for chaining).
@@ -540,15 +520,12 @@ classdef Config < handle
                 name = opts.name;
             end
 
-            % Build positional args for setTrajectory.
+            % Forward to setTrajectory.
             if ~isempty(name)
-                hasCycles = isfield(opts, 'cycles') && ~isempty(opts.cycles);
-                hasHover  = isfield(opts, 'goToHoverBeforePathStarts') && ...
-                                ~isempty(opts.goToHoverBeforePathStarts);
-                if hasCycles && hasHover
-                    obj.setTrajectory(name, opts.cycles, opts.goToHoverBeforePathStarts);
-                elseif hasCycles
-                    obj.setTrajectory(name, opts.cycles);
+                hasHover = isfield(opts, 'goToHoverBeforePathStarts') && ...
+                               ~isempty(opts.goToHoverBeforePathStarts);
+                if hasHover
+                    obj.setTrajectory(name, opts.goToHoverBeforePathStarts);
                 else
                     obj.setTrajectory(name);
                 end
@@ -557,19 +534,18 @@ classdef Config < handle
             end
 
             % Override individual trajectory parameters.
-            if isfield(opts, 'scale')    && ~isempty(opts.scale),    obj.traj.scale    = opts.scale;    end
-            if isfield(opts, 'altitude') && ~isempty(opts.altitude),  obj.traj.altitude = opts.altitude; end
-            if isfield(opts, 'hoverFrac')&& ~isempty(opts.hoverFrac), obj.traj.hoverFrac= opts.hoverFrac;end
-            if isfield(opts, 'method')   && ~isempty(opts.method),    obj.setTrajectoryMethod(opts.method); end
-        end
-
-        function obj = setTrajectoryMethod(obj, method)
-            %SETTRAJECTORYMETHOD Set trajectory generation method.
-            %   method: 'precomputed' or 'modelreference'.
-            %
-            %   Output:
-            %     obj - Config instance (for chaining).
-            obj.traj.method = lower(method);
+            if isfield(opts, 'scale')   && ~isempty(opts.scale),   obj.traj.scale   = opts.scale;   end
+            if isfield(opts, 'altitude')&& ~isempty(opts.altitude), obj.traj.altitude= opts.altitude;end
+            if isfield(opts, 'period')  && ~isempty(opts.period)
+                obj.traj.period      = opts.period;
+                obj.traj.useDuration = false;   % lock period; don't overwrite in done()
+            end
+            % goToHoverDuration / goToHoverPeriod (alias) — both map to cfg.traj.goToHoverDuration.
+            if isfield(opts, 'goToHoverDuration') && ~isempty(opts.goToHoverDuration)
+                obj.traj.goToHoverDuration = opts.goToHoverDuration;
+            elseif isfield(opts, 'goToHoverPeriod') && ~isempty(opts.goToHoverPeriod)
+                obj.traj.goToHoverDuration = opts.goToHoverPeriod;
+            end
         end
 
         function obj = useControllerOptions(obj, opts)
@@ -735,13 +711,7 @@ classdef Config < handle
                 return;
             end
 
-            cycles = 1;
-            if isfield(obj.traj, 'cycles') && ~isempty(obj.traj.cycles)
-                cycles = max(obj.traj.cycles, 1);
-            end
-
-            obj.traj.cycles = cycles;
-            obj.traj.period = duration / cycles;
+            obj.traj.period = duration;
         end
 
         function initVehicle(obj)
@@ -808,14 +778,8 @@ classdef Config < handle
             if ~isfield(obj.traj, 'altitude') || isempty(obj.traj.altitude)
                 obj.traj.altitude = 5;
             end
-            if ~isfield(obj.traj, 'hoverFrac') || isempty(obj.traj.hoverFrac)
-                obj.traj.hoverFrac = 0.1;
-            end
             if ~isfield(obj.traj, 'useDuration') || isempty(obj.traj.useDuration)
                 obj.traj.useDuration = true;
-            end
-            if ~isfield(obj.traj, 'cycles') || isempty(obj.traj.cycles)
-                obj.traj.cycles = 1;
             end
             if ~isfield(obj.traj, 'batch') || ~isstruct(obj.traj.batch) ...
                     || ~isfield(obj.traj.batch, 'names') || isempty(obj.traj.batch.names)
@@ -823,7 +787,7 @@ classdef Config < handle
                 if isfield(obj.traj, 'name') && ~isempty(obj.traj.name)
                     trajName = char(string(obj.traj.name));
                 end
-                obj.traj.batch = struct('names', {{trajName}}, 'cycles', obj.traj.cycles);
+                obj.traj.batch = struct('names', {{trajName}});
             end
         end
 
@@ -924,17 +888,16 @@ classdef Config < handle
 
         function count = getTrajectoryBatchCount(obj)
             %GETTRAJECTORYBATCHCOUNT Return number of configured trajectories.
-            [trajNames, ~] = obj.getTrajectoryBatchEntries();
+            [trajNames, ~, ~] = obj.getTrajectoryBatchEntries();
             count = numel(trajNames);
         end
 
-        function [trajNames, trajCycles, trajHover, hasHoverOverride] = getTrajectoryBatchEntries(obj)
-            %GETTRAJECTORYBATCHENTRIES Return trajectory names, cycles, and hover flags.
+        function [trajNames, trajHover, hasHoverOverride] = getTrajectoryBatchEntries(obj)
+            %GETTRAJECTORYBATCHENTRIES Return trajectory names and hover flags.
             obj.initTrajectory();
             if isfield(obj.traj, 'batch') && isstruct(obj.traj.batch) ...
                     && isfield(obj.traj.batch, 'names') && ~isempty(obj.traj.batch.names)
                 trajNames = obj.traj.batch.names;
-                trajCycles = obj.traj.batch.cycles;
                 if isfield(obj.traj.batch, 'goToHoverBeforePathStarts') && ~isempty(obj.traj.batch.goToHoverBeforePathStarts)
                     trajHover = logical(obj.traj.batch.goToHoverBeforePathStarts);
                     hasHoverOverride = true;
@@ -944,7 +907,6 @@ classdef Config < handle
                 end
             else
                 trajNames = {char(string(obj.traj.name))};
-                trajCycles = obj.traj.cycles;
                 trajHover = [];
                 hasHoverOverride = false;
             end
@@ -952,13 +914,9 @@ classdef Config < handle
 
         function validateTrajectoryBatch(obj)
             %VALIDATETRAJECTORYBATCH Validate trajectory batch configuration.
-            [trajNames, trajCycles, trajHover, hasHoverOverride] = obj.getTrajectoryBatchEntries();
+            [trajNames, trajHover, hasHoverOverride] = obj.getTrajectoryBatchEntries();
             if isempty(trajNames)
                 error('Config:InvalidTrajectoryBatch', 'At least one trajectory must be configured.');
-            end
-            if numel(trajCycles) ~= numel(trajNames)
-                error('Config:InvalidTrajectoryCycles', ...
-                    'Trajectory cycles must be a scalar or match the number of trajectories.');
             end
             if hasHoverOverride && numel(trajHover) ~= numel(trajNames)
                 error('Config:InvalidTrajectoryHover', ...
@@ -966,12 +924,13 @@ classdef Config < handle
             end
         end
 
-        function applyTrajectoryDefinition(obj, name, cycles, goToHoverBeforePathStarts)
+        function applyTrajectoryDefinition(obj, name, goToHoverBeforePathStarts)
             %APPLYTRAJECTORYDEFINITION Apply a single trajectory preset.
             obj.traj.name = name;
-            obj.traj.cycles = cycles;
-            obj.traj.useDuration = true;
-            hasHoverOverride = nargin > 3 && ~isempty(goToHoverBeforePathStarts);
+            if ~isfield(obj.traj, 'useDuration') || isempty(obj.traj.useDuration)
+                obj.traj.useDuration = true;
+            end
+            hasHoverOverride = nargin > 2 && ~isempty(goToHoverBeforePathStarts);
 
             switch lower(name)
                 case 'circle'
@@ -1009,8 +968,6 @@ classdef Config < handle
             if hasHoverOverride
                 obj.traj.goToHoverBeforePathStarts = logical(goToHoverBeforePathStarts);
             end
-
-            obj.syncTrajectoryPeriod();
         end
 
         function trajNames = normalizeTrajectoryNames(~, name)
@@ -1028,23 +985,6 @@ classdef Config < handle
             trajNames = cellfun(@strtrim, trajNames, 'UniformOutput', false);
             if any(cellfun(@isempty, trajNames))
                 error('Config:InvalidTrajectoryInput', 'Trajectory names cannot be empty.');
-            end
-        end
-
-        function trajCycles = normalizeTrajectoryCycles(~, hasCycles, cycles, count)
-            %NORMALIZETRAJECTORYCYCLES Normalize trajectory cycle input.
-            if ~hasCycles || isempty(cycles)
-                trajCycles = ones(1, count);
-                return;
-            end
-            if isscalar(cycles)
-                trajCycles = repmat(double(cycles), 1, count);
-                return;
-            end
-            trajCycles = double(cycles(:)).';
-            if numel(trajCycles) ~= count
-                error('Config:InvalidTrajectoryCycles', ...
-                    'Trajectory cycles must be a scalar or match the number of trajectories.');
             end
         end
 

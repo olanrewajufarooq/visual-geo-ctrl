@@ -57,15 +57,9 @@ classdef AnalyticTraj < fth.traj.TrajectoryBase
             obj.altitude = cfg.traj.altitude;
             obj.goToHoverBeforePathStarts = cfg.traj.goToHoverBeforePathStarts;
             if isfield(cfg.traj, 'goToHoverDuration') && ~isempty(cfg.traj.goToHoverDuration)
-                % Explicit duration takes priority.
                 obj.goToHoverDuration = cfg.traj.goToHoverDuration;
             else
-                % Fallback: 10 % of the trajectory period (legacy hoverFrac behaviour).
-                hoverFrac = 0.1;
-                if isfield(cfg.traj, 'hoverFrac') && ~isempty(cfg.traj.hoverFrac)
-                    hoverFrac = cfg.traj.hoverFrac;
-                end
-                obj.goToHoverDuration = hoverFrac * obj.period;
+                obj.goToHoverDuration = 0.1 * obj.period;
             end
 
             obj.lissajousAmp = obj.ensureVec3Field(cfg.traj, 'lissajousAmp', [obj.scale; obj.scale; min(obj.scale/2, obj.altitude/2)]);

@@ -19,9 +19,9 @@ simOpts.adaptationDt = 0.005;
 cfg.useSimOptions(simOpts);
 
 % Reference trajectory batch.
-trajOpts.names                   = {'circle', 'infinity3dmod', 'lissajous3d', 'helix3d', 'poly3d'};
-trajOpts.cycles                  = 1.25;
+trajOpts.names                   = {'circle', 'lissajous3d', 'helix3d', 'poly3d'};
 trajOpts.goToHoverBeforePathStarts = true;
+trajOpts.period                  = duration / 1.25;
 cfg.useTrajectoryOptions(trajOpts);
 
 % Controller and gains.
@@ -48,11 +48,10 @@ cfg.usePayloadOptions(payloadOpts);
 
 cfg.done();
 
-% Run the simulation, save plots silently, and skip sim_data.mat.
+% Run the simulation.
+runOpts.plotMode     = 'all';       % 'summary', 'all', or 'none'
+runOpts.displayPlots = false;
+runOpts.saveSimData  = false;
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
-sim.run( ...
-   'all', ...           % plotting mode: 'summary', 'all', or 'none'
-   false, ...           % display plots while saving
-   false ...            % save sim_data.mat
-);
+sim.run(runOpts);

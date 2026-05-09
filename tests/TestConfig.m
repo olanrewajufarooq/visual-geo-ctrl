@@ -17,45 +17,38 @@ classdef TestConfig < matlab.unittest.TestCase
             testCase.verifyEqual(cfg.traj.name, 'circle');
         end
 
-        function testSetTrajectoryWithCycles(testCase)
-            cfg = fth.sim.Config();
-            cfg.setTrajectory('infinity', 3);
-            testCase.verifyEqual(cfg.traj.name, 'infinity');
-            testCase.verifyEqual(cfg.traj.cycles, 3);
-        end
-
         function testSetTrajectoryWithScalarHoverOverride(testCase)
             cfg = fth.sim.Config();
-            cfg.setTrajectory({'circle', 'infinity'}, 2, false);
-            testCase.verifyFalse(cfg.traj.startWithHover);
-            testCase.verifyEqual(cfg.traj.batch.startWithHover, [false false]);
+            cfg.setTrajectory({'circle', 'infinity'}, false);
+            testCase.verifyFalse(cfg.traj.goToHoverBeforePathStarts);
+            testCase.verifyEqual(cfg.traj.batch.goToHoverBeforePathStarts, [false false]);
         end
 
         function testSetTrajectoryWithVectorHoverOverride(testCase)
             cfg = fth.sim.Config();
-            cfg.setTrajectory({'circle', 'takeoffland'}, [1.5 2.0], [true false]);
+            cfg.setTrajectory({'circle', 'takeoffland'}, [true false]);
             cfg.setController('PD');
             cfg.done();
-            testCase.verifyEqual(cfg.traj.batch.startWithHover, [true false]);
+            testCase.verifyEqual(cfg.traj.batch.goToHoverBeforePathStarts, [true false]);
             cfgs = cfg.expandBatchConfigs(tempname);
             testCase.verifyEqual(numel(cfgs), 2);
-            testCase.verifyTrue(cfgs{1}.traj.startWithHover);
-            testCase.verifyFalse(cfgs{2}.traj.startWithHover);
+            testCase.verifyTrue(cfgs{1}.traj.goToHoverBeforePathStarts);
+            testCase.verifyFalse(cfgs{2}.traj.goToHoverBeforePathStarts);
         end
 
         function testSetTrajectoryWithoutHoverOverridePreservesDefaults(testCase)
             cfg = fth.sim.Config();
-            cfg.setTrajectory({'circle', 'takeoffland'}, [1 1]);
+            cfg.setTrajectory({'circle', 'takeoffland'});
             cfg.setController('PD');
             cfg.done();
             cfgs = cfg.expandBatchConfigs(tempname);
-            testCase.verifyTrue(cfgs{1}.traj.startWithHover);
-            testCase.verifyFalse(cfgs{2}.traj.startWithHover);
+            testCase.verifyTrue(cfgs{1}.traj.goToHoverBeforePathStarts);
+            testCase.verifyFalse(cfgs{2}.traj.goToHoverBeforePathStarts);
         end
 
         function testTrajectoryHoverLengthMismatchThrows(testCase)
             cfg = fth.sim.Config();
-            testCase.verifyError(@() cfg.setTrajectory({'circle', 'infinity'}, [1 1], [true false true]), ...
+            testCase.verifyError(@() cfg.setTrajectory({'circle', 'infinity'}, [true false true]), ...
                 'Config:InvalidTrajectoryHover');
         end
 
@@ -296,7 +289,7 @@ classdef TestConfig < matlab.unittest.TestCase
 
         function testExpandBatchConfigsTrajectoryMajorOrderingAndOverrides(testCase)
             cfg = fth.sim.Config();
-            cfg.setTrajectory({'circle', 'takeoffland'}, [1.0 2.0], [true false]);
+            cfg.setTrajectory({'circle', 'takeoffland'}, [true false]);
             cfg.setController('PD');
             cfg.setKpGains([1 2 3 4 5 6; 7 8 9 10 11 12]);
             cfg.setKdGains([1 2 3 4 5 6; 7 8 9 10 11 12]);
@@ -309,8 +302,8 @@ classdef TestConfig < matlab.unittest.TestCase
             testCase.verifyEqual(cfgs{2}.traj.name, 'circle');
             testCase.verifyEqual(cfgs{3}.traj.name, 'takeoffland');
             testCase.verifyEqual(cfgs{4}.traj.name, 'takeoffland');
-            testCase.verifyTrue(cfgs{1}.traj.startWithHover);
-            testCase.verifyFalse(cfgs{3}.traj.startWithHover);
+            testCase.verifyTrue(cfgs{1}.traj.goToHoverBeforePathStarts);
+            testCase.verifyFalse(cfgs{3}.traj.goToHoverBeforePathStarts);
             testCase.verifyEqual(cfgs{1}.sim.batchRunIndex, 1);
             testCase.verifyEqual(cfgs{2}.sim.batchRunIndex, 2);
             testCase.verifyEqual(cfgs{3}.sim.globalBatchIndex, 3);

@@ -844,6 +844,16 @@ classdef SimRunner < handle
             saveSimData = false;
 
             args = varargin;
+
+            % Struct-based call: sim.run(opts) where opts has .plotMode, .displayPlots, .saveSimData.
+            if ~isempty(args) && isstruct(args{1})
+                opts = args{1};
+                if isfield(opts, 'plotMode')    && ~isempty(opts.plotMode),    plotType     = opts.plotMode;     end
+                if isfield(opts, 'displayPlots')&& ~isempty(opts.displayPlots),displayPlots = opts.displayPlots; end
+                if isfield(opts, 'saveSimData') && ~isempty(opts.saveSimData), saveSimData  = opts.saveSimData;  end
+                args = {};
+            end
+
             if ~isempty(args) && ~obj.isPlotSpecifier(args{1})
                 positionalCount = min(5, numel(args));
                 if positionalCount >= 1 && ~isempty(args{1})

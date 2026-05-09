@@ -19,10 +19,10 @@ simOpts.adaptationDt = 0.005;
 cfg.useSimOptions(simOpts);
 
 % Reference trajectory.
-trajOpts.name                    = 'infinity3dmod';
-trajOpts.cycles                  = 2.25;
+trajOpts.name                    = 'lissajous3d';
 trajOpts.goToHoverBeforePathStarts = true;
-trajOpts.method                  = 'precomputed';   % 'precomputed','modelreference'
+trajOpts.goToHoverPeriod           = duration / 4;
+trajOpts.period                  = duration / 2;
 cfg.useTrajectoryOptions(trajOpts);
 
 % Controller and gains.
@@ -53,11 +53,10 @@ cfg.useVizOptions(vizOpts);
 
 cfg.done();
 
-% Run the simulation, save plots silently, and skip sim_data.mat.
+% Run the simulation.
+runOpts.plotMode     = 'summary';   % 'summary', 'all', or 'none'
+runOpts.displayPlots = false;
+runOpts.saveSimData  = false;
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
-sim.run( ...
-   'summary', ...       % plotting mode: 'summary', 'all', or 'none'
-   false, ...           % display plots while saving
-   false ...            % save sim_data.mat
-);
+sim.run(runOpts);
