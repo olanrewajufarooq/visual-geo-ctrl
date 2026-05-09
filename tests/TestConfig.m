@@ -77,27 +77,22 @@ classdef TestConfig < matlab.unittest.TestCase
             testCase.verifyEqual(lower(cfg.controller.type), 'feedforward');
         end
 
-        function testSetControllerInvalidThrows(testCase)
+        function testSetControllerStoresType(testCase)
             cfg = fth.sim.Config();
-            try
-                cfg.setController('BadType');
-                testCase.assertFail('Expected invalid controller type to throw.');
-            catch ME
-                testCase.verifyEqual(ME.identifier, '');
-                testCase.verifyTrue(contains(ME.message, 'Unknown controller type'));
-            end
+            cfg.setController('MyCustomMode');
+            testCase.verifyEqual(cfg.controller.type, 'MyCustomMode');
         end
 
         function testSetPotentialType(testCase)
             cfg = fth.sim.Config();
-            cfg.setController('PD', 'separate');
-            testCase.verifyEqual(cfg.controller.potential, 'separate');
+            cfg.setController('PD', 'inertia-gain');
+            testCase.verifyEqual(cfg.controller.potential, 'inertia-gain');
         end
 
-        function testDefaultPotentialIsLieAlgebra(testCase)
+        function testDefaultPotentialIsLog(testCase)
             cfg = fth.sim.Config();
             cfg.setController('PD');
-            testCase.verifyEqual(cfg.controller.potential, 'liealgebra');
+            testCase.verifyEqual(cfg.controller.potential, 'log');
         end
 
         function testSetAdaptationEuclidean(testCase)

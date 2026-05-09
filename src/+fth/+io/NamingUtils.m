@@ -42,8 +42,11 @@ classdef NamingUtils
                 return;
             end
             switch lower(cfg.controller.potential)
-                case 'liealgebra', label = 'lie';
-                case 'separate',   label = 'sep';
+                case 'log',          label = 'log';
+                case 'inertia-gain', label = 'igain';
+                case 'body-gain',    label = 'bgain';
+                case 'ref-gain',     label = 'rgain';
+                case 'sym-inv',      label = 'syminv';
                 otherwise
                     label = regexprep(lower(char(string(cfg.controller.potential))), '[^a-z0-9]+', '');
             end

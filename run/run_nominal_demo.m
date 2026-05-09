@@ -8,29 +8,30 @@ startup;
 % Build a fresh configuration with defaults.
 cfg = fth.sim.Config();
 
-% Timing and simulation horizon.
-cfg.setControlParams(0.005);                 % control dt
-cfg.setSimParams(0.005, 30);                 % sim dt, duration
+% Simulation timing.
+simOpts.dt        = 0.005;
+simOpts.duration  = 60;
+simOpts.controlDt = 0.005;
+cfg.useSimOptions(simOpts);
 
-% Reference trajectory setup.
-cfg.setTrajectory('infinity3d', 1.2);        % 'hover','circle','infinity','infinity3d','infinity3dmod','lissajous3d','helix3d','poly3d','takeoffland'
-cfg.setTrajectoryMethod('precomputed');      % 'precomputed','modelreference'
+% Reference trajectory.
+trajOpts.name = 'lissajous3d';
+cfg.useTrajectoryOptions(trajOpts);
 
-% Controller and potential selection.
-cfg.setController('Feedforward');          % 'PD','FeedLin','Feedforward'
-cfg.setPotentialType('liealgebra');        % 'liealgebra' or 'separate'
-cfg.setAdaptation('none');                 % 'none','euclidean','geo-aware'
+% Controller and gains.
+ctrlOpts.potential = 'inertia-gain';    % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
+ctrlOpts.Kp        = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
+ctrlOpts.Kd        = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
+cfg.useControllerOptions(ctrlOpts);
 
-% Gain configuration
-cfg.setKpGains([5.5, 5.5, 5.5, 5.5, 5.5, 5.5]');          % proportional gains
-cfg.setKdGains([2.05, 2.05, 2.05, 2.05, 2.05, 2.05]');      % derivative gains
+% Visualization.
+vizOpts.enable      = true;
+vizOpts.liveSummary = true;
+vizOpts.updateRate  = 500;
+vizOpts.embedUrdf   = false;
+vizOpts.plotLayout  = 'column-major';
+cfg.useVizOptions(vizOpts);
 
-% Live visualization preferences.
-cfg.enableLiveView(true);              % enable live view
-cfg.setLiveSummary(true);              % show live summary
-cfg.setLiveUpdateRate(500);            % update every N control steps
-cfg.setLiveUrdfEmbedding(false);       % embed URDF (true) or load from file (false)
-cfg.setPlotLayout('column-major');     % 'column-major' or 'row-major'
 cfg.done();
 
 % Run the simulation, save plots silently, and skip sim_data.mat.

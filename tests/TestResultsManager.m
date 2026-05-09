@@ -5,12 +5,12 @@ classdef TestResultsManager < matlab.unittest.TestCase
         function testBuildRunNameSingleAndBatch(testCase)
             cfg = fth.sim.Config();
             cfg.setTrajectory('circle');
-            cfg.setController('Feedforward', 'liealgebra');
+            cfg.setController('Feedforward', 'log');
 
             singleName = fth.io.ResultsManager.buildRunName(cfg, false);
             batchName = fth.io.ResultsManager.buildRunName(cfg, true);
 
-            testCase.verifyTrue(~isempty(regexp(singleName, '^\d{8}_\d{6}_circle_ff_lie$', 'once')));
+            testCase.verifyTrue(~isempty(regexp(singleName, '^\d{8}_\d{6}_circle_ff_log$', 'once')));
             testCase.verifyTrue(~isempty(regexp(batchName, '^\d{8}_\d{6}_circle$', 'once')));
         end
 
@@ -180,7 +180,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             startup;
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
-            cfg.setPotentialType('liealgebra');
+            cfg.setPotentialType('log');
             cfg.setAdaptation('euclidean');
             cfg.setTrajectory('hover', 1, true);
             cfg.setSimParams(0.005, 0.02);
@@ -208,7 +208,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             startup;
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
-            cfg.setPotentialType('liealgebra');
+            cfg.setPotentialType('log');
             cfg.setAdaptation('euclidean');
             cfg.setTrajectory('hover', 1, true);
             cfg.setSimParams(0.005, 0.02);
@@ -241,7 +241,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
 
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
-            cfg.setPotentialType('liealgebra');
+            cfg.setPotentialType('log');
             cfg.setAdaptation('euclidean');
             cfg.setTrajectory({'hover', 'circle'}, [1 1], [true true]);
             cfg.setSimParams(0.005, 0.02);

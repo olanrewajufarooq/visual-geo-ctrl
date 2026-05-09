@@ -86,9 +86,10 @@ classdef Config < handle
         end
 
         function obj = setController(obj, type, potential)
-            %SETCONTROLLER Configure controller type and potential function.
-            %   type: 'PD', 'FeedLin', 'Feedforward'
-            %   potential: 'liealgebra' or 'separate' (optional)
+            %SETCONTROLLER Store controller type label and optional potential.
+            %   type:      string label stored for logging/naming (not validated).
+            %   potential: potType string (optional). Valid values:
+            %              'log','inertia-gain','body-gain','ref-gain','sym-inv'.
             %
             %   Output:
             %     obj - Config instance (for chaining).
@@ -100,7 +101,7 @@ classdef Config < handle
                     potential = [];
                 end
                 if isempty(potential)
-                    potential = 'liealgebra';
+                    potential = 'log';
                 end
             end
 
@@ -108,22 +109,8 @@ classdef Config < handle
             if ~isfield(obj.controller, 'adaptation') || isempty(obj.controller.adaptation)
                 obj.controller.adaptation = 'none';
             end
-            
-            obj.controller.potential = potential;
-            
-            switch lower(type)
-                case 'pd'
-                    % Uses default gains or those explicitly setup later.
-                    
-                case 'feedlin'
-                    % Uses default gains or those explicitly setup later.
 
-                case 'feedforward'
-                    % Uses default gains or those explicitly setup later.
-                    
-                otherwise
-                    error('Unknown controller type: %s', type);
-            end
+            obj.controller.potential = potential;
         end
 
         function ensureDefaultGains(obj)
@@ -381,6 +368,15 @@ classdef Config < handle
                     obj.controller.Gamma = 4e-3 * [20;20;30;1;1;1;90;30;30;60];
                 end
             end
+            if ~isfield(obj.controller, 'lambda') || isempty(obj.controller.lambda)
+                obj.controller.lambda = zeros(6,1);
+            end
+            if ~isfield(obj.controller, 'coriolisFactorization') || isempty(obj.controller.coriolisFactorization)
+                obj.controller.coriolisFactorization = 'basic';
+            end
+            if ~isfield(obj.controller, 'potential') || isempty(obj.controller.potential)
+                obj.controller.potential = 'log';
+            end
             obj.validateBatchGains();
         end
 
@@ -485,11 +481,180 @@ classdef Config < handle
         
         function obj = setPotentialType(obj, potential)
             %SETPOTENTIALTYPE Select the controller potential model.
-            %   potential: 'liealgebra' or 'separate'.
+            %   potential: 'log','inertia-gain','body-gain','ref-gain','sym-inv'.
             %
             %   Output:
             %     obj - Config instance (for chaining).
             obj.controller.potential = potential;
+        end
+
+        function obj = setLambda(obj, lambda)
+            %SETLAMBDA Set the composite-variable coupling gain lambda.
+            %   lambda: scalar or 6x1 vector (diagonal of the 6x6 Lambda matrix).
+            %   Default is zeros(6,1) — Lambda = 0, so s = Ve.
+            %
+            %   Output:
+            %     obj - Config instance (for chaining).
+            if nargin < 2 || isempty(lambda)
+                return;
+            end
+            if isscalar(lambda)
+                obj.controller.lambda = lambda * ones(6,1);
+            else
+                obj.controller.lambda = lambda(:);
+            end
+        end
+
+        function obj = setCoriolisFactorizationForm(obj, form)
+            %SETCORIOLISFACTORIZATIONFORM Select the Coriolis factorization.
+            %   form: 'basic' (default) — C = ad(VR)^T * I6.
+            %
+            %   Output:
+            %     obj - Config instance (for chaining).
+            if nargin < 2 || isempty(form)
+                return;
+            end
+            obj.controller.coriolisFactorization = lower(form);
+        end
+
+        function obj = useTrajectoryOptions(obj, opts)
+            %USETRAJECTORIOPTIONS Apply trajectory settings from a struct.
+            %   Mirrors the opts used by fth.plot.TrajPlotter.run.
+            %   Recognised fields:
+            %     .name / .names             - trajectory name or cell array of names
+            %     .cycles                    - number of cycles (scalar or per-trajectory)
+            %     .goToHoverBeforePathStarts - logical; override hover flag
+            %     .scale                     - path scale [m]
+            %     .altitude                  - hover altitude [m]
+            %     .hoverFrac                 - fraction of sim duration for hover climb
+            %     .method                    - trajectory generation method
+            %
+            %   Output:
+            %     obj - Config instance (for chaining).
+
+            % Resolve name(s).
+            name = [];
+            if isfield(opts, 'names') && ~isempty(opts.names)
+                name = opts.names;
+            elseif isfield(opts, 'name') && ~isempty(opts.name)
+                name = opts.name;
+            end
+
+            % Build positional args for setTrajectory.
+            if ~isempty(name)
+                hasCycles = isfield(opts, 'cycles') && ~isempty(opts.cycles);
+                hasHover  = isfield(opts, 'goToHoverBeforePathStarts') && ...
+                                ~isempty(opts.goToHoverBeforePathStarts);
+                if hasCycles && hasHover
+                    obj.setTrajectory(name, opts.cycles, opts.goToHoverBeforePathStarts);
+                elseif hasCycles
+                    obj.setTrajectory(name, opts.cycles);
+                else
+                    obj.setTrajectory(name);
+                end
+            elseif isfield(opts, 'goToHoverBeforePathStarts') && ~isempty(opts.goToHoverBeforePathStarts)
+                obj.traj.goToHoverBeforePathStarts = logical(opts.goToHoverBeforePathStarts);
+            end
+
+            % Override individual trajectory parameters.
+            if isfield(opts, 'scale')    && ~isempty(opts.scale),    obj.traj.scale    = opts.scale;    end
+            if isfield(opts, 'altitude') && ~isempty(opts.altitude),  obj.traj.altitude = opts.altitude; end
+            if isfield(opts, 'hoverFrac')&& ~isempty(opts.hoverFrac), obj.traj.hoverFrac= opts.hoverFrac;end
+            if isfield(opts, 'method')   && ~isempty(opts.method),    obj.setTrajectoryMethod(opts.method); end
+        end
+
+        function obj = setTrajectoryMethod(obj, method)
+            %SETTRAJECTORYMETHOD Set trajectory generation method.
+            %   method: 'precomputed' or 'modelreference'.
+            %
+            %   Output:
+            %     obj - Config instance (for chaining).
+            obj.traj.method = lower(method);
+        end
+
+        function obj = useControllerOptions(obj, opts)
+            %USECONTROLLEROPTIONS Apply controller settings from a struct.
+            %   Recognised fields:
+            %     .type         - controller type label (string, stored for naming)
+            %     .potential    - potType: 'log','inertia-gain','body-gain','ref-gain','sym-inv'
+            %     .lambda       - scalar or 6x1 coupling gain
+            %     .coriolisForm - Coriolis factorization: 'basic'
+            %     .Kp           - 6x1 proportional gains
+            %     .Kd           - 6x1 derivative gains
+            %
+            %   Output:
+            %     obj - Config instance (for chaining).
+            if isfield(opts, 'type'),        obj.setController(opts.type);                        end
+            if isfield(opts, 'potential'),   obj.setPotentialType(opts.potential);                end
+            if isfield(opts, 'lambda'),      obj.setLambda(opts.lambda);                         end
+            if isfield(opts, 'coriolisForm'),obj.setCoriolisFactorizationForm(opts.coriolisForm); end
+            if isfield(opts, 'Kp'),          obj.setKpGains(opts.Kp);                            end
+            if isfield(opts, 'Kd'),          obj.setKdGains(opts.Kd);                            end
+        end
+
+        function obj = useAdaptationOptions(obj, opts)
+            %USEADAPTATIONOPTIONS Apply adaptation settings from a struct.
+            %   Recognised fields:
+            %     .type   - adaptation mode: 'none','euclidean','geo-aware'
+            %     .Gamma  - 10x1 adaptive gains
+            %     .init   - estimate init mode: 'nominal','true','fixed','fixed-higher','random'
+            %     .dt     - adaptation timestep [s]
+            %
+            %   Output:
+            %     obj - Config instance (for chaining).
+            if isfield(opts, 'type'),  obj.setAdaptation(opts.type);             end
+            if isfield(opts, 'Gamma'), obj.setAdaptiveGains(opts.Gamma);         end
+            if isfield(opts, 'init'),  obj.setEstimateInitialization(opts.init); end
+            if isfield(opts, 'dt'),    obj.setAdaptationParams(opts.dt);         end
+        end
+
+        function obj = usePayloadOptions(obj, opts)
+            %USEPAYLOADOPTIONS Apply payload settings from a struct.
+            %   Recognised fields:
+            %     .mass     - payload mass [kg]
+            %     .CoG      - 3x1 payload CoG offset [m]
+            %     .dropTime - drop time [s]
+            %
+            %   Output:
+            %     obj - Config instance (for chaining).
+            if isfield(opts, 'mass'),     obj.payload.mass     = opts.mass;     end
+            if isfield(opts, 'CoG'),      obj.payload.CoG      = opts.CoG(:);   end
+            if isfield(opts, 'dropTime'), obj.payload.dropTime = opts.dropTime; end
+        end
+
+        function obj = useSimOptions(obj, opts)
+            %USESIMOPTIONS Apply simulation timing settings from a struct.
+            %   Recognised fields:
+            %     .dt           - simulation integration timestep [s]
+            %     .duration     - total run time [s] (required together with .dt)
+            %     .controlDt    - controller update period [s]
+            %     .adaptationDt - adaptation update period [s]
+            %
+            %   Output:
+            %     obj - Config instance (for chaining).
+            if isfield(opts, 'dt') && isfield(opts, 'duration')
+                obj.setSimParams(opts.dt, opts.duration);
+            end
+            if isfield(opts, 'controlDt'),    obj.setControlParams(opts.controlDt);       end
+            if isfield(opts, 'adaptationDt'), obj.setAdaptationParams(opts.adaptationDt); end
+        end
+
+        function obj = useVizOptions(obj, opts)
+            %USEVIZOPTIONSS Apply visualization settings from a struct.
+            %   Recognised fields:
+            %     .enable      - logical; toggle live view
+            %     .liveSummary - logical; show live summary plots
+            %     .updateRate  - update interval in control steps
+            %     .embedUrdf   - logical; embed URDF in live view
+            %     .plotLayout  - 'column-major' or 'row-major'
+            %
+            %   Output:
+            %     obj - Config instance (for chaining).
+            if isfield(opts, 'enable'),      obj.enableLiveView(opts.enable);           end
+            if isfield(opts, 'liveSummary'), obj.setLiveSummary(opts.liveSummary);      end
+            if isfield(opts, 'updateRate'),  obj.setLiveUpdateRate(opts.updateRate);    end
+            if isfield(opts, 'embedUrdf'),   obj.setLiveUrdfEmbedding(opts.embedUrdf);  end
+            if isfield(opts, 'plotLayout'),  obj.setPlotLayout(opts.plotLayout);        end
         end
 
         function obj = enableLiveView(obj, enable)

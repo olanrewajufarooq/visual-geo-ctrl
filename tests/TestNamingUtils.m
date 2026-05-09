@@ -15,9 +15,9 @@ classdef TestNamingUtils < matlab.unittest.TestCase
 
         function testControllerAndPotentialLabels(testCase)
             cfg = fth.sim.Config();
-            cfg.setController('Feedforward', 'liealgebra');
+            cfg.setController('Feedforward', 'log');
             testCase.verifyEqual(fth.io.NamingUtils.controllerLabel(cfg), 'ff');
-            testCase.verifyEqual(fth.io.NamingUtils.potentialLabel(cfg), 'lie');
+            testCase.verifyEqual(fth.io.NamingUtils.potentialLabel(cfg), 'log');
         end
 
         function testBatchTrajectoryLabelSingleAndMulti(testCase)
