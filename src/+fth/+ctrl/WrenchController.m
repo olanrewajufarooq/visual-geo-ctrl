@@ -78,7 +78,7 @@ classdef WrenchController < handle
 
             C        = obj.coriolisFactor.getCoriolisFactor(VR, I6);
             coriolis = C * VR;
-            W = I6 * VRDot + coriolis + Wg - obj.Kd * s;
+            W = I6 * VRDot + coriolis - Wg - obj.Kd * s;
         end
 
         function [m_hat, cog_hat, Iparams_hat] = getEstimate(obj)
