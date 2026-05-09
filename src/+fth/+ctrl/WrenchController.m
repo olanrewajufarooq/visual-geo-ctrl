@@ -2,9 +2,9 @@ classdef WrenchController < handle
     %WRENCHCONTROLLER Computes body wrench commands from tracking errors.
     %   Implements a composite-variable geometric control law on SE(3):
     %
-    %     s     = Ve - Lambda * eH           (sliding variable)
-    %     VR    = Ad^{-1}(He) * Vd + Lambda * eH   (reference velocity)
-    %     VRDot = -ad(Ve)*Ad^{-1}(He)*Vd + Ad^{-1}(He)*VdDot + Lambda*eHDot
+    %     s     = Ve + Lambda * eH           (sliding variable)
+    %     VR    = Ad^{-1}(He) * Vd - Lambda * eH   (reference velocity)
+    %     VRDot = -ad(Ve)*Ad^{-1}(He)*Vd + Ad^{-1}(He)*VdDot - Lambda*eHDot
     %     C     = getCoriolisFactor(VR, I6)  (6x6 Coriolis factorization)
     %     W     = I6 * VRDot + C*VR - Wg - Kd * s
     %
@@ -70,11 +70,11 @@ classdef WrenchController < handle
             I6  = params.I6;
             Wg  = obj.gravityWrench(H, params.m, params.CoG);
 
-            VR    = ts.AdInvHe * Vd + obj.lambda * eH;
-            s     = ts.Ve - obj.lambda * eH;
+            VR    = ts.AdInvHe * Vd - obj.lambda * eH;
+            s     = ts.Ve + obj.lambda * eH;
             VRDot = -fth.se3.adV(ts.Ve) * ts.AdInvHe * Vd ...
                     + ts.AdInvHe * Ades ...
-                    + obj.lambda * eHDot;
+                    - obj.lambda * eHDot;
 
             C        = obj.coriolisFactor.getCoriolisFactor(VR, I6);
             coriolis = C * VR;
