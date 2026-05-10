@@ -2,7 +2,7 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
     %TESTESTIMATEINITIALIZATION Unit tests for estimate init mode behavior.
 
     methods (Test)
-        function testWrenchControllerSetEstimateThetaUpdatesEuclideanAdaptation(testCase)
+        function testWrenchControllerSetEstimatePiUpdatesEuclideanAdaptation(testCase)
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('euclidean');
@@ -10,13 +10,21 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
             cfg.done();
 
             ctrl = fth.ctrl.WrenchController(cfg);
-            theta = (1:10).';
-            ctrl.setEstimateTheta(theta);
+            % New pi format: [m; hx; hy; hz; Ixx; Iyy; Izz; Ixy; Ixz; Iyz]
+            m = 7;
+            h = [8; 9; 10];
+            % Input as legacy ordering (will be converted internally): [Ixx; Iyy; Izz; Ixy; Iyz; Ixz]
+            Iparams_legacy = [1; 2; 3; 4; 5; 6];
+            % packPi reorders: [I(1); I(2); I(3); I(4); I(6); I(5)] = [1; 2; 3; 4; 6; 5]
+            pi_input = [m; h; Iparams_legacy([1; 2; 3; 4; 6; 5])];
+            
+            ctrl.setEstimatePi(pi_input);
             [m_hat, cog_hat, I_hat] = ctrl.getEstimate();
 
-            testCase.verifyEqual(I_hat(:), theta(1:6));
-            testCase.verifyEqual(m_hat, theta(7));
-            testCase.verifyEqual(cog_hat(:), theta(8:10) ./ theta(7), 'AbsTol', 1e-12);
+            testCase.verifyEqual(m_hat, m);
+            testCase.verifyEqual(h(:), h, 'AbsTol', 1e-12);
+            testCase.verifyEqual(cog_hat(:), h ./ m, 'AbsTol', 1e-12);
+            testCase.verifyEqual(I_hat(:), Iparams_legacy, 'AbsTol', 1e-12);
         end
 
         function testEuclideanAdaptationRegressorUsesPositiveCoriolisSign(testCase)
@@ -34,9 +42,12 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
             V = [0.3; -0.2; 0.1; 0.4; -0.5; 0.6];
             Ades = zeros(6,1);
             dt = 0.001;
+            s = zeros(6,1);     % Composite sliding variable
+            VR = zeros(6,1);    % Reference velocity
+            VRDot = zeros(6,1); % Reference acceleration
 
             [~, ~, I_before] = adapt.getEstimate();
-            adapt.update(Hd, H, Vd, V, Ades, dt);
+            adapt.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
             [~, ~, I_after] = adapt.getEstimate();
 
             B1 = zeros(6,6);
