@@ -28,7 +28,7 @@ classdef refGainPotential < fth.ctrl.potential.PotentialBase
             %GETPOTENTIALERROR Compute eH = [eR; eXi].
             st  = fth.se3.poseDecompose(H, Hd);
             ep  = st.Rd' * st.xi_e;
-            A   = -0.5 * obj.K_R * st.Re - obj.K_xi * ep * st.xi_e' * st.R;
+            A   =  0.5 * obj.K_R * st.Re - obj.K_xi * ep * st.xi_e' * st.R;
             eR  = fth.se3.vee3(fth.se3.skew(A));
             eXi = st.Re' * obj.K_xi * ep;
             eH  = [eR; eXi];
