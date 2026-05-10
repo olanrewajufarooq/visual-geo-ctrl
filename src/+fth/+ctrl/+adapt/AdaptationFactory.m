@@ -1,30 +1,29 @@
 classdef AdaptationFactory
-    %ADAPTATIONFACTORY Create adaptation implementations from config.
-    %   Uses cfg.controller.adaptation to choose the strategy.
-    %
-    %   Supported modes: none, euclidean, geo-aware (not yet implemented).
+    %ADAPTATIONFACTORY Create adaptation instances from config.
     methods (Static)
         function adaptation = create(cfg)
-            %CREATE Instantiate the configured adaptation strategy.
+            %CREATE Instantiate the configured adaptation law.
             %   Input:
-            %     cfg - configuration with controller.adaptation field.
+            %     cfg - fth.sim.Config instance.
             %   Output:
-            %     adaptation - AdaptationBase implementation.
+            %     adaptation - AdaptationBase subclass instance.
+            %
+            %   Supported cfg.controller.adaptation values:
+            %     'none'      - NoAdaptation (default)
+            %     'euclidean' - EuclideanAdaptation
+            %     'bregman'   - BregmanDivAdaptation
             adaptType = 'none';
             if isfield(cfg.controller, 'adaptation')
                 adaptType = cfg.controller.adaptation;
             end
 
-            if strcmpi(adaptType, 'none')
-                adaptation = fth.ctrl.adapt.NoAdaptation(cfg);
-                return;
-            end
-
             switch lower(adaptType)
+                case 'none'
+                    adaptation = fth.ctrl.adapt.NoAdaptation(cfg);
                 case 'euclidean'
                     adaptation = fth.ctrl.adapt.EuclideanAdaptation(cfg);
-                case 'geo-aware'
-                    adaptation = fth.ctrl.adapt.GeoAwareAdaptation(cfg);
+                case 'bregman'
+                    adaptation = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
                 otherwise
                     error('fth:AdaptationFactory:UnknownMode', ...
                         'Unrecognised adaptation mode: ''%s''.', adaptType);

@@ -128,14 +128,14 @@ classdef Config < handle
 
         function obj = setAdaptation(obj, type)
             %SETADAPTATION Select parameter adaptation mode.
-            %   type: 'none' | 'euclidean' | 'geo-aware' (not yet implemented)
+            %   type: 'none' | 'euclidean' | 'bregman'
             %
             %   Output:
             %     obj - Config instance (for chaining).
             if nargin < 2 || isempty(type)
                 type = 'none';
             end
-            validModes = {'none', 'euclidean', 'geo-aware'};
+            validModes = {'none', 'euclidean', 'bregman'};
             type = lower(type);
             if ~ismember(type, validModes)
                 error('fth:Config:InvalidAdaptationMode', ...
@@ -584,7 +584,7 @@ classdef Config < handle
         function obj = useAdaptationOptions(obj, opts)
             %USEADAPTATIONOPTIONS Apply adaptation settings from a struct.
             %   Recognised fields:
-            %     .type   - adaptation mode: 'none','euclidean','geo-aware'
+            %     .type   - adaptation mode: 'none','euclidean','bregman'
             %     .Gamma  - 10x1 adaptive gains
             %     .dt     - adaptation timestep [s]
             %

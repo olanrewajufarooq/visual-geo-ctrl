@@ -45,7 +45,7 @@ classdef WrenchController < handle
             end
         end
 
-        function W = computeWrench(obj, Hd, H, Vd, V, Ades, ~)
+        function W = computeWrench(obj, Hd, H, Vd, V, Ades, ~) %#ok<INUSD>
             %COMPUTEWRENCH Compute commanded wrench for current state.
             %   Inputs:
             %     Hd   - 4x4 desired pose.
@@ -98,22 +98,33 @@ classdef WrenchController < handle
             end
         end
 
-        function setEstimateTheta(obj, theta)
-            %SETESTIMATETHETA Seed the adaptive estimate from theta.
-            if ismethod(obj.adaptation, 'setEstimateTheta')
-                obj.adaptation.setEstimateTheta(theta);
+        function setEstimatePi(obj, pi)
+            %SETESTIMATEPI Seed the adaptive estimate from a pi vector.
+            %   Input:
+            %     pi - 10×1 parameter vector [m; h; Jparams].
+            if ismethod(obj.adaptation, 'setEstimatePi')
+                obj.adaptation.setEstimatePi(pi);
             end
         end
 
         function updateAdaptation(obj, Hd, H, Vd, V, Ades, dt)
             %UPDATEADAPTATION Update adaptation law with latest data.
-            if nargin < 6 || isempty(Ades)
-                Ades = zeros(6,1);
-            end
-            if nargin < 7 || isempty(dt)
-                dt = [];
-            end
-            obj.adaptation.update(Hd, H, Vd, V, Ades, dt);
+            %   Computes the composite sliding variable s, reference velocity VR,
+            %   and reference acceleration VRDot, then forwards to the adaptation law.
+            if nargin < 6 || isempty(Ades); Ades = zeros(6,1); end
+            if nargin < 7 || isempty(dt);   dt   = [];         end
+
+            ts    = fth.se3.trackingState(H, Hd, V, Vd);
+            eH    = obj.potential.getPotentialError(Hd, H);
+            eHDot = obj.potential.getPotentialErrorDerivative(Hd, H, Vd, V);
+
+            VR    = ts.AdInvHe * Vd - obj.lambda * eH;
+            VRDot = -fth.se3.adV(ts.Ve) * ts.AdInvHe * Vd ...
+                    + ts.AdInvHe * Ades ...
+                    - obj.lambda * eHDot;
+            s     = ts.Ve + obj.lambda * eH;
+
+            obj.adaptation.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
         end
     end
 
