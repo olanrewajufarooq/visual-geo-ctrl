@@ -49,9 +49,10 @@ cfg.usePayloadOptions(payloadOpts);
 cfg.done();
 
 % Run the simulation.
+sim = fth.sim.SimRunner(cfg);
+sim.setup();
+
 runOpts.plotMode     = 'all';       % 'summary', 'all', or 'none'
 runOpts.displayPlots = false;
 runOpts.saveSimData  = false;
-sim = fth.sim.SimRunner(cfg);
-sim.setup();
 sim.run(runOpts);
