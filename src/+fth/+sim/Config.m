@@ -244,7 +244,8 @@ classdef Config < handle
                 error('Config:InconsistentBatchCounts', ...
                     'Kp, Kd, and Gamma batch counts must match when more than one run is requested.');
             end
-            batchCount = gainBatchCount * obj.getTrajectoryBatchCount();
+            nCoriolisForm = numel(obj.getCoriolisFormBatchEntries());
+            batchCount = gainBatchCount * obj.getTrajectoryBatchCount() * nCoriolisForm;
         end
 
         function cfgs = expandBatchConfigs(obj, parentResultsDir)
@@ -254,42 +255,55 @@ classdef Config < handle
             end
             gainBatchCount = obj.getSharedGainBatchCount();
             [trajNames, trajHover, hasHoverOverride] = obj.getTrajectoryBatchEntries();
-            batchCount = gainBatchCount * numel(trajNames);
+            forms = obj.getCoriolisFormBatchEntries();
+            nCoriolisForm = numel(forms);
+            batchCount = gainBatchCount * numel(trajNames) * nCoriolisForm;
             cfgs = cell(batchCount, 1);
             cfgIndex = 1;
             for trajIdx = 1:numel(trajNames)
                 currentTrajName = trajNames(trajIdx);
-                for gainIdx = 1:gainBatchCount
-                    cfgCopy = obj.copy();
-                    if hasHoverOverride
-                        cfgCopy.applyTrajectoryDefinition(currentTrajName{1}, trajHover(trajIdx));
-                        cfgCopy.traj.batch = struct( ...
-                            'names', {currentTrajName}, ...
-                            'goToHoverBeforePathStarts', trajHover(trajIdx));
-                    else
-                        cfgCopy.applyTrajectoryDefinition(currentTrajName{1});
-                        cfgCopy.traj.batch = struct( ...
-                            'names', {currentTrajName});
-                    end
-                    cfgCopy.controller.Kp = obj.selectGainRow(obj.controller.Kp, gainIdx);
-                    cfgCopy.controller.Kd = obj.selectGainRow(obj.controller.Kd, gainIdx);
-                    if isfield(obj.controller, 'Gamma') && ~isempty(obj.controller.Gamma)
-                        cfgCopy.controller.Gamma = obj.selectGainRow(obj.controller.Gamma, gainIdx);
-                    end
-                    if ~isempty(parentResultsDir)
-                        runFolder = sprintf('run_%03d', gainIdx);
-                        if numel(trajNames) > 1
-                        trajFolder = obj.getTrajectoryFolderName(currentTrajName{1}, trajIdx);
-                            cfgCopy.sim.resultsDirOverride = fullfile(parentResultsDir, trajFolder, runFolder);
+                for formIdx = 1:nCoriolisForm
+                    for gainIdx = 1:gainBatchCount
+                        cfgCopy = obj.copy();
+                        if hasHoverOverride
+                            cfgCopy.applyTrajectoryDefinition(currentTrajName{1}, trajHover(trajIdx));
+                            cfgCopy.traj.batch = struct( ...
+                                'names', {currentTrajName}, ...
+                                'goToHoverBeforePathStarts', trajHover(trajIdx));
                         else
-                            cfgCopy.sim.resultsDirOverride = fullfile(parentResultsDir, runFolder);
+                            cfgCopy.applyTrajectoryDefinition(currentTrajName{1});
+                            cfgCopy.traj.batch = struct( ...
+                                'names', {currentTrajName});
                         end
+                        cfgCopy.controller.Kp = obj.selectGainRow(obj.controller.Kp, gainIdx);
+                        cfgCopy.controller.Kd = obj.selectGainRow(obj.controller.Kd, gainIdx);
+                        if isfield(obj.controller, 'Gamma') && ~isempty(obj.controller.Gamma)
+                            cfgCopy.controller.Gamma = obj.selectGainRow(obj.controller.Gamma, gainIdx);
+                        end
+                        cfgCopy.controller.coriolisFactorization = forms{formIdx};
+                        if ~isempty(parentResultsDir)
+                            % Build leaf folder: form name when batching forms,
+                            % run_NNN when batching gains, or both combined.
+                            if nCoriolisForm > 1 && gainBatchCount > 1
+                                leafFolder = fullfile(forms{formIdx}, sprintf('run_%03d', gainIdx));
+                            elseif nCoriolisForm > 1
+                                leafFolder = forms{formIdx};
+                            else
+                                leafFolder = sprintf('run_%03d', gainIdx);
+                            end
+                            if numel(trajNames) > 1
+                                trajFolder = obj.getTrajectoryFolderName(currentTrajName{1}, trajIdx);
+                                cfgCopy.sim.resultsDirOverride = fullfile(parentResultsDir, trajFolder, leafFolder);
+                            else
+                                cfgCopy.sim.resultsDirOverride = fullfile(parentResultsDir, leafFolder);
+                            end
+                        end
+                        cfgCopy.sim.captureConsoleExternally = batchCount > 1;
+                        cfgCopy.sim.batchRunIndex = gainIdx;
+                        cfgCopy.sim.globalBatchIndex = cfgIndex;
+                        cfgs{cfgIndex} = cfgCopy;
+                        cfgIndex = cfgIndex + 1;
                     end
-                    cfgCopy.sim.captureConsoleExternally = batchCount > 1;
-                    cfgCopy.sim.batchRunIndex = gainIdx;
-                    cfgCopy.sim.globalBatchIndex = cfgIndex;
-                    cfgs{cfgIndex} = cfgCopy;
-                    cfgIndex = cfgIndex + 1;
                 end
             end
         end
@@ -473,14 +487,19 @@ classdef Config < handle
 
         function obj = setCoriolisFactorizationForm(obj, form)
             %SETCORIOLISFACTORIZATIONFORM Select the Coriolis factorization.
-            %   form: 'basic' (default) — C = ad(VR)^T * I6.
+            %   form: 'basic' or 'consistent'. Pass a cell array for batch
+            %   runs, e.g. {'basic','consistent'}.
             %
             %   Output:
             %     obj - Config instance (for chaining).
             if nargin < 2 || isempty(form)
                 return;
             end
-            obj.controller.coriolisFactorization = lower(form);
+            if iscell(form)
+                obj.controller.coriolisFactorization = cellfun(@lower, form, 'UniformOutput', false);
+            else
+                obj.controller.coriolisFactorization = lower(char(form));
+            end
         end
 
         function obj = useTrajectoryOptions(obj, opts)
@@ -541,7 +560,8 @@ classdef Config < handle
             %     .type         - controller type label (string, stored for naming)
             %     .potential    - potType: 'log','inertia-gain','body-gain','ref-gain','sym-inv'
             %     .lambda       - scalar or 6x1 coupling gain
-            %     .coriolisForm - Coriolis factorization: 'basic'
+            %     .coriolisForm - Coriolis factorization: 'basic' or 'consistent';
+            %                    cell array {'basic','consistent'} for batch runs
             %     .Kp           - 6x1 proportional gains
             %     .Kd           - 6x1 derivative gains
             %
@@ -877,6 +897,19 @@ classdef Config < handle
             %GETTRAJECTORYBATCHCOUNT Return number of configured trajectories.
             [trajNames, ~, ~] = obj.getTrajectoryBatchEntries();
             count = numel(trajNames);
+        end
+
+        function forms = getCoriolisFormBatchEntries(obj)
+            %GETCORIOLISFORMBATCHENTRIES Return Coriolis forms as cell array of strings.
+            if isfield(obj.controller, 'coriolisFactorization') && ...
+                    iscell(obj.controller.coriolisFactorization)
+                forms = obj.controller.coriolisFactorization;
+            elseif isfield(obj.controller, 'coriolisFactorization') && ...
+                    ~isempty(obj.controller.coriolisFactorization)
+                forms = {char(obj.controller.coriolisFactorization)};
+            else
+                forms = {'basic'};
+            end
         end
 
         function [trajNames, trajHover, hasHoverOverride] = getTrajectoryBatchEntries(obj)
