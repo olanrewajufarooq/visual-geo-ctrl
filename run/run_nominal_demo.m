@@ -27,7 +27,7 @@ cfg.useTrajectoryOptions(trajOpts);
 ctrlOpts.potential = 'inertia-gain';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
 ctrlOpts.Kp        = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
 ctrlOpts.Kd        = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
-ctrlOpts.lambda    = [0, 0, 0, 1, 1, 1];        % composite-variable coupling: s = Ve + diag(lambda)*eH
+ctrlOpts.lambda    = [1, 1, 1, 2, 2, 2];        % composite-variable coupling: s = Ve + diag(lambda)*eH
 ctrlOpts.coriolisFactorization = 'consistent';    % 'basic', 'consistent'
 cfg.useControllerOptions(ctrlOpts);
 

@@ -54,8 +54,15 @@ classdef NoAdaptation < fth.ctrl.adapt.AdaptationBase
             diagnostics = struct('infoMatrix', [], 'updateCount', 0);
         end
 
-        function setEstimateTheta(~, ~)
-            %SETESTIMATETHETA No-op for fixed-parameter mode.
+        function setEstimateTheta(obj, theta)
+            %SETESTIMATETHETA Seed fixed parameters from a theta vector.
+            %   Input:
+            %     theta - 10x1 vector [I_xx;I_yy;I_zz;I_xy;I_yz;I_xz;m;m*cx;m*cy;m*cz].
+            theta = theta(:);
+            obj.m       = theta(7);
+            obj.CoG     = theta(8:10) / obj.m;
+            obj.Iparams = theta(1:6);
+            obj.I6      = fth.utils.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
         end
     end
 end

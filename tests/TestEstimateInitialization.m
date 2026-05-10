@@ -91,31 +91,31 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
 
         function testSetEstimateInitializationAcceptsFixedHigher(testCase)
             cfg = fth.sim.Config();
-            cfg.setEstimateInitialization('fixed-higher');
-            testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed-higher');
+            cfg.setParamInit('vehicle-plus-payload-higher');
+            testCase.verifyEqual(cfg.controller.paramInit.mode, 'vehicle-plus-payload-higher');
         end
 
         function testSetEstimateInitializationCustomVectorStoredAsFixed(testCase)
             cfg = fth.sim.Config();
             theta = 1:10;
-            cfg.setEstimateInitialization(theta);
-            testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed');
-            testCase.verifyEqual(cfg.controller.estimateInitialization.spec, theta(:));
+            cfg.setParamInit(theta);
+            testCase.verifyEqual(cfg.controller.paramInit.mode, 'custom');
+            testCase.verifyEqual(cfg.controller.paramInit.spec, theta(:));
         end
 
         function testSetEstimateInitializationRandomWithSeedSpecStored(testCase)
             cfg = fth.sim.Config();
-            cfg.setEstimateInitialization('random', 1234);
-            testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'random');
-            testCase.verifyEqual(cfg.controller.estimateInitialization.spec, 1234);
+            cfg.setParamInit('random', 1234);
+            testCase.verifyEqual(cfg.controller.paramInit.mode, 'random');
+            testCase.verifyEqual(cfg.controller.paramInit.spec, 1234);
         end
 
         function testSetEstimateInitializationFixedHigherWithExplicitSpec(testCase)
             cfg = fth.sim.Config();
             theta = (21:30).';
-            cfg.setEstimateInitialization('fixed-higher', theta);
-            testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed-higher');
-            testCase.verifyEqual(cfg.controller.estimateInitialization.spec, theta);
+            cfg.setParamInit('vehicle-plus-payload-higher', theta);
+            testCase.verifyEqual(cfg.controller.paramInit.mode, 'vehicle-plus-payload-higher');
+            testCase.verifyEqual(cfg.controller.paramInit.spec, theta);
         end
     end
 end

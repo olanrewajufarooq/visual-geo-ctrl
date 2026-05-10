@@ -143,16 +143,23 @@ classdef SimRunner < handle
             obj.plant.reset(H0, V0);
         end
 
+        function setupForRun(obj, isAdaptive, payloadMass, payloadCoG)
+            %SETUPFORRUN Apply payload to plant and seed controller parameters.
+            %   Called from run() before the simulation loop.
+            obj.setupAdaptivePayload(isAdaptive, payloadMass, payloadCoG);
+            obj.applyControllerParamInit(isAdaptive, payloadMass, payloadCoG);
+        end
+
         function run(obj, varargin)
             %RUN Execute a nominal or adaptive simulation loop.
             %   Inputs:
             %     Supports the legacy positional run configuration followed
             %     by optional plotType, displayPlots, and saveSimData.
-            [isAdaptive, payloadMassArg, payloadCoGArg, payloadDropTimeArg, estimateInitialization, ...
+            [isAdaptive, payloadMassArg, payloadCoGArg, payloadDropTimeArg, ...
                 plotType, displayPlots, saveSimData] = obj.parseRunInputs(varargin{:});
 
             if obj.isBatchMode()
-                obj.pendingRunArgs = {isAdaptive, payloadMassArg, payloadCoGArg, payloadDropTimeArg, estimateInitialization, ...
+                obj.pendingRunArgs = {isAdaptive, payloadMassArg, payloadCoGArg, payloadDropTimeArg, ...
                     plotType, displayPlots, saveSimData};
                 obj.runBatch();
                 return;
@@ -169,7 +176,7 @@ classdef SimRunner < handle
             obj.lastIsAdaptive = isAdaptive;
 
             obj.setupVisualization();
-            obj.setupAdaptivePayload(isAdaptive, payloadMassArg, payloadCoGArg, estimateInitialization);
+            obj.setupForRun(isAdaptive, payloadMassArg, payloadCoGArg);
 
             obj.tCurrent = 0;
             obj.kCurrent = 1;
@@ -400,16 +407,12 @@ classdef SimRunner < handle
             end
         end
 
-        function setupAdaptivePayload(obj, isAdaptive, payloadMass, payloadCoG, estimateInitialization)
-            %SETUPADAPTIVEPAYLOAD Apply payload and init estimates.
+        function setupAdaptivePayload(obj, isAdaptive, payloadMass, payloadCoG)
+            %SETUPADAPTIVEPAYLOAD Apply payload mass to the plant for adaptive runs.
             %   Inputs:
-            %     isAdaptive - true if adaptation is enabled.
+            %     isAdaptive  - true if adaptation is enabled.
             %     payloadMass - payload mass [kg].
-            %     payloadCoG - 3x1 CoG offset [m].
-            %     estimateInitialization - initialization mode/spec.
-            if nargin < 5
-                estimateInitialization = obj.getEstimateInitialization();
-            end
+            %     payloadCoG  - 3x1 CoG offset [m].
             if ~isAdaptive
                 return;
             end
@@ -425,12 +428,33 @@ classdef SimRunner < handle
             else
                 fprintf('%s', fth.io.ConsoleFormatter.kv('Plant mass', sprintf('%.3f kg', m_with)));
             end
+        end
 
+        function applyControllerParamInit(obj, isAdaptive, payloadMass, payloadCoG)
+            %APPLYCONTROLLERPARAMINIT Seed controller with initial parameter estimate.
+            %   Resolves cfg.controller.paramInit and calls ctrl.setEstimateTheta.
+            %   Works for both nominal and adaptive runs.
+            %   For adaptive runs with payload, m_true includes the payload mass.
+            %   Inputs:
+            %     isAdaptive  - true if adaptation is enabled.
+            %     payloadMass - payload mass [kg] (0 for nominal runs).
+            %     payloadCoG  - 3x1 CoG offset [m].
+            initCfg = obj.getParamInit();
+            m_base   = obj.cfg.vehicle.m;
+            I_base   = obj.cfg.vehicle.I_params;
+            cog_base = obj.cfg.vehicle.CoG(:);
+            if isAdaptive && payloadMass > 0
+                [m_true, I_true, cog_true] = fth.utils.addPayload(m_base, I_base, cog_base, payloadMass, payloadCoG);
+            else
+                m_true   = m_base;
+                I_true   = I_base;
+                cog_true = cog_base;
+            end
             [theta0, initLabel] = obj.resolveEstimateInitializationTheta( ...
-                estimateInitialization, m_base, I_base, cog_base, m_with, I_with, cog_with);
+                initCfg, m_base, I_base, cog_base, m_true, I_true, cog_true);
             obj.ctrl.setEstimateTheta(theta0);
-            fprintf('%s', fth.io.ConsoleFormatter.kv('Estimate init', ...
-                sprintf('%s values (mass=%.3f kg)', initLabel, theta0(7))));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Param init', ...
+                sprintf('%s (mass=%.3f kg)', initLabel, theta0(7))));
         end
 
         function runNominalLoop(obj)
@@ -586,7 +610,7 @@ classdef SimRunner < handle
         function [theta0, initLabel] = resolveEstimateInitializationTheta( ...
                 obj, initCfg, m_base, I_base, cog_base, m_true, I_true, cog_true)
             %RESOLVEESTIMATEINITIALIZATIONTHETA Build initial adaptive theta.
-            mode = 'nominal';
+            mode = 'vehicle';
             spec = [];
             if isstruct(initCfg)
                 if isfield(initCfg, 'mode') && ~isempty(initCfg.mode)
@@ -599,29 +623,42 @@ classdef SimRunner < handle
                 mode = char(lower(string(initCfg)));
             end
 
+            payloadModes = {'vehicle-plus-payload', 'mid-vehicle-payload', 'vehicle-plus-payload-higher'};
+            if any(strcmp(mode, payloadModes)) && m_true <= m_base + eps(m_base)
+                error('SimRunner:NoPayloadForInitMode', ...
+                    'Initialization mode ''%s'' requires a payload to be configured.', mode);
+            end
+
             switch mode
-                case 'nominal'
+                case 'vehicle'
                     theta0 = obj.packEstimateTheta(m_base, I_base, cog_base);
-                    initLabel = 'NOMINAL';
-                case 'true'
+                    initLabel = 'VEHICLE';
+                case 'vehicle-plus-payload'
                     theta0 = obj.packEstimateTheta(m_true, I_true, cog_true);
-                    initLabel = 'TRUE';
-                case 'fixed'
+                    initLabel = 'VEHICLE-PLUS-PAYLOAD';
+                case 'mid-vehicle-payload'
                     if isempty(spec)
                         theta0 = obj.buildDefaultFixedEstimateTheta(m_base, I_base, cog_base, m_true, I_true, cog_true);
                     else
                         validateattributes(spec, {'numeric'}, {'vector', 'numel', 10});
                         theta0 = spec(:);
                     end
-                    initLabel = 'FIXED';
-                case 'fixed-higher'
+                    initLabel = 'MID-VEHICLE-PAYLOAD';
+                case 'vehicle-plus-payload-higher'
                     if isempty(spec)
                         theta0 = obj.buildDefaultFixedHigherEstimateTheta(m_base, I_base, cog_base, m_true, I_true, cog_true);
                     else
                         validateattributes(spec, {'numeric'}, {'vector', 'numel', 10});
                         theta0 = spec(:);
                     end
-                    initLabel = 'FIXED-HIGHER';
+                    initLabel = 'VEHICLE-PLUS-PAYLOAD-HIGHER';
+                case 'vehicle-slight-dev'
+                    theta0 = obj.buildVehicleSlightDevEstimateTheta(m_base, I_base, cog_base, spec);
+                    initLabel = 'VEHICLE-SLIGHT-DEV';
+                case 'custom'
+                    validateattributes(spec, {'numeric'}, {'vector', 'numel', 10});
+                    theta0 = spec(:);
+                    initLabel = 'CUSTOM';
                 case 'random'
                     theta0 = obj.buildRandomEstimateTheta(m_true, I_true, cog_true, spec);
                     initLabel = 'RANDOM';
@@ -675,6 +712,21 @@ classdef SimRunner < handle
             theta_nom = obj.packEstimateTheta(m_nom, I_nom, cog_nom);
             theta_true = obj.packEstimateTheta(m_true, I_true, cog_true);
             theta = theta_true + alpha .* (theta_true - theta_nom);
+        end
+
+        function theta = buildVehicleSlightDevEstimateTheta(obj, m_base, I_base, cog_base, spec)
+            %BUILDVEHICLESLIGHTDEVESTIMATETHETA Build a slightly perturbed vehicle theta.
+            %   Default: +5% mass, +5% diagonal inertia terms, +0.01 m CoG z-axis.
+            %   If spec is a 10x1 numeric vector it is used directly.
+            if nargin >= 5 && ~isempty(spec)
+                validateattributes(spec, {'numeric'}, {'vector', 'numel', 10});
+                theta = spec(:);
+                return;
+            end
+            m_dev   = m_base * 1.05;
+            I_dev   = I_base(:) .* [1.05; 1.04; 1.05; 1.075; 1.05; 1.025];
+            cog_dev = cog_base(:) + [0.05; 0.025; 0.075];
+            theta   = obj.packEstimateTheta(m_dev, I_dev, cog_dev);
         end
 
         function theta = packEstimateTheta(~, m, Iparams, CoG)
@@ -827,9 +879,9 @@ classdef SimRunner < handle
             fth.io.ResultsManager.plotSavedRun(resultsDir, plotType, displayPlots);
         end
 
-        function [isAdaptive, payloadMass, payloadCoG, payloadDropTime, estimateInitialization, ...
+        function [isAdaptive, payloadMass, payloadCoG, payloadDropTime, ...
                 plotType, displayPlots, saveSimData] = parseRunInputs(obj, varargin)
-            %PARSERUNINPUTS Parse legacy run inputs plus post-run options.
+            %PARSERUNINPUTS Parse run inputs plus post-run options.
             if isfield(obj.cfg.controller, 'adaptation')
                 isAdaptive = ~strcmpi(obj.cfg.controller.adaptation, 'none');
             else
@@ -838,7 +890,6 @@ classdef SimRunner < handle
             payloadMass = obj.getPayloadField('mass', 0);
             payloadCoG = obj.getPayloadField('CoG', [0;0;0]);
             payloadDropTime = obj.getPayloadField('dropTime', inf);
-            estimateInitialization = obj.getEstimateInitialization();
             plotType = 'none';
             displayPlots = false;
             saveSimData = false;
@@ -855,7 +906,7 @@ classdef SimRunner < handle
             end
 
             if ~isempty(args) && ~obj.isPlotSpecifier(args{1})
-                positionalCount = min(5, numel(args));
+                positionalCount = min(4, numel(args));
                 if positionalCount >= 1 && ~isempty(args{1})
                     isAdaptive = args{1};
                 end
@@ -867,9 +918,6 @@ classdef SimRunner < handle
                 end
                 if positionalCount >= 4 && ~isempty(args{4})
                     payloadDropTime = args{4};
-                end
-                if positionalCount >= 5 && ~isempty(args{5})
-                    estimateInitialization = args{5};
                 end
                 args = args(positionalCount+1:end);
             end
@@ -901,11 +949,11 @@ classdef SimRunner < handle
                 && any(strcmpi(string(value), ["none", "summary", "all"]));
         end
 
-        function initCfg = getEstimateInitialization(obj)
-            %GETESTIMATEINITIALIZATION Read estimate-init config with fallback.
-            initCfg = struct('mode', 'nominal', 'spec', []);
-            if isprop(obj.cfg, 'controller') && isfield(obj.cfg.controller, 'estimateInitialization')
-                candidate = obj.cfg.controller.estimateInitialization;
+        function initCfg = getParamInit(obj)
+            %GETPARAMINIT Read controller parameter init config with fallback.
+            initCfg = struct('mode', 'vehicle', 'spec', []);
+            if isprop(obj.cfg, 'controller') && isfield(obj.cfg.controller, 'paramInit')
+                candidate = obj.cfg.controller.paramInit;
                 if isstruct(candidate) && isfield(candidate, 'mode') && ~isempty(candidate.mode)
                     initCfg = candidate;
                 end

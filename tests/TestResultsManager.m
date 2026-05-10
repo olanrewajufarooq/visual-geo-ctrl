@@ -221,7 +221,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
 
             sim = fth.sim.SimRunner(cfg);
             sim.setup();
-            sim.run(true, 0.5, [0.01; 0; -0.02], 0.01, 'nominal', 'none', false, false);
+            sim.run(true, 0.5, [0.01; 0; -0.02], 0.01, 'none', false, false);
 
             testCase.verifyTrue(exist(fullfile(sim.resultsDir, 'metrics.txt'), 'file') == 2);
             metricsEntry = fth.io.ResultsManager.loadMetricsFile(sim.resultsDir);

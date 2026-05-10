@@ -240,51 +240,51 @@ classdef TestConfig < matlab.unittest.TestCase
                 'Config:DeprecatedSetPayload');
         end
 
-        function testSetEstimateInitializationNominal(testCase)
+        function testSetParamInitVehicle(testCase)
             cfg = fth.sim.Config();
-            cfg.setEstimateInitialization('nominal');
-            testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'nominal');
+            cfg.setParamInit('vehicle');
+            testCase.verifyEqual(cfg.controller.paramInit.mode, 'vehicle');
         end
 
-        function testSetEstimateInitializationFixedHigher(testCase)
+        function testSetParamInitVehiclePlusPayloadHigher(testCase)
             cfg = fth.sim.Config();
-            cfg.setEstimateInitialization('fixed-higher');
-            testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed-higher');
-            testCase.verifyEmpty(cfg.controller.estimateInitialization.spec);
+            cfg.setParamInit('vehicle-plus-payload-higher');
+            testCase.verifyEqual(cfg.controller.paramInit.mode, 'vehicle-plus-payload-higher');
+            testCase.verifyEmpty(cfg.controller.paramInit.spec);
         end
 
-        function testSetEstimateInitializationFixed(testCase)
+        function testSetParamInitCustomVector(testCase)
             cfg = fth.sim.Config();
             theta = (1:10)';
-            cfg.setEstimateInitialization(theta);
-            testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed');
-            testCase.verifyEqual(cfg.controller.estimateInitialization.spec, theta);
+            cfg.setParamInit(theta);
+            testCase.verifyEqual(cfg.controller.paramInit.mode, 'custom');
+            testCase.verifyEqual(cfg.controller.paramInit.spec, theta);
         end
 
-        function testSetEstimateInitializationFixedRowVector(testCase)
+        function testSetParamInitCustomRowVector(testCase)
             cfg = fth.sim.Config();
             theta = 1:10;
-            cfg.setEstimateInitialization(theta);
-            testCase.verifyEqual(cfg.controller.estimateInitialization.spec, theta(:));
+            cfg.setParamInit(theta);
+            testCase.verifyEqual(cfg.controller.paramInit.spec, theta(:));
         end
 
-        function testSetEstimateInitializationFixedWithExplicitSpec(testCase)
+        function testSetParamInitMidVehiclePayloadWithExplicitSpec(testCase)
             cfg = fth.sim.Config();
             theta = (11:20)';
-            cfg.setEstimateInitialization('fixed', theta);
-            testCase.verifyEqual(cfg.controller.estimateInitialization.mode, 'fixed');
-            testCase.verifyEqual(cfg.controller.estimateInitialization.spec, theta);
+            cfg.setParamInit('mid-vehicle-payload', theta);
+            testCase.verifyEqual(cfg.controller.paramInit.mode, 'mid-vehicle-payload');
+            testCase.verifyEqual(cfg.controller.paramInit.spec, theta);
         end
 
-        function testSetEstimateInitializationFixedBadLengthThrows(testCase)
+        function testSetParamInitBadLengthThrows(testCase)
             cfg = fth.sim.Config();
-            testCase.verifyError(@() cfg.setEstimateInitialization([1 2 3]), 'MATLAB:incorrectNumel');
+            testCase.verifyError(@() cfg.setParamInit([1 2 3]), 'MATLAB:incorrectNumel');
         end
 
-        function testSetEstimateInitializationInvalidModeThrows(testCase)
+        function testSetParamInitInvalidModeThrows(testCase)
             cfg = fth.sim.Config();
-            testCase.verifyError(@() cfg.setEstimateInitialization('badmode'), ...
-                'Config:InvalidEstimateInitializationMode');
+            testCase.verifyError(@() cfg.setParamInit('badmode'), ...
+                'Config:InvalidParamInitMode');
         end
 
         function testExpandBatchConfigsTrajectoryMajorOrderingAndOverrides(testCase)

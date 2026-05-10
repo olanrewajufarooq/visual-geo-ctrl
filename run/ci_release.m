@@ -25,9 +25,10 @@ trajOpts.period                  = [duration, duration, duration/2, duration/2];
 cfg.useTrajectoryOptions(trajOpts);
 
 % Controller and gains.
-ctrlOpts.potential = 'inertia-gain';  % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
-ctrlOpts.Kp        = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
-ctrlOpts.Kd        = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
+ctrlOpts.potential  = 'inertia-gain';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
+ctrlOpts.Kp         = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
+ctrlOpts.Kd         = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
+ctrlOpts.paramInit  = 'mid-vehicle-payload';      % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
 cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation (batch Gamma rows — one row per run).
@@ -37,7 +38,6 @@ adaptOpts.Gamma = 1e-2 * [ ...
       8,   8,  12, 0.4, 0.4, 0.4, 36,  12,  12,  12; ...
     360, 360, 360,  40,  40,  40, 72,  12,  12,  12; ...
       8,   8,  12, 0.4, 0.4, 0.4, 36, 120, 120, 120];  % rows: Run 1–4
-adaptOpts.init  = 'fixed';    % 'nominal', 'true', 'fixed', 'fixed-higher', 'random', or a 10x1/1x10 custom theta vector
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).

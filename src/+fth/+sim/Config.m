@@ -38,7 +38,7 @@ classdef Config < handle
             obj.initSimulation();
             obj.initTrajectory();
             obj.initPayload();
-            obj.initEstimateInitialization();
+            obj.initParamInit();
             obj.initVisualization();
             
             % Default trajectory and controller (can be overridden)
@@ -401,17 +401,17 @@ classdef Config < handle
             end
         end
 
-        function obj = setEstimateInitialization(obj, mode, spec)
-            %SETESTIMATEINITIALIZATION Configure adaptive estimate startup.
-            %   mode: 'nominal', 'true', 'fixed', 'fixed-higher', or
-            %         'random', or a 10x1/1x10 custom theta vector for
-            %         fixed initialization
-            %   spec: optional mode-specific data
+        function obj = setParamInit(obj, mode, spec)
+            %SETPARAMINIT Configure controller parameter initialization.
+            %   mode: 'vehicle', 'vehicle-plus-payload', 'mid-vehicle-payload',
+            %         'vehicle-plus-payload-higher', 'vehicle-slight-dev', 'random',
+            %         or a 10x1/1x10 custom theta vector.
+            %   spec: optional mode-specific data (custom theta, random seed, etc.)
             %
             %   Output:
             %     obj - Config instance (for chaining).
             if nargin < 2 || isempty(mode)
-                mode = 'nominal';
+                mode = 'vehicle';
             end
             if nargin < 3
                 spec = [];
@@ -419,21 +419,22 @@ classdef Config < handle
 
             if isnumeric(mode)
                 validateattributes(mode, {'numeric'}, {'vector', 'numel', 10}, '', 'mode');
-                obj.controller.estimateInitialization = struct('mode', 'fixed', 'spec', mode(:));
+                obj.controller.paramInit = struct('mode', 'custom', 'spec', mode(:));
                 return;
             end
 
             mode = char(lower(string(mode)));
-            validModes = {'nominal', 'true', 'fixed', 'fixed-higher', 'random'};
+            validModes = {'vehicle', 'vehicle-plus-payload', 'mid-vehicle-payload', ...
+                'vehicle-plus-payload-higher', 'vehicle-slight-dev', 'random', 'custom'};
             if ~ismember(mode, validModes)
-                error('Config:InvalidEstimateInitializationMode', ...
-                    'Estimate initialization mode must be one of: nominal, true, fixed, fixed-higher, random.');
+                error('Config:InvalidParamInitMode', ...
+                    'Parameter init mode must be one of: %s.', strjoin(validModes, ', '));
             end
-            if strcmp(mode, 'fixed') && ~isempty(spec)
+            if ~isempty(spec) && ~strcmp(mode, 'random')
                 validateattributes(spec, {'numeric'}, {'vector', 'numel', 10}, '', 'spec');
                 spec = spec(:);
             end
-            obj.controller.estimateInitialization = struct('mode', mode, 'spec', spec);
+            obj.controller.paramInit = struct('mode', mode, 'spec', spec);
         end
         
         function obj = setVisualization(obj, enable, dynamicAxis, padding, initialAxis)
@@ -564,6 +565,10 @@ classdef Config < handle
             %                    cell array {'basic','consistent'} for batch runs
             %     .Kp           - 6x1 proportional gains
             %     .Kd           - 6x1 derivative gains
+            %     .paramInit    - controller parameter init mode (works for nominal and adaptive);
+            %                    'vehicle','vehicle-plus-payload','mid-vehicle-payload',
+            %                    'vehicle-plus-payload-higher','vehicle-slight-dev','random',
+            %                    or a 10x1 custom theta vector
             %
             %   Output:
             %     obj - Config instance (for chaining).
@@ -573,6 +578,7 @@ classdef Config < handle
             if isfield(opts, 'coriolisForm'),obj.setCoriolisFactorizationForm(opts.coriolisForm); end
             if isfield(opts, 'Kp'),          obj.setKpGains(opts.Kp);                            end
             if isfield(opts, 'Kd'),          obj.setKdGains(opts.Kd);                            end
+            if isfield(opts, 'paramInit'),   obj.setParamInit(opts.paramInit);                   end
         end
 
         function obj = useAdaptationOptions(obj, opts)
@@ -580,15 +586,13 @@ classdef Config < handle
             %   Recognised fields:
             %     .type   - adaptation mode: 'none','euclidean','geo-aware'
             %     .Gamma  - 10x1 adaptive gains
-            %     .init   - estimate init mode: 'nominal','true','fixed','fixed-higher','random'
             %     .dt     - adaptation timestep [s]
             %
             %   Output:
             %     obj - Config instance (for chaining).
-            if isfield(opts, 'type'),  obj.setAdaptation(opts.type);             end
-            if isfield(opts, 'Gamma'), obj.setAdaptiveGains(opts.Gamma);         end
-            if isfield(opts, 'init'),  obj.setEstimateInitialization(opts.init); end
-            if isfield(opts, 'dt'),    obj.setAdaptationParams(opts.dt);         end
+            if isfield(opts, 'type'),  obj.setAdaptation(opts.type);     end
+            if isfield(opts, 'Gamma'), obj.setAdaptiveGains(opts.Gamma); end
+            if isfield(opts, 'dt'),    obj.setAdaptationParams(opts.dt); end
         end
 
         function obj = usePayloadOptions(obj, opts)
@@ -758,9 +762,9 @@ classdef Config < handle
             obj.payload.dropTime = inf;
         end
 
-        function initEstimateInitialization(obj)
-            %INITESTIMATEINITIALIZATION Initialize adaptive estimate startup mode.
-            obj.controller.estimateInitialization = struct('mode', 'nominal', 'spec', []);
+        function initParamInit(obj)
+            %INITPARAMINIT Initialize controller parameter init to vehicle defaults.
+            obj.controller.paramInit = struct('mode', 'vehicle', 'spec', []);
         end
         
         function initVisualization(obj)
