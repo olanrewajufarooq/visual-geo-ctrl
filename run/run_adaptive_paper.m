@@ -20,12 +20,12 @@ cfg.useSimOptions(simOpts);
 
 % Reference trajectory batch.
 trajOpts.names                   = {'circle', 'lissajous3d', 'helix3d', 'poly3d'};
-trajOpts.goToHoverBeforePathStarts = true;
-trajOpts.period                  = duration / 1.25;
+trajOpts.goToHoverBeforePathStarts = false;
+trajOpts.period                  = [duration, duration, duration/2, duration/2];
 cfg.useTrajectoryOptions(trajOpts);
 
 % Controller and gains.
-ctrlOpts.potential = 'log';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
+ctrlOpts.potential = 'inertia-gain';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
 ctrlOpts.Kp        = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
 ctrlOpts.Kd        = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
 cfg.useControllerOptions(ctrlOpts);
