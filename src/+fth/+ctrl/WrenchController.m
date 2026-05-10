@@ -78,7 +78,7 @@ classdef WrenchController < handle
 
             C        = obj.coriolisFactor.getCoriolisFactor(VR, I6);
             coriolis = C * VR;
-            W = I6 * VRDot + coriolis - Wg - obj.Kd * s;
+            W = I6 * VRDot + coriolis + Wg - obj.Kd * s;
         end
 
         function [m_hat, cog_hat, Iparams_hat] = getEstimate(obj)
@@ -121,7 +121,7 @@ classdef WrenchController < handle
         function Wg = gravityWrench(obj, H, m, CoG)
             %GRAVITYWRENCH Compute gravity wrench in body frame.
             R    = H(1:3,1:3);
-            gvec = [0; 0; -obj.g];
+            gvec = [0; 0; obj.g];
             f_g  = m * (R' * gvec);
             tau_g = cross(CoG(:), f_g);
             Wg   = [tau_g; f_g];

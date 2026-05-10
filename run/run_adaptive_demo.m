@@ -20,8 +20,7 @@ cfg.useSimOptions(simOpts);
 
 % Reference trajectory.
 trajOpts.name                    = 'lissajous3d';
-trajOpts.goToHoverBeforePathStarts = true;
-trajOpts.goToHoverPeriod           = duration / 4;
+trajOpts.goToHoverBeforePathStarts = false;
 trajOpts.period                  = duration / 2;
 cfg.useTrajectoryOptions(trajOpts);
 

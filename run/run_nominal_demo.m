@@ -24,10 +24,10 @@ trajOpts.period                  = duration;
 cfg.useTrajectoryOptions(trajOpts);
 
 % Controller and gains.
-ctrlOpts.potential = 'inertia-gain';    % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
+ctrlOpts.potential = 'sym-inv';    % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
 ctrlOpts.Kp        = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
 ctrlOpts.Kd        = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
-ctrlOpts.lambda    = [4, 4, 4, 4, 4, 4];        % composite-variable coupling: s = Ve - diag(lambda)*eH
+ctrlOpts.lambda    = [0, 0, 0, 1, 1, 1];        % composite-variable coupling: s = Ve + diag(lambda)*eH
 cfg.useControllerOptions(ctrlOpts);
 
 % Visualization.

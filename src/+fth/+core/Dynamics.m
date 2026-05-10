@@ -96,16 +96,17 @@ classdef Dynamics < handle
         function step(obj, dt, Wprop)
             %STEP Advance dynamics with applied body wrench.
             %   Integrates the Euler-Poincare equation on SE(3):
-            %     I6 * Vdot = ad_V^T * I6 * V + W_gravity + W_cmd + W_ground
+            %     I6 * Vdot + C(I6, V) * V + W_gravity = W_cmd + W_ground
+            %     C(I6, V) = -ad_V^T * I6
             %     H_{k+1}  = H_k * exp(hat6(V_mid * dt))  (midpoint rule)
             %
             %   Inputs:
             %     dt - integration step [s].
             %     Wprop - 6x1 body wrench command [torque; force].
             Wg = obj.gravityWrench();
-            C = fth.se3.adV(obj.V)' * obj.I6 * obj.V;  % Coriolis/centripetal
+            C = -fth.se3.adV(obj.V)' * obj.I6 * obj.V;  % Coriolis/centripetal
             Wground = obj.groundWrench();
-            Vdot = obj.I6 \ (C + Wg + Wprop + Wground);
+            Vdot = obj.I6 \ (-C - Wg + Wprop + Wground);
 
             % Midpoint integration: use V at half-step for the pose update.
             Vmid = obj.V + 0.5 * Vdot * dt;
@@ -157,7 +158,7 @@ classdef Dynamics < handle
             %   Output:
             %     Wg - 6x1 wrench due to gravity.
             R = obj.H(1:3,1:3);
-            gvec = [0;0;-obj.g];
+            gvec = [0;0;obj.g];
             f_g = obj.m * (R' * gvec);
             tau_g = cross(obj.CoG, f_g);
             Wg = [tau_g; f_g];

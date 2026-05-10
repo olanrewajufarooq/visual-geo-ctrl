@@ -24,7 +24,7 @@ classdef inertiaGainPotential < fth.ctrl.potential.PotentialBase
         function eH = getPotentialError(obj, Hd, H)
             %GETPOTENTIALERROR Compute eH = [eR; eXi].
             st  = fth.se3.poseDecompose(H, Hd);
-            A   = 0.5 * obj.K_R * st.Re;
+            A   = -0.5 * obj.K_R * st.Re;
             eR  = fth.se3.vee3(fth.se3.skew(A));
             eXi = st.R' * obj.K_xi * st.xi_e;
             eH  = [eR; eXi];
@@ -34,10 +34,10 @@ classdef inertiaGainPotential < fth.ctrl.potential.PotentialBase
             %GETPOTENTIALERRORDERIVATIVE Compute eHDot = [eRDot; eXiDot].
             st = fth.se3.trackingState(H, Hd, V, Vd);
 
-            A      = -0.5 * obj.K_R * st.Re * fth.se3.hat3(st.omega_e);
-            eRDot  = fth.se3.vee3(fth.se3.skew(A));
+            ADot   = -0.5 * obj.K_R * st.Re * fth.se3.hat3(st.omega_e);
+            eRDot  = fth.se3.vee3(fth.se3.skew(ADot));
             eXiDot = -fth.se3.hat3(st.omega) * st.R' * obj.K_xi * st.xi_e ...
-                     + st.R' * obj.K_xi * st.R * st.v;
+                     + st.R' * obj.K_xi * (st.R * st.v - st.Rd * st.v_d);
             eHDot  = [eRDot; eXiDot];
         end
     end
