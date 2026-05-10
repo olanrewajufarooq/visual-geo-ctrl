@@ -387,19 +387,6 @@ classdef Config < handle
             end
         end
 
-        function obj = setPayload(obj, mass, cog, dropTime, varargin)
-            %SETPAYLOAD Deprecated alias for setPayloadScenario.
-            %   Use setPayloadScenario(...) and setEstimateInitialization(...)
-            %   instead of overloading payload configuration with estimate
-            %   initialization behavior.
-            if nargin > 4 && ~isempty(varargin)
-                error('Config:DeprecatedSetPayload', ...
-                    ['setPayload no longer accepts an estimate-initialization flag. ' ...
-                     'Use setPayloadScenario(...) and setEstimateInitialization(...).']);
-            end
-            obj.setPayloadScenario(mass, cog, dropTime);
-        end
-
         function obj = setEstimateInitialization(obj, mode, spec)
             %SETESTIMATEINITIALIZATION Configure adaptive estimate startup.
             %   mode: 'nominal', 'true', 'fixed', 'fixed-higher', or

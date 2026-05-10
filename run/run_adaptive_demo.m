@@ -21,11 +21,11 @@ cfg.useSimOptions(simOpts);
 % Reference trajectory.
 trajOpts.name                    = 'lissajous3d';
 trajOpts.goToHoverBeforePathStarts = false;
-trajOpts.period                  = duration / 2;
+trajOpts.period                  = duration;
 cfg.useTrajectoryOptions(trajOpts);
 
 % Controller and gains.
-ctrlOpts.potential = 'log';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
+ctrlOpts.potential = 'inertia-gain';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
 ctrlOpts.Kp        = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
 ctrlOpts.Kd        = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
 cfg.useControllerOptions(ctrlOpts);
@@ -33,7 +33,7 @@ cfg.useControllerOptions(ctrlOpts);
 % Adaptation.
 adaptOpts.type  = 'euclidean';          % 'none','euclidean','geo-aware'
 adaptOpts.Gamma = 1e-2 * [8, 8, 12, 0.4, 0.4, 0.4, 36, 12, 12, 12];
-adaptOpts.init  = 'random';
+adaptOpts.init  = 'fixed';    % 'nominal', 'true', 'fixed', 'fixed-higher', 'random', or a 10x1/1x10 custom theta vector
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).
@@ -53,9 +53,10 @@ cfg.useVizOptions(vizOpts);
 cfg.done();
 
 % Run the simulation.
+sim = fth.sim.SimRunner(cfg);
+sim.setup();
+
 runOpts.plotMode     = 'summary';   % 'summary', 'all', or 'none'
 runOpts.displayPlots = false;
 runOpts.saveSimData  = false;
-sim = fth.sim.SimRunner(cfg);
-sim.setup();
 sim.run(runOpts);
