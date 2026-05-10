@@ -25,7 +25,7 @@ classdef symInvPotential < fth.ctrl.potential.PotentialBase
             %GETPOTENTIALERROR Compute eH = [eR; eXi].
             st  = fth.se3.poseDecompose(H, Hd);
             ep  = (st.R' + st.Rd') * st.xi_e;
-            A   =  0.5 * obj.K_R * st.Re - obj.K_xi * ep * st.xi_e' * st.R;
+            A   =  -0.5 * obj.K_R * st.Re - obj.K_xi * ep * st.xi_e' * st.R;
             eR  = fth.se3.vee3(fth.se3.skew(A));
             eXi = (eye(3) + st.R' * st.Rd) * obj.K_xi * ep;
             eH  = [eR; eXi];
@@ -40,7 +40,7 @@ classdef symInvPotential < fth.ctrl.potential.PotentialBase
                       * st.xi_e ...
                     + (st.R' + st.Rd') * (st.R * st.v - st.Rd * st.v_d);
 
-            ADot =  0.5 * obj.K_R * st.Re * fth.se3.hat3(st.omega_e) ...
+            ADot =  -0.5 * obj.K_R * st.Re * fth.se3.hat3(st.omega_e) ...
                    - obj.K_xi * epDot * st.xi_e' * st.R ...
                    - obj.K_xi * ep * (st.v - st.Re' * st.v_d)' ...
                    - obj.K_xi * ep * st.xi_e' * st.R * fth.se3.hat3(st.omega);

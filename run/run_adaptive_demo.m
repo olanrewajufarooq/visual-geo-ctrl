@@ -35,8 +35,8 @@ ctrlOpts.coriolisFactorization  = 'basic';    % 'basic', 'consistent'
 cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation.
-adaptOpts.type  = 'euclidean';          % 'none','euclidean','geo-aware'
-adaptOpts.Gamma = 1e-2 * [8, 8, 12, 0.4, 0.4, 0.4, 36, 12, 12, 12];
+adaptOpts.type  = 'euclidean';          % 'none','euclidean','bregman'
+adaptOpts.Gamma = 1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4];  % pi = [m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).
