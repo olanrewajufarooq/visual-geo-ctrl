@@ -18,6 +18,8 @@ classdef CoriolisFactorFactory
             switch form
                 case 'basic'
                     coriolisFactor = fth.ctrl.coriolis.basicCoriolisFactor();
+                case 'consistent'
+                    coriolisFactor = fth.ctrl.coriolis.consistentCoriolisFactor();
                 otherwise
                     error('fth:CoriolisFactorFactory:UnknownForm', ...
                         'Unknown coriolis factorization: ''%s''.', form);
