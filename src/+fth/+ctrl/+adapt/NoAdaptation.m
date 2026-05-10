@@ -50,16 +50,10 @@ classdef NoAdaptation < fth.ctrl.adapt.AdaptationBase
 
         function setEstimatePi(obj, pi)
             %SETESTIMATEPI Seed fixed parameters from a pi vector.
-            %   Input:
-            %     pi - 10×1 vector [m; hx; hy; hz; Ixx; Iyy; Izz; Ixy; Ixz; Iyz].
-            pi = pi(:);
-            m_hat   = max(pi(1), 1e-9);
-            obj.m   = m_hat;
-            obj.CoG = pi(2:4) / m_hat;
-            % pi(5:10) = [Ixx; Iyy; Izz; Ixy; Ixz; Iyz]
-            % Legacy Iparams = [Ixx; Iyy; Izz; Ixy; Iyz; Ixz] (swap 5↔6)
-            obj.Iparams = pi([5; 6; 7; 8; 10; 9]);
-            obj.I6 = fth.utils.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
+            % Input:
+            % pi - 10×1 vector [m; hx; hy; hz; Ixx; Iyy; Izz; Ixy; Ixz; Iyz].
+            [obj.m, obj.CoG, obj.Iparams] = obj.unpackPi(pi(:));
+            obj.I6 = fth.utils.RBInertia.params2genInertia(pi(:));
         end
     end
 end

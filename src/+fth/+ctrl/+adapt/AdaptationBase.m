@@ -1,47 +1,107 @@
 classdef (Abstract) AdaptationBase < handle
-    %ADAPTATIONBASE Interface for parameter adaptation laws.
-    %   Implementations estimate mass, CoG, and inertia for the controller.
-    %
-    %   Parameter vector convention (pi, 10×1):
-    %     pi = [m, hx, hy, hz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]
-    %   where h = m * CoG is the first moment of mass.
-    %
-    %   Output struct fields:
-    %     m, CoG, Iparams (legacy ordering [Ixx Iyy Izz Ixy Iyz Ixz]), I6.
-    methods (Abstract)
-        %UPDATE Advance adaptation using tracking data.
-        %   Inputs:
-        %     Hd    - 4×4 desired pose.
-        %     H     - 4×4 current pose.
-        %     Vd    - 6×1 desired body velocity.
-        %     V     - 6×1 current body velocity.
-        %     Ades  - 6×1 desired body acceleration.
-        %     dt    - timestep [s].
-        %     s     - 6×1 composite sliding variable Ve + Lambda*eH.
-        %     VR    - 6×1 reference body velocity.
-        %     VRDot - 6×1 reference body acceleration.
-        %   Output:
-        %     params - struct with updated parameters.
-        params = update(obj, Hd, H, Vd, V, Ades, dt, s, VR, VRDot)
+%ADAPTATIONBASE Interface for parameter adaptation laws.
+% Implementations estimate mass, CoG, and inertia for the controller.
+%
+% Parameter vector convention (pi, 10×1):
+% pi = [m, hx, hy, hz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]
+% where h = m * CoG is the first moment of mass.
+%
+% Output struct fields:
+% m, CoG, Iparams (legacy ordering [Ixx Iyy Izz Ixy Iyz Ixz]), I6.
+%
+% Concrete methods provided to all subclasses:
+%   unpackPi, packPi, regressor, parseUpdateArgs, setPayloadEstimate,
+%   getEstimate.
 
-        %GETPARAMS Return parameters for the controller/plant.
-        %   Output:
-        %     params - struct with m, CoG, Iparams, and I6.
-        params = getParams(obj)
+properties (Access = protected)
+    g           % gravity scalar [m/s^2]
+    dt          % default adaptation timestep [s]
+    m_hat       % cached mass estimate [kg]
+    cog_hat     % cached 3×1 CoG estimate [m]
+    Iparams_hat % cached 6×1 inertia params (legacy ordering)
+    updateCount % cumulative update counter
+end
 
-        %GETESTIMATE Return estimated mass/CoG/inertia parameters.
-        %   Outputs:
-        %     m_hat       - mass estimate [kg].
-        %     cog_hat     - 3×1 CoG estimate [m].
-        %     Iparams_hat - 6×1 inertia parameters (legacy ordering).
-        [m_hat, cog_hat, Iparams_hat] = getEstimate(obj)
+methods (Abstract)
+    params = update(obj, Hd, H, Vd, V, Ades, dt, s, VR, VRDot)
+    params = getParams(obj)
+    diagnostics = getDiagnostics(obj)
+    setEstimatePi(obj, pi)
+end
 
-        %GETDIAGNOSTICS Return adaptation diagnostics for offline metrics.
-        diagnostics = getDiagnostics(obj)
-
-        %SETESTIMATEPI Seed the adaptive estimate from a 10×1 pi vector.
-        %   Input:
-        %     pi - 10×1 parameter vector [m; h; Jparams].
-        setEstimatePi(obj, pi)
+methods
+    function [m_hat, cog_hat, Iparams_hat] = getEstimate(obj)
+        %GETESTIMATE Return mass, CoG, and inertia estimates.
+        m_hat = obj.m_hat;
+        cog_hat = obj.cog_hat;
+        Iparams_hat = obj.Iparams_hat;
     end
+end
+
+methods (Access = protected)
+    function [m_hat, cog_hat, Iparams_hat] = unpackPi(~, pi)
+        %UNPACKPI Convert pi vector into physical parameter caches.
+        % Input:
+        % pi - 10×1 vector [m; hx; hy; hz; Ixx; Iyy; Izz; Ixy; Ixz; Iyz].
+        % Outputs:
+        % m_hat       - mass estimate.
+        % cog_hat     - 3×1 CoG estimate.
+        % Iparams_hat - 6×1 inertia params in legacy ordering
+        %               [Ixx; Iyy; Izz; Ixy; Iyz; Ixz].
+        p = pi(:);
+        m_hat = max(p(1), 1e-9);
+        cog_hat = p(2:4) / m_hat;
+        Iparams_hat = p([5; 6; 7; 8; 10; 9]);
+    end
+
+    function pi = packPi(~, m, CoG, Iparams_legacy)
+        %PACKPI Build pi from physical parameters.
+        % Iparams_legacy ordering: [Ixx; Iyy; Izz; Ixy; Iyz; Ixz]
+        % pi ordering: [m; hx; hy; hz; Ixx; Iyy; Izz; Ixy; Ixz; Iyz]
+        I = Iparams_legacy(:);
+        I_pi = [I(1); I(2); I(3); I(4); I(6); I(5)];
+        pi = [m; m * CoG(:); I_pi];
+    end
+
+    function Y = regressor(obj, H, V, VR, VRDot)
+        %REGRESSOR 6×10 composite reference regressor with gravity.
+        % Y(H, V, VR, VRDot) satisfies:
+        % Y * pi = I6*VRDot + ad_V^T*I6*VR + Wg
+        % where Wg is the gravity wrench (linear in m and h).
+        % Inputs:
+        % H     - 4×4 current pose (for gravity rotation).
+        % V     - 6×1 current body velocity.
+        % VR    - 6×1 reference body velocity.
+        % VRDot - 6×1 reference body acceleration.
+        % Output:
+        % Y - 6×10 regressor matrix.
+        Y = fth.utils.RBDynamics.paramgenmomentum(VRDot) ...
+            - fth.utils.RBDynamics.adjoint(VR)' * fth.utils.RBDynamics.paramgenmomentum(VR);
+
+        R = H(1:3, 1:3);
+        g_body = R' * [0; 0; obj.g];
+        Y(4:6, 1) = Y(4:6, 1) + g_body;
+        Y(1:3, 2:4) = Y(1:3, 2:4) - fth.se3.hat3(g_body);
+    end
+
+    function [Ades, dt, s, VR, VRDot] = parseUpdateArgs(obj, Ades, dt, s, VR, VRDot)
+        %PARSEUPDATEARGS Fill default values for update() inputs.
+        if nargin < 2 || isempty(Ades);   Ades   = zeros(6,1); end
+        if nargin < 3 || isempty(dt);     dt     = obj.dt;      end
+        if nargin < 4 || isempty(s);      s      = zeros(6,1);  end
+        if nargin < 5 || isempty(VR);     VR     = zeros(6,1);  end
+        if nargin < 6 || isempty(VRDot);  VRDot  = zeros(6,1);  end
+    end
+
+    function setPayloadEstimate(obj, m_payload, CoG_payload)
+        %SETPAYLOADESTIMATE Shift estimates based on payload guess.
+        % Inputs:
+        % m_payload   - payload mass [kg].
+        % CoG_payload - 3×1 payload CoG offset [m].
+        % Subclasses that do not store pi_hat must override this method.
+        obj.pi_hat(1)   = obj.pi_hat(1)   + m_payload;
+        obj.pi_hat(2:4) = obj.pi_hat(2:4) + m_payload * CoG_payload(:);
+        obj.updateEstimates();
+    end
+end
 end
