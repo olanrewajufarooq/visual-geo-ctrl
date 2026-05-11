@@ -28,7 +28,7 @@ cfg.useTrajectoryOptions(trajOpts);
 ctrlOpts.potential  = 'inertia-gain';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
 ctrlOpts.Kp         = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
 ctrlOpts.Kd         = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
-ctrlOpts.lambda     = [1, 1, 1, 2, 2, 2];        % composite-variable coupling: s = Ve + diag(lambda)*eH
+ctrlOpts.lambda     = [0, 0, 0, 0, 0, 0];        % composite-variable coupling: s = Ve + diag(lambda)*eH
 
 ctrlOpts.paramInit              = 'mid-vehicle-payload';      % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
 ctrlOpts.coriolisFactorization  = 'basic';    % 'basic', 'consistent'

@@ -52,6 +52,7 @@ methods
         obj.E = fth.utils.RBInertia.eliminationspd4();
 
         obj.updateCount = 0;
+        obj.constructBases();
         obj.updateEstimates();
     end
 
@@ -112,7 +113,9 @@ methods
         obj.J_hat = fth.utils.RBInertia.params2spd(pi(:));
         obj.updateEstimates();
     end
+end
 
+methods (Access = protected)
     function setPayloadEstimate(obj, m_payload, CoG_payload)
         %SETPAYLOADESTIMATE Shift estimates based on payload guess.
         % Overrides base class since Bregman stores J_hat instead of pi_hat.
