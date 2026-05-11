@@ -52,7 +52,6 @@ methods
         obj.E = fth.utils.RBInertia.eliminationspd4();
 
         obj.updateCount = 0;
-        obj.constructBases();
         obj.updateEstimates();
     end
 
@@ -78,8 +77,11 @@ methods
 
         % SPD manifold step: J_dot = -gamma * J * sym(G) * J
         G_sym = fth.se3.sym(G);
-        J_dot = -obj.gamma * obj.J_hat * G_sym * obj.J_hat;
-        obj.J_hat = obj.J_hat + J_dot * dt;
+        
+        A = sqrtm(obj.J_hat);
+        B = A * G_sym * A;
+
+        obj.J_hat = fth.se3.sym(A * expm(-obj.gamma * dt * B) * A);
 
         obj.updateCount = obj.updateCount + 1;
         obj.updateEstimates();

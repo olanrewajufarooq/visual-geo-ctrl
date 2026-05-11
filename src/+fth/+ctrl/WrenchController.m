@@ -6,7 +6,7 @@ classdef WrenchController < handle
     %     VR    = Ad^{-1}(He) * Vd - Lambda * eH   (reference velocity)
     %     VRDot = -ad(Ve)*Ad^{-1}(He)*Vd + Ad^{-1}(He)*VdDot - Lambda*eHDot
     %     C     = getCoriolisFactor(VR, I6)  (6x6 Coriolis factorization)
-    %     W     = I6 * VRDot + C*VR - Wg - Kd * s
+    %     W = I6 * VRDot + C(VR,I6)*VR + Wg - Kd*s
     %
     %   where Ve = V - Ad^{-1}(He)*Vd is the classical velocity error,
     %   eH and eHDot come from the configured potential function, and

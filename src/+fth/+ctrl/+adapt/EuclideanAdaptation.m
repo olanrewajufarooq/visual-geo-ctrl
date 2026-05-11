@@ -36,7 +36,6 @@ methods
 
         obj.infoMatrix = zeros(10, 10);
         obj.updateCount = 0;
-        obj.constructBases();
         obj.updateEstimates();
     end
 
@@ -57,7 +56,7 @@ methods
         Y = obj.regressor(H, V, VR, VRDot);
         obj.infoMatrix = obj.infoMatrix + dt * (Y.' * Y);
         obj.updateCount = obj.updateCount + 1;
-        obj.pi_hat = obj.pi_hat + obj.Gamma * (Y.' * s) * dt;
+        obj.pi_hat = obj.pi_hat - obj.Gamma * (Y.' * s) * dt;
         obj.updateEstimates();
 
         params = obj.getParams();

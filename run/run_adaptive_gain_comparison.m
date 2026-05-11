@@ -32,7 +32,7 @@ ctrlOpts.paramInit  = 'mid-vehicle-payload';      % 'vehicle','vehicle-plus-payl
 cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation (batch Gamma rows — one row per run).
-adaptOpts.type  = 'euclidean';          % 'none','euclidean','bregman'
+adaptOpts.type  = 'bregman';          % 'none','euclidean','bregman'
 adaptOpts.Gamma = 1e-2 * [ ...   % pi = [m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]
       0,   0,   0,   0,   0,   0,   0,   0,   0,   0; ...
      36,  12,  12,  12,   8,   8,  12, 0.4, 0.4, 0.4; ...

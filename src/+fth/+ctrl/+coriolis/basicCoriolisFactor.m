@@ -1,9 +1,15 @@
 classdef basicCoriolisFactor < fth.ctrl.coriolis.CoriolisFactorBase
     %BASICCORIOLISFACTOR Standard Euler-Poincare Coriolis factorization.
-    %   Computes C = ad(VR)^T * I6.  The full Coriolis wrench is c = C * VR.
+    % Computes:
     %
-    %   This corresponds to the standard body-frame Coriolis/centripetal
-    %   term in the Euler-Poincare equations for rigid-body dynamics.
+    %   C(VR) = -ad(VR)^T * I6
+    %
+    % such that:
+    %
+    %   c(VR) = C(VR)*VR
+    %         = -ad(VR)^T * I6 * VR
+    %
+    % corresponding to the body-frame Euler-Poincare equations.
     methods
         function C = getCoriolisFactor(~, VR, I6)
             %GETCORIOLISFACTOR Return ad(VR)^T * I6 (6x6).
