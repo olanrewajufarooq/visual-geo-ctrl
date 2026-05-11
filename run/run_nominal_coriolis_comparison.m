@@ -49,5 +49,5 @@ sim.setup();
 
 runOpts.plotMode     = 'all';        % 'summary', 'all', or 'none'
 runOpts.displayPlots = false;
-runOpts.saveSimData  = true;
+runOpts.saveSimData  = false;
 sim.run(runOpts);

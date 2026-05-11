@@ -14,14 +14,15 @@ classdef (Abstract) AdaptationBase < handle
 %   getEstimate.
 
 properties (Access = protected)
-    g           % gravity scalar [m/s^2]
-    dt          % default adaptation timestep [s]
-    m_hat       % cached mass estimate [kg]
-    cog_hat     % cached 3×1 CoG estimate [m]
-    Iparams_hat % cached 6×1 inertia params (legacy ordering)
-    updateCount % cumulative update counter
-    I_basis     % cell array of 10 basis matrices for inertia parameterization
-    G_basis     % cell array of 4 gravity basis matrices
+    g               % gravity scalar [m/s^2]
+    dt              % default adaptation timestep [s]
+    m_hat           % cached mass estimate [kg]
+    cog_hat         % cached 3×1 CoG estimate [m]
+    Iparams_hat     % cached 6×1 inertia params (legacy ordering)
+    updateCount     % cumulative update counter
+    I_basis         % cell array of 10 basis matrices for inertia parameterization
+    G_basis         % cell array of 4 gravity basis matrices
+    coriolisFactor  % coriolis factorization form
 end
 
 methods (Abstract)
@@ -32,6 +33,21 @@ methods (Abstract)
 end
 
 methods
+    function setCoriolisFactor(obj, coriolisFactor)
+        %SETCORIOLISFACTOR Store the shared Coriolis factorization object.
+        if nargin < 2 || isempty(coriolisFactor)
+            obj.coriolisFactor = [];
+            return;
+        end
+
+        if ~(isobject(coriolisFactor) && ismethod(coriolisFactor, 'getCoriolisFactor'))
+            error('fth:AdaptationBase:InvalidCoriolisFactor', ...
+                'coriolisFactor must provide a getCoriolisFactor(VR, I6) method.');
+        end
+
+        obj.coriolisFactor = coriolisFactor;
+    end
+
     function [m_hat, cog_hat, Iparams_hat] = getEstimate(obj)
         %GETESTIMATE Return mass, CoG, and inertia estimates.
         m_hat = obj.m_hat;
@@ -91,36 +107,43 @@ methods (Access = protected)
             VRDot = zeros(6,1);
         end
 
-        %--------------------------------------------------------------
-        % Rigid-body dynamics regressor
-        %--------------------------------------------------------------
+        if isempty(obj.coriolisFactor)
+            obj.coriolisFactor = fth.ctrl.coriolis.basicCoriolisFactor();
+        end
 
-        Ydyn = fth.utils.RBDynamics.regressor_rb_dynamics(VR, VRDot);
+        Y = fth.utils.regressor( ...
+                H, VR, VRDot, obj.g, obj.coriolisFactor);
 
-        %--------------------------------------------------------------
-        % Gravity regressor
-        %--------------------------------------------------------------
+        % %--------------------------------------------------------------
+        % % Rigid-body dynamics regressor
+        % %--------------------------------------------------------------
 
-        R = H(1:3,1:3);
+        % Ydyn = fth.utils.RBDynamics.regressor_rb_dynamics(VR, VRDot);
 
-        g_body = R' * [0;0;obj.g];
+        % %--------------------------------------------------------------
+        % % Gravity regressor
+        % %--------------------------------------------------------------
 
-        Yg = zeros(6,10);
+        % R = H(1:3,1:3);
 
-        % mass contribution
-        %
-        % force = m*g_body
-        %
-        Yg(4:6,1) = g_body;
+        % g_body = R' * [0;0;obj.g];
 
-        % first moment contribution
-        %
-        % torque = h x g_body = -hat(g_body)*h
-        %
-        Yg(1:3,2:4) = -fth.se3.hat3(g_body);
+        % Yg = zeros(6,10);
 
-        % full regressor
-        Y = Ydyn + Yg;
+        % % mass contribution
+        % %
+        % % force = m*g_body
+        % %
+        % Yg(4:6,1) = g_body;
+
+        % % first moment contribution
+        % %
+        % % torque = h x g_body = -hat(g_body)*h
+        % %
+        % Yg(1:3,2:4) = -fth.se3.hat3(g_body);
+
+        % % full regressor
+        % Y = Ydyn + Yg;
     end
 
     function [Ades, dt, s, VR, VRDot] = parseUpdateArgs(obj, Ades, dt, s, VR, VRDot)

@@ -1,10 +1,13 @@
 classdef AdaptationFactory
     %ADAPTATIONFACTORY Create adaptation instances from config.
     methods (Static)
-        function adaptation = create(cfg)
+        function adaptation = create(cfg, coriolisFactor)
             %CREATE Instantiate the configured adaptation law.
             %   Input:
             %     cfg - fth.sim.Config instance.
+            %     coriolisFactor - optional CoriolisFactorBase instance shared
+            %                      with the controller.
+            %
             %   Output:
             %     adaptation - AdaptationBase subclass instance.
             %
@@ -27,6 +30,10 @@ classdef AdaptationFactory
                 otherwise
                     error('fth:AdaptationFactory:UnknownMode', ...
                         'Unrecognised adaptation mode: ''%s''.', adaptType);
+            end
+            
+            if nargin >= 2 && ~isempty(coriolisFactor)
+                adaptation.setCoriolisFactor(coriolisFactor);
             end
         end
     end
