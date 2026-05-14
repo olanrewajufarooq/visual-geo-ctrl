@@ -56,7 +56,7 @@ classdef TestUtils < matlab.unittest.TestCase
             % Round-trip: addPayload -> inertiaFromParams must preserve
             % off-diagonal terms. Catches Iyz/Ixz packing order bugs.
             m_base = 2.0;
-            % Non-diagonal Iparams: [Ixx Iyy Izz Ixy Iyz Ixz]
+            % Non-diagonal Iparams: [Ixx Iyy Izz Ixy Ixz Iyz]
             Ip = [0.10, 0.20, 0.30, 0.01, 0.02, 0.03];
             cog = [0; 0; 0];
             % Zero payload so combined inertia equals base inertia exactly.

@@ -400,9 +400,9 @@ classdef TrackingMetrics < handle
             G = (G + G.') / 2;
 
             metrics = struct();
-            metrics.mass = obj.groupIdentifiabilityMetric(G, 7);
-            metrics.mcog = obj.groupIdentifiabilityMetric(G, 8:10);
-            metrics.inertia = obj.groupIdentifiabilityMetric(G, 1:6);
+            metrics.mass    = obj.groupIdentifiabilityMetric(G, 1);
+            metrics.mcog    = obj.groupIdentifiabilityMetric(G, 2:4);
+            metrics.inertia = obj.groupIdentifiabilityMetric(G, 5:10);
         end
 
         function metric = groupIdentifiabilityMetric(~, G, groupIdx)

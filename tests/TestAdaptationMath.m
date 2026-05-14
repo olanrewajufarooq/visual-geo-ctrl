@@ -80,16 +80,13 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
             %   Both should produce the same I6 for the same physical parameters.
             m      = 4.5;
             CoG    = [0.01; 0.02; -0.01];
-            Iparams_legacy = [0.20; 0.18; 0.15; 1e-3; 2e-4; -5e-4];
-            %                                          ^Iyz  ^Ixz  (legacy order)
+            Iparams = [0.20; 0.18; 0.15; 1e-3; -5e-4; 2e-4];
+            %           Ixx   Iyy   Izz   Ixy   Ixz    Iyz   (unified order)
 
-            % Pack into pi: legacy index 5=Iyz→pi(10), index 6=Ixz→pi(9)
-            I = Iparams_legacy(:);
-            I_pi = [I(1); I(2); I(3); I(4); I(6); I(5)];  % swap Iyz↔Ixz
-            pi = [m; m * CoG(:); I_pi];
+            pi = [m; m * CoG(:); Iparams];
 
             I6_new = fth.utils.RBInertia.params2genInertia(pi);
-            I6_old = fth.utils.getGeneralizedInertia(m, Iparams_legacy, CoG);
+            I6_old = fth.utils.getGeneralizedInertia(m, Iparams, CoG);
 
             testCase.verifyEqual(I6_new, I6_old, 'AbsTol', 1e-12, ...
                 'params2genInertia and getGeneralizedInertia differ');

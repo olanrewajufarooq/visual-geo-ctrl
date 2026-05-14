@@ -16,7 +16,7 @@ function [m_total, Iparams_total, cog_total] = addPayload(m_base, Iparams_base, 
     I_payload = m_payload * ((dot(r,r) * eye(3)) - (r * r.'));
     I_total = I_base + I_payload;
 
-    % Pack in declared order: [Ixx Iyy Izz Ixy Iyz Ixz].
+    % Pack in declared order: [Ixx Iyy Izz Ixy Ixz Iyz].
     Iparams_total = [I_total(1,1), I_total(2,2), I_total(3,3), ...
-                     I_total(1,2), I_total(2,3), I_total(1,3)];
+                     I_total(1,2), I_total(1,3), I_total(2,3)];
 end

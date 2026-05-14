@@ -7,7 +7,7 @@ classdef (Abstract) AdaptationBase < handle
 % where h = m * CoG is the first moment of mass.
 %
 % Output struct fields:
-% m, CoG, Iparams (legacy ordering [Ixx Iyy Izz Ixy Iyz Ixz]), I6.
+% m, CoG, Iparams [Ixx Iyy Izz Ixy Ixz Iyz], I6.
 %
 % Concrete methods provided to all subclasses:
 %   unpackPi, packPi, regressor, parseUpdateArgs, setPayloadEstimate,
@@ -18,7 +18,7 @@ properties (Access = protected)
     dt              % default adaptation timestep [s]
     m_hat           % cached mass estimate [kg]
     cog_hat         % cached 3×1 CoG estimate [m]
-    Iparams_hat     % cached 6×1 inertia params (legacy ordering)
+    Iparams_hat     % cached 6×1 inertia params [Ixx; Iyy; Izz; Ixy; Ixz; Iyz]
     updateCount     % cumulative update counter
     I_basis         % cell array of 10 basis matrices for inertia parameterization
     G_basis         % cell array of 4 gravity basis matrices
@@ -64,21 +64,18 @@ methods (Access = protected)
         % Outputs:
         % m_hat       - mass estimate.
         % cog_hat     - 3×1 CoG estimate.
-        % Iparams_hat - 6×1 inertia params in legacy ordering
-        %               [Ixx; Iyy; Izz; Ixy; Iyz; Ixz].
+        % Iparams_hat - 6×1 inertia params [Ixx; Iyy; Izz; Ixy; Ixz; Iyz].
         p = pi(:);
         m_hat = max(p(1), 1e-9);
         cog_hat = p(2:4) / m_hat;
-        Iparams_hat = p([5; 6; 7; 8; 10; 9]);
+        Iparams_hat = p(5:10);
     end
 
-    function pi = packPi(~, m, CoG, Iparams_legacy)
+    function pi = packPi(~, m, CoG, Iparams)
         %PACKPI Build pi from physical parameters.
-        % Iparams_legacy ordering: [Ixx; Iyy; Izz; Ixy; Iyz; Ixz]
+        % Iparams ordering: [Ixx; Iyy; Izz; Ixy; Ixz; Iyz]
         % pi ordering: [m; hx; hy; hz; Ixx; Iyy; Izz; Ixy; Ixz; Iyz]
-        I = Iparams_legacy(:);
-        I_pi = [I(1); I(2); I(3); I(4); I(6); I(5)];
-        pi = [m; m * CoG(:); I_pi];
+        pi = [m; m * CoG(:); Iparams(:)];
     end
 
     function Y = regressor(obj, H, V, VR, VRDot)

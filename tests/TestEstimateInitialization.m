@@ -13,10 +13,9 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
             % New pi format: [m; hx; hy; hz; Ixx; Iyy; Izz; Ixy; Ixz; Iyz]
             m = 7;
             h = [8; 9; 10];
-            % Input as legacy ordering (will be converted internally): [Ixx; Iyy; Izz; Ixy; Iyz; Ixz]
-            Iparams_legacy = [1; 2; 3; 4; 5; 6];
-            % packPi reorders: [I(1); I(2); I(3); I(4); I(6); I(5)] = [1; 2; 3; 4; 6; 5]
-            pi_input = [m; h; Iparams_legacy([1; 2; 3; 4; 6; 5])];
+            % Unified Iparams order: [Ixx; Iyy; Izz; Ixy; Ixz; Iyz]
+            Iparams = [1; 2; 3; 4; 5; 6];
+            pi_input = [m; h; Iparams];
             
             ctrl.setEstimatePi(pi_input);
             [m_hat, cog_hat, I_hat] = ctrl.getEstimate();
@@ -24,7 +23,7 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
             testCase.verifyEqual(m_hat, m);
             testCase.verifyEqual(h(:), h, 'AbsTol', 1e-12);
             testCase.verifyEqual(cog_hat(:), h ./ m, 'AbsTol', 1e-12);
-            testCase.verifyEqual(I_hat(:), Iparams_legacy, 'AbsTol', 1e-12);
+            testCase.verifyEqual(I_hat(:), Iparams, 'AbsTol', 1e-12);
         end
 
         function testEuclideanAdaptationRegressorUsesPositiveCoriolisSign(testCase)

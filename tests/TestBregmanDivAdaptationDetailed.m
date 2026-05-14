@@ -193,7 +193,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
                 
                 % Inertia matrix should be positive definite
                 I_mat = fth.utils.RBInertia.params2genInertia( ...
-                    [m_hat; cog_hat; Iparams_hat]);
+                    [m_hat; m_hat * cog_hat; Iparams_hat]);
                 I_3x3 = I_mat(1:3, 1:3);
                 eigs_I = eig(I_3x3);
                 testCase.verifyTrue(all(eigs_I > 0), ...

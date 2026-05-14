@@ -15,18 +15,18 @@ classdef TestAdaptationInterface < matlab.unittest.TestCase
 
             adapt = fth.ctrl.adapt.EuclideanAdaptation(cfg);
             
-            % Create a test pi vector: [m; h; Iparams_reordered]
+            % Create a test pi vector: [m; h; Iparams]
             m_test = 15.5;
             h_test = [0.1; -0.05; 0.2];
-            Iparams_legacy = [2; 3; 4; 0.1; 0.2; 0.3];
-            pi_test = [m_test; h_test; Iparams_legacy([1; 2; 3; 4; 6; 5])];
-            
+            Iparams = [2; 3; 4; 0.1; 0.2; 0.3];
+            pi_test = [m_test; h_test; Iparams];
+
             adapt.setEstimatePi(pi_test);
             [m_hat, cog_hat, I_hat] = adapt.getEstimate();
-            
+
             testCase.verifyEqual(m_hat, m_test, 'AbsTol', 1e-10);
             testCase.verifyEqual(cog_hat, h_test / m_test, 'AbsTol', 1e-10);
-            testCase.verifyEqual(I_hat, Iparams_legacy, 'AbsTol', 1e-10);
+            testCase.verifyEqual(I_hat, Iparams, 'AbsTol', 1e-10);
         end
 
         function testSetEstimatePiConvertsParametersCorrectlyBregman(testCase)
@@ -43,15 +43,15 @@ classdef TestAdaptationInterface < matlab.unittest.TestCase
             % Create a test pi vector
             m_test = 12.0;
             h_test = [0.05; 0.1; -0.15];
-            Iparams_legacy = [1.5; 2.5; 3.5; 0.05; 0.15; 0.1];
-            pi_test = [m_test; h_test; Iparams_legacy([1; 2; 3; 4; 6; 5])];
-            
+            Iparams = [1.5; 2.5; 3.5; 0.05; 0.1; 0.15];
+            pi_test = [m_test; h_test; Iparams];
+
             adapt.setEstimatePi(pi_test);
             [m_hat, cog_hat, I_hat] = adapt.getEstimate();
-            
+
             testCase.verifyEqual(m_hat, m_test, 'AbsTol', 1e-10);
             testCase.verifyEqual(cog_hat, h_test / m_test, 'AbsTol', 1e-10);
-            testCase.verifyEqual(I_hat, Iparams_legacy, 'AbsTol', 1e-10);
+            testCase.verifyEqual(I_hat, Iparams, 'AbsTol', 1e-10);
         end
 
         function testUpdateReturnsParamsStructWithRequiredFields(testCase)

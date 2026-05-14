@@ -732,11 +732,9 @@ classdef SimRunner < handle
 
         function pi = packEstimatePi(~, m, Iparams, CoG)
             %PACKESTIMATEPI Convert physical parameters into pi form.
-            %   Iparams legacy ordering: [Ixx; Iyy; Izz; Ixy; Iyz; Ixz]
+            %   Iparams ordering: [Ixx; Iyy; Izz; Ixy; Ixz; Iyz]
             %   pi ordering: [m; hx; hy; hz; Ixx; Iyy; Izz; Ixy; Ixz; Iyz]
-            I = Iparams(:);
-            I_pi = [I(1); I(2); I(3); I(4); I(6); I(5)];   % swap Iyz↔Ixz
-            pi = [m; m * CoG(:); I_pi];
+            pi = [m; m * CoG(:); Iparams(:)];
         end
 
         function value = getPayloadField(obj, fieldName, defaultValue)
