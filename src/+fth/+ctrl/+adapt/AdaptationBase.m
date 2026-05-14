@@ -25,6 +25,10 @@ properties (Access = protected)
     coriolisFactor  % coriolis factorization form
 end
 
+properties (Access = private)
+    rbrObj_   % cached fth.ctrl.RigidBodyRegressor instance
+end
+
 methods (Abstract)
     params = update(obj, Hd, H, Vd, V, Ades, dt, s, VR, VRDot)
     params = getParams(obj)
@@ -37,6 +41,7 @@ methods
         %SETCORIOLISFACTOR Store the shared Coriolis factorization object.
         if nargin < 2 || isempty(coriolisFactor)
             obj.coriolisFactor = [];
+            obj.rbrObj_ = [];
             return;
         end
 
@@ -46,6 +51,7 @@ methods
         end
 
         obj.coriolisFactor = coriolisFactor;
+        obj.rbrObj_ = [];   % invalidate cached regressor
     end
 
     function [m_hat, cog_hat, Iparams_hat] = getEstimate(obj)
@@ -79,68 +85,27 @@ methods (Access = protected)
     end
 
     function Y = regressor(obj, H, V, VR, VRDot)
-        %REGRESSOR 6x10 rigid-body dynamics regressor with gravity.
+        %REGRESSOR 6×10 rigid-body dynamics regressor with gravity.
         %
         % Satisfies:
+        %   Y*pi = I6*VRDot + C(V,I6)*VR + Wg
         %
-        %   Y*pi = I6*VRDot + C(VR,I6)*VR + Wg
-        %
-        % where:
-        %   pi = [m; h; Jparams]
+        % V = [omega; v]  (angular then translational).
         %
         % Inputs:
-        %   H      - current pose
-        %   V      - current velocity (unused)
-        %   VR     - reference velocity
-        %   VRDot  - reference acceleration
+        %   H      - 4×4 current pose
+        %   V      - 6×1 current body velocity
+        %   VR     - 6×1 reference body velocity
+        %   VRDot  - 6×1 reference body acceleration
 
-        %#ok<INUSD>
+        if nargin < 4 || isempty(VR);    VR    = zeros(6,1); end
+        if nargin < 5 || isempty(VRDot); VRDot = zeros(6,1); end
 
-        if nargin < 4 || isempty(VR)
-            VR = zeros(6,1);
+        if isempty(obj.rbrObj_)
+            obj.rbrObj_ = obj.buildRegressorObj_();
         end
 
-        if nargin < 5 || isempty(VRDot)
-            VRDot = zeros(6,1);
-        end
-
-        if isempty(obj.coriolisFactor)
-            obj.coriolisFactor = fth.ctrl.coriolis.basicCoriolisFactor();
-        end
-
-        Y = fth.utils.regressor( ...
-                H, VR, VRDot, obj.g, obj.coriolisFactor);
-
-        % %--------------------------------------------------------------
-        % % Rigid-body dynamics regressor
-        % %--------------------------------------------------------------
-
-        % Ydyn = fth.utils.RBDynamics.regressor_rb_dynamics(VR, VRDot);
-
-        % %--------------------------------------------------------------
-        % % Gravity regressor
-        % %--------------------------------------------------------------
-
-        % R = H(1:3,1:3);
-
-        % g_body = R' * [0;0;obj.g];
-
-        % Yg = zeros(6,10);
-
-        % % mass contribution
-        % %
-        % % force = m*g_body
-        % %
-        % Yg(4:6,1) = g_body;
-
-        % % first moment contribution
-        % %
-        % % torque = h x g_body = -hat(g_body)*h
-        % %
-        % Yg(1:3,2:4) = -fth.se3.hat3(g_body);
-
-        % % full regressor
-        % Y = Ydyn + Yg;
+        Y = obj.rbrObj_.getRegressor(H, V, VR, VRDot);
     end
 
     function [Ades, dt, s, VR, VRDot] = parseUpdateArgs(obj, Ades, dt, s, VR, VRDot)
@@ -161,6 +126,18 @@ methods (Access = protected)
         obj.pi_hat(1)   = obj.pi_hat(1)   + m_payload;
         obj.pi_hat(2:4) = obj.pi_hat(2:4) + m_payload * CoG_payload(:);
         obj.updateEstimates();
+    end
+end
+
+methods (Access = private)
+    function rbr = buildRegressorObj_(obj)
+        %BUILDREGRESSOROBJ_ Create RigidBodyRegressor from stored coriolisFactor.
+        if isa(obj.coriolisFactor, 'fth.ctrl.coriolis.consistentCoriolisFactor')
+            form = 'consistent';
+        else
+            form = 'basic';
+        end
+        rbr = fth.ctrl.RigidBodyRegressor(obj.g, form);
     end
 end
 end
