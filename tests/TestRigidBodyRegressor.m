@@ -55,35 +55,36 @@ classdef TestRigidBodyRegressor < matlab.unittest.TestCase
     end
 
     % ------------------------------------------------------------------ %
-    %  Consistency check: Y*pi == I6*VRDot + C_basic(V,I6)*VR + Wg
+    %  Consistency checks: Y*pi == I6*VRDot + C(V,I6)*VR + Wg
+    %
+    %  Gravity wrench convention (body frame, V=[omega;v]):
+    %    Wg(1:3) = R'*hat3(gW)*h   (torque)
+    %    Wg(4:6) = m * R'*gW       (force)
+    %  where gW is world gravity and h = pi(2:4) is the first moment.
     % ------------------------------------------------------------------ %
     methods (Test)
         function testConsistencyBasic(tc)
             rng(42);
             rbr = fth.ctrl.RigidBodyRegressor(9.81, 'basic');
 
-            % Random valid pi (ensure positive-definite inertia)
             pi = tc.randomPi();
-
             [H, V, VR, VRDot] = tc.randomInputs();
 
-            % Regressor prediction
-            Y = rbr.getRegressor(H, V, VR, VRDot);
+            Y     = rbr.getRegressor(H, V, VR, VRDot);
             Ypred = Y * pi;
 
-            % Ground-truth wrench
-            I6     = fth.utils.RBInertia.params2genInertia(pi);
+            I6      = fth.utils.RBInertia.params2genInertia(pi);
             C_basic = -fth.se3.adV(V).' * I6;
-            R      = H(1:3, 1:3);
-            gB     = R.' * [0; 0; 9.81];
-            m      = pi(1);
-            h      = pi(2:4);           % first moment (= m * CoG)
-            Wg     = [cross(h, gB); m * gB];
-            Wref   = I6 * VRDot(:) + C_basic * VR(:) + Wg;
+            R       = H(1:3, 1:3);
+            gW      = [0; 0; 9.81];
+            gB      = R.' * gW;
+            m       = pi(1);
+            h       = pi(2:4);
+            Wg      = [R.' * fth.se3.hat3(gW) * h; m * gB];
+            Wref    = I6 * VRDot(:) + C_basic * VR(:) + Wg;
 
             tc.verifyEqual(Ypred, Wref, 'AbsTol', 1e-10);
         end
-    end
 
         function testConsistencyConsistent(tc)
             rng(43);
@@ -92,17 +93,20 @@ classdef TestRigidBodyRegressor < matlab.unittest.TestCase
             pi = tc.randomPi();
             [H, V, VR, VRDot] = tc.randomInputs();
 
-            Y = rbr.getRegressor(H, V, VR, VRDot);
+            Y     = rbr.getRegressor(H, V, VR, VRDot);
             Ypred = Y * pi;
 
-            % Ground-truth: consistent Coriolis C = 0.5*(I*adV(V) - adV(I*V) - adV(V)'*I)
+            % C(V,I) = 0.5*(I*adV(V) - adV(I*V) - adV(V)'*I)
             I6     = fth.utils.RBInertia.params2genInertia(pi);
-            C_cons = 0.5 * (I6 * fth.se3.adV(V) - fth.se3.adV(I6*V) - fth.se3.adV(V).' * I6);
+            C_cons = 0.5 * (I6 * fth.se3.adV(V) ...
+                          - fth.se3.adV(I6 * V) ...
+                          - fth.se3.adV(V).' * I6);
             R      = H(1:3, 1:3);
-            gB     = R.' * [0; 0; 9.81];
+            gW     = [0; 0; 9.81];
+            gB     = R.' * gW;
             m      = pi(1);
             h      = pi(2:4);
-            Wg     = [cross(h, gB); m * gB];
+            Wg     = [R.' * fth.se3.hat3(gW) * h; m * gB];
             Wref   = I6 * VRDot(:) + C_cons * VR(:) + Wg;
 
             tc.verifyEqual(Ypred, Wref, 'AbsTol', 1e-10);
@@ -114,7 +118,7 @@ classdef TestRigidBodyRegressor < matlab.unittest.TestCase
     % ------------------------------------------------------------------ %
     methods (Static, Access = private)
         function [H, V, VR, VRDot] = randomInputs()
-            % Generate a valid rotation via QR decomposition
+            % Generate a valid rotation via QR decomposition.
             [Q, ~] = qr(randn(3));
             if det(Q) < 0; Q(:,1) = -Q(:,1); end
             H = eye(4);
@@ -130,9 +134,8 @@ classdef TestRigidBodyRegressor < matlab.unittest.TestCase
             % Build a physically consistent pi with PD inertia tensor.
             m   = abs(randn) + 1;           % positive mass
             h   = randn(3,1) * 0.1;         % small first moment
-            % Diagonal-dominant inertia
-            d   = abs(randn(3,1)) + 1;      % Jxx, Jyy, Jzz
-            off = randn(3,1) * 0.05;        % Jxy, Jxz, Jyz (small)
+            d   = abs(randn(3,1)) + 1;      % Jxx, Jyy, Jzz (diagonal dominant)
+            off = randn(3,1) * 0.05;        % Jxy, Jxz, Jyz (small off-diagonal)
             pi  = [m; h; d; off];
         end
     end
