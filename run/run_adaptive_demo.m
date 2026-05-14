@@ -31,7 +31,7 @@ ctrlOpts.Kd           = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
 ctrlOpts.lambda       = 1e-3 * [5, 5, 5, 50, 50, 50]; % composite-variable coupling: s = Ve + diag(lambda)*eH
 
 ctrlOpts.paramInit    = 'mid-vehicle-payload';      % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
-ctrlOpts.coriolisForm = 'basic';    % 'basic', 'consistent'
+ctrlOpts.coriolisForm = 'consistent';    % 'basic', 'consistent'
 cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation.

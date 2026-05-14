@@ -113,24 +113,23 @@ classdef RigidBodyRegressor < handle
             rIR = fth.ctrl.RigidBodyRegressor.rotInertiaReg_(omega);
 
             Z = zeros(6, 10);
-            % Force rows (4:6):
-            Z(4:6, 1)    = -fth.se3.hat3(vr) * v;
-            Z(4:6, 2:4)  =  fth.se3.hat3(omega_r) * fth.se3.hat3(v) ...
-                           - fth.se3.hat3(vr)      * fth.se3.hat3(omega);
-            Z(4:6, 5:10) = -fth.se3.hat3(omega_r) * rIR;
             % Torque rows (1:3):
-            Z(1:3, 1)    = -fth.se3.hat3(omega_r) * v;
-            Z(1:3, 2:4)  = -fth.se3.hat3(omega_r) * fth.se3.hat3(omega);
+            Z(1:3, 1)    = -fth.se3.hat3(vr) * v;
+            Z(1:3, 2:4)  = fth.se3.hat3(omega_r) * fth.se3.hat3(v) ...
+                           - fth.se3.hat3(vr)      * fth.se3.hat3(omega);
+            Z(1:3, 5:10) = -fth.se3.hat3(omega_r) * rIR;
+            % Force rows (4:6):
+            Z(4:6, 1)    = -fth.se3.hat3(omega_r) * v;
+            Z(4:6, 2:4)  =  -fth.se3.hat3(omega_r) * fth.se3.hat3(omega);
         end
 
         function YG = gravityRegressor(obj, H)
             %GRAVITYREGRESSOR Return the gravity regressor Yg(H).
             % Rows 1:3 = torque, rows 4:6 = force (V=[omega;v] convention).
             R  = H(1:3, 1:3);
-            gB = R.' * obj.GravityWorld;
             YG = zeros(6, 10);
-            YG(4:6, 1)   = gB;
-            YG(1:3, 2:4) = -fth.se3.hat3(gB);
+            YG(1:3, 2:4) = R.' * fth.se3.hat3(obj.GravityWorld);
+            YG(4:6, 1)   = R.' * obj.GravityWorld;
         end
     end
 
