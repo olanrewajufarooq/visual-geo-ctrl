@@ -157,11 +157,15 @@ classdef Dynamics < handle
             %GRAVITYWRENCH Compute gravity wrench in body frame.
             %   Output:
             %     Wg - 6x1 wrench due to gravity.
+            %
+            %   Derivation: gravity wrench at CoG in world is [0; m*g_vec].
+            %   Ad(H_cog)' transports it to the body origin in body frame,
+            %   where H_cog = [R, CoG; 0, 1] encodes the body rotation and
+            %   CoG offset.
             R = obj.H(1:3,1:3);
-            gvec = [0;0;obj.g];
-            f_g = obj.m * (R' * gvec);
-            tau_g = cross(obj.CoG, f_g);
-            Wg = [tau_g; f_g];
+            gvec = [0; 0; obj.g];
+            H_cog = [R, obj.CoG; 0, 0, 0, 1];
+            Wg = fth.se3.Ad(H_cog)' * [zeros(3,1); obj.m * gvec];
         end
 
         function Wground = groundWrench(obj)
