@@ -5,8 +5,8 @@ classdef WrenchController < handle
     %     s     = Ve + Lambda * eH           (sliding variable)
     %     VR    = Ad^{-1}(He) * Vd - Lambda * eH   (reference velocity)
     %     VRDot = -ad(Ve)*Ad^{-1}(He)*Vd + Ad^{-1}(He)*VdDot - Lambda*eHDot
-    %     C     = getCoriolisFactor(VR, I6)  (6x6 Coriolis factorization)
-    %     W = I6 * VRDot + C(VR,I6)*VR + Wg - Kd*s
+    %     pi = [m; m*CoG; Iparams]         (10x1 parameter vector)
+    %     W  = Y(H,V,VR,VRDot)*pi - Kd*s  (regressor-based cancellation)
     %
     %   where Ve = V - Ad^{-1}(He)*Vd is the classical velocity error,
     %   eH and eHDot come from the configured potential function, and
@@ -17,9 +17,9 @@ classdef WrenchController < handle
         potential
         coriolisFactor
         adaptation
+        regressor    % fth.ctrl.RigidBodyRegressor
         Kd      % 6x6 diagonal derivative gain
         lambda  % 6x6 diagonal coupling gain (Lambda)
-        g
     end
 
     methods
@@ -29,9 +29,14 @@ classdef WrenchController < handle
             %     cfg - fth.sim.Config instance.
             obj.potential      = fth.ctrl.potential.PotentialFactory.create(cfg);
             obj.coriolisFactor = fth.ctrl.coriolis.CoriolisFactorFactory.create(cfg);
-            obj.adaptation     = fth.ctrl.adapt.AdaptationFactory.create(cfg);
+            if isfield(cfg.controller, 'coriolisFactorization') && ~isempty(cfg.controller.coriolisFactorization)
+                coriolisForm = lower(cfg.controller.coriolisFactorization);
+            else
+                coriolisForm = 'basic';
+            end
+            obj.regressor = fth.ctrl.RigidBodyRegressor(cfg.vehicle.g, coriolisForm);
+            obj.adaptation = fth.ctrl.adapt.AdaptationFactory.create(cfg, obj.coriolisFactor);
             obj.Kd     = diag(cfg.controller.Kd(:));
-            obj.g      = cfg.vehicle.g;
 
             if isfield(cfg.controller, 'lambda') && ~isempty(cfg.controller.lambda)
                 lam = cfg.controller.lambda(:);
@@ -66,9 +71,8 @@ classdef WrenchController < handle
             eH    = obj.potential.getPotentialError(Hd, H);
             eHDot = obj.potential.getPotentialErrorDerivative(Hd, H, Vd, V);
 
-            params = obj.adaptation.getParams();
-            I6  = params.I6;
-            Wg  = obj.gravityWrench(H, params.m, params.CoG);
+            params  = obj.adaptation.getParams();
+            pi_hat  = [params.m; params.m * params.CoG(:); params.Iparams(:)];
 
             VR    = ts.AdInvHe * Vd - obj.lambda * eH;
             s     = ts.Ve + obj.lambda * eH;
@@ -76,9 +80,8 @@ classdef WrenchController < handle
                     + ts.AdInvHe * Ades ...
                     - obj.lambda * eHDot;
 
-            C        = obj.coriolisFactor.getCoriolisFactor(VR, I6);
-            coriolis = C * VR;
-            W = I6 * VRDot + coriolis + Wg - obj.Kd * s;
+            Y = obj.regressor.getRegressor(H, V, VR, VRDot);
+            W = Y * pi_hat - obj.Kd * s;
         end
 
         function [m_hat, cog_hat, Iparams_hat] = getEstimate(obj)
@@ -125,17 +128,6 @@ classdef WrenchController < handle
             s     = ts.Ve + obj.lambda * eH;
 
             obj.adaptation.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
-        end
-    end
-
-    methods (Access = private)
-        function Wg = gravityWrench(obj, H, m, CoG)
-            %GRAVITYWRENCH Compute gravity wrench in body frame.
-            R    = H(1:3,1:3);
-            gvec = [0; 0; obj.g];
-            f_g  = m * (R' * gvec);
-            tau_g = cross(CoG(:), f_g);
-            Wg   = [tau_g; f_g];
         end
     end
 end
