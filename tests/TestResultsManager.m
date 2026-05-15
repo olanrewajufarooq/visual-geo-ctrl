@@ -32,7 +32,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             c = onCleanup(@() rmdir(rootDir, 's'));
 
             logs = struct('actual', struct('pos', [0 0 0]), 'des', struct('pos', [0 0 0]));
-            metrics = struct('combined', struct('rmse_total', 0.1, 'tracking_score', 99));
+            metrics = struct('combined', struct('rmse_total', 0.1));
             est = struct('mass', 3.5);
             runInfo = struct('isAdaptive', true, 'duration', 1, 'dt', 0.01);
             cfg = fth.sim.Config();
@@ -170,10 +170,10 @@ classdef TestResultsManager < matlab.unittest.TestCase
             testCase.verifyEqual(entry.run_label, 'Run 3');
             testCase.verifyEqual(entry.is_adaptive, true);
             testCase.verifyEqual(entry.track_rmse, metrics.combined.rmse_total, 'AbsTol', 1e-12);
-            testCase.verifyEqual(entry.cog_tracking_score, metrics.parameters.cog.tracking_score, 'AbsTol', 1e-12);
-            testCase.verifyEqual(entry.mass_ident_score, metrics.parameters.identifiability.mass.score, 'AbsTol', 1e-12);
             testCase.verifyEqual(entry.mass_nrmse, metrics.parameters.mass.nrmse, 'AbsTol', 1e-12);
-            testCase.verifyEqual(entry.cog_ident_metric, metrics.parameters.identifiability.mcog.sigma_min, 'AbsTol', 1e-12);
+            testCase.verifyEqual(entry.mass_regressor_info, metrics.parameters.regressorInfo.mass.sigma_min, 'AbsTol', 1e-12);
+            testCase.verifyEqual(entry.cog_regressor_info, metrics.parameters.regressorInfo.mcog.sigma_min, 'AbsTol', 1e-12);
+            testCase.verifyEqual(entry.inertia_regressor_info, metrics.parameters.regressorInfo.inertia.sigma_min, 'AbsTol', 1e-12);
         end
 
         function testAdaptiveRunWithoutPayloadBuildsMetricsAndNoShapeError(testCase)
@@ -199,9 +199,9 @@ classdef TestResultsManager < matlab.unittest.TestCase
             testCase.verifyEqual(metricsEntry.is_adaptive, true);
             testCase.verifyTrue(isfinite(metricsEntry.cog_rmse));
             testCase.verifyTrue(isfinite(metricsEntry.mass_nrmse));
-            testCase.verifyTrue(isfinite(metricsEntry.mass_ident_score));
-            testCase.verifyTrue(isfinite(metricsEntry.cog_ident_score));
-            testCase.verifyTrue(isfinite(metricsEntry.inertia_ident_score));
+            testCase.verifyTrue(isfinite(metricsEntry.mass_regressor_info));
+            testCase.verifyTrue(isfinite(metricsEntry.cog_regressor_info));
+            testCase.verifyTrue(isfinite(metricsEntry.inertia_regressor_info));
         end
 
         function testAdaptiveRunWithPayloadDropBuildsMetricsAndNoShapeError(testCase)
@@ -228,9 +228,9 @@ classdef TestResultsManager < matlab.unittest.TestCase
             testCase.verifyEqual(metricsEntry.is_adaptive, true);
             testCase.verifyTrue(isfinite(metricsEntry.cog_rmse));
             testCase.verifyTrue(isfinite(metricsEntry.mass_nrmse));
-            testCase.verifyTrue(isfinite(metricsEntry.mass_ident_score));
-            testCase.verifyTrue(isfinite(metricsEntry.cog_ident_score));
-            testCase.verifyTrue(isfinite(metricsEntry.inertia_ident_score));
+            testCase.verifyTrue(isfinite(metricsEntry.mass_regressor_info));
+            testCase.verifyTrue(isfinite(metricsEntry.cog_regressor_info));
+            testCase.verifyTrue(isfinite(metricsEntry.inertia_regressor_info));
         end
 
         function testAdaptiveBatchWritesIdentReportAndExcludesZeroGains(testCase)
@@ -256,13 +256,13 @@ classdef TestResultsManager < matlab.unittest.TestCase
             sim.setup();
             sim.run('none', false, false);
 
-            identPath = fullfile(sim.resultsDir, 'ident_report.txt');
+            identPath = fullfile(sim.resultsDir, 'regressor_info_report.txt');
             testCase.verifyTrue(exist(identPath, 'file') == 2);
             content = fth.io.ResultsManager.readTextFile(identPath);
-            testCase.verifyTrue(contains(content, 'Batch Identifiability Report'));
+            testCase.verifyTrue(contains(content, 'Batch Regressor Information Report'));
             testCase.verifyTrue(contains(content, 'Gain 002'));
             testCase.verifyFalse(contains(content, 'Gain 001'));
-            testCase.verifyTrue(contains(content, 'Trajectory Mean Summary'));
+            testCase.verifyTrue(contains(content, 'Trajectory Mean Regressor Info Summary'));
             testCase.verifyTrue(contains(content, 'hover'));
             testCase.verifyTrue(contains(content, 'circle'));
         end
@@ -289,7 +289,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
                 'cmd', struct('wrenchF', wrenchF, 'wrenchT', wrenchT));
 
             est = [];
-            metrics = struct('combined', struct('rmse_total', 0.12, 'tracking_score', 98.7));
+            metrics = struct('combined', struct('rmse_total', 0.12));
             cfg = fth.sim.Config();
             cfg.setTrajectory('circle');
             if isAdaptive
@@ -310,13 +310,13 @@ classdef TestResultsManager < matlab.unittest.TestCase
                         0.04092 0.04017 0.06921 5.656e-5 -6.494e-5 1.313e-5], ...
                     'dropTime', 1.5);
                 metrics.parameters = struct( ...
-                    'mass', struct('rmse', 0.2, 'nrmse', 0.04, 'tracking_score', 85.0), ...
-                    'cog', struct('rmse_total', 0.01, 'nrmse_total', 0.08, 'tracking_score', 75.0), ...
-                    'inertia', struct('rmse_total', 0.02, 'nrmse_total', 0.12, 'tracking_score', 65.0), ...
-                    'identifiability', struct( ...
-                        'mass', struct('score', 91.0, 'sigma_min', 0.91), ...
-                        'mcog', struct('score', 73.0, 'sigma_min', 0.73), ...
-                        'inertia', struct('score', 62.0, 'sigma_min', 0.62)));
+                    'mass', struct('rmse', 0.2, 'nrmse', 0.04), ...
+                    'cog', struct('rmse_total', 0.01, 'nrmse_total', 0.08), ...
+                    'inertia', struct('rmse_total', 0.02, 'nrmse_total', 0.12), ...
+                    'regressorInfo', struct( ...
+                        'mass', struct('sigma_min', 0.91, 'rank', 6, 'dimension', 6), ...
+                        'mcog', struct('sigma_min', 0.73, 'rank', 3, 'dimension', 3), ...
+                        'inertia', struct('sigma_min', 0.62, 'rank', 6, 'dimension', 6)));
             end
 
             runInfo = struct('isAdaptive', isAdaptive, 'duration', 2, 'dt', 1, ...

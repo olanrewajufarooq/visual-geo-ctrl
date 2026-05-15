@@ -58,7 +58,7 @@ classdef Config < handle
             %     obj - Config instance (for chaining).
 
             obj.initTrajectory();
-            trajNames = obj.normalizeTrajectoryNames(name);
+            trajNames = fth.sim.ConfigUtils.normalizeNames(name);
             if nargin > 2
                 hoverInput = goToHoverBeforePathStarts;
                 hasHover = true;
@@ -67,7 +67,7 @@ classdef Config < handle
                 hasHover = false;
             end
             if hasHover
-                trajHover = obj.normalizeTrajectoryHover(hoverInput, numel(trajNames));
+                trajHover = fth.sim.ConfigUtils.normalizeHover(hoverInput, numel(trajNames));
                 obj.traj.batch = struct('names', {trajNames}, 'goToHoverBeforePathStarts', trajHover);
                 obj.applyTrajectoryDefinition(trajNames{1}, trajHover(1));
             else
@@ -121,7 +121,7 @@ classdef Config < handle
             end
             if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
                 if ~strcmpi(obj.controller.adaptation, 'none')
-                    obj.controller.Gamma = obj.defaultAdaptiveGains();
+                    obj.controller.Gamma = fth.sim.ConfigUtils.defaultGains(obj.controller.adaptation);
                 end
             end
         end
@@ -145,7 +145,7 @@ classdef Config < handle
             obj.controller.adaptation = type;
             if ~strcmpi(type, 'none')
                 if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
-                    obj.controller.Gamma = obj.defaultAdaptiveGains(type);
+                    obj.controller.Gamma = fth.sim.ConfigUtils.defaultGains(type);
                 end
             end
         end
@@ -239,10 +239,14 @@ classdef Config < handle
         function batchCount = getBatchCount(obj)
             %GETBATCHCOUNT Return the number of simulation runs requested.
             gainBatchCount = 1;
+            kpVal = []; if isfield(obj.controller, 'Kp'), kpVal = obj.controller.Kp; end
+            kdVal = []; if isfield(obj.controller, 'Kd'), kdVal = obj.controller.Kd; end
+            gVal  = []; if isfield(obj.controller, 'Gamma'), gVal = obj.controller.Gamma; end
+            adaptMode = 'none'; if isfield(obj.controller, 'adaptation'), adaptMode = obj.controller.adaptation; end
             counts = [ ...
-                obj.getGainBatchCount('Kp', 6), ...
-                obj.getGainBatchCount('Kd', 6), ...
-                obj.getGammaBatchCount()];
+                fth.sim.ConfigUtils.gainBatchCount(kpVal, 'Kp', 6), ...
+                fth.sim.ConfigUtils.gainBatchCount(kdVal, 'Kd', 6), ...
+                fth.sim.ConfigUtils.gammaBatchCount(gVal, adaptMode)];
             batched = counts(counts > 1);
             if ~isempty(batched)
                 gainBatchCount = batched(1);
@@ -251,8 +255,8 @@ classdef Config < handle
                 error('Config:InconsistentBatchCounts', ...
                     'Kp, Kd, and Gamma batch counts must match when more than one run is requested.');
             end
-            nCoriolisForm = numel(obj.getCoriolisFormBatchEntries());
-            batchCount = gainBatchCount * obj.getTrajectoryBatchCount() * nCoriolisForm;
+            M = obj.resolveM();
+            batchCount = M * obj.getTrajectoryBatchCount();
         end
 
         function cfgs = expandBatchConfigs(obj, parentResultsDir)
@@ -260,57 +264,89 @@ classdef Config < handle
             if nargin < 2
                 parentResultsDir = '';
             end
-            gainBatchCount = obj.getSharedGainBatchCount();
+
+            M = obj.resolveM();
             [trajNames, trajHover, hasHoverOverride] = obj.getTrajectoryBatchEntries();
+            N = numel(trajNames);
+            batchCount = N * M;
+
+            % Build run name list (from sim.batchNames or fallback).
+            batchNames = {};
+            if isfield(obj.sim, 'batchNames'), batchNames = obj.sim.batchNames; end
+
+            % Build coriolisFactorization list (always returned as a cell array).
             forms = obj.getCoriolisFormBatchEntries();
-            nCoriolisForm = numel(forms);
-            batchCount = gainBatchCount * numel(trajNames) * nCoriolisForm;
+
             cfgs = cell(batchCount, 1);
             cfgIndex = 1;
-            for trajIdx = 1:numel(trajNames)
+
+            for trajIdx = 1:N
                 currentTrajName = trajNames(trajIdx);
-                for formIdx = 1:nCoriolisForm
-                    for gainIdx = 1:gainBatchCount
-                        cfgCopy = obj.copy();
-                        if hasHoverOverride
-                            cfgCopy.applyTrajectoryDefinition(currentTrajName{1}, trajHover(trajIdx));
-                            cfgCopy.traj.batch = struct( ...
-                                'names', {currentTrajName}, ...
-                                'goToHoverBeforePathStarts', trajHover(trajIdx));
-                        else
-                            cfgCopy.applyTrajectoryDefinition(currentTrajName{1});
-                            cfgCopy.traj.batch = struct( ...
-                                'names', {currentTrajName});
-                        end
-                        cfgCopy.controller.Kp = obj.selectGainRow(obj.controller.Kp, gainIdx);
-                        cfgCopy.controller.Kd = obj.selectGainRow(obj.controller.Kd, gainIdx);
-                        if isfield(obj.controller, 'Gamma') && ~isempty(obj.controller.Gamma)
-                            cfgCopy.controller.Gamma = obj.selectGammaRow(obj.controller.Gamma, gainIdx);
-                        end
-                        cfgCopy.controller.coriolisFactorization = forms{formIdx};
-                        if ~isempty(parentResultsDir)
-                            % Build leaf folder: form name when batching forms,
-                            % run_NNN when batching gains, or both combined.
-                            if nCoriolisForm > 1 && gainBatchCount > 1
-                                leafFolder = fullfile(forms{formIdx}, sprintf('run_%03d', gainIdx));
-                            elseif nCoriolisForm > 1
-                                leafFolder = forms{formIdx};
-                            else
-                                leafFolder = sprintf('run_%03d', gainIdx);
-                            end
-                            if numel(trajNames) > 1
-                                trajFolder = obj.getTrajectoryFolderName(currentTrajName{1}, trajIdx);
-                                cfgCopy.sim.resultsDirOverride = fullfile(parentResultsDir, trajFolder, leafFolder);
-                            else
-                                cfgCopy.sim.resultsDirOverride = fullfile(parentResultsDir, leafFolder);
-                            end
-                        end
-                        cfgCopy.sim.captureConsoleExternally = batchCount > 1;
-                        cfgCopy.sim.batchRunIndex = gainIdx;
-                        cfgCopy.sim.globalBatchIndex = cfgIndex;
-                        cfgs{cfgIndex} = cfgCopy;
-                        cfgIndex = cfgIndex + 1;
+                for simIdx = 1:M
+                    cfgCopy = obj.copy();
+
+                    % Apply trajectory.
+                    if hasHoverOverride
+                        cfgCopy.applyTrajectoryDefinition(currentTrajName{1}, trajHover(trajIdx));
+                        cfgCopy.traj.batch = struct('names', {currentTrajName}, ...
+                            'goToHoverBeforePathStarts', trajHover(trajIdx));
+                    else
+                        cfgCopy.applyTrajectoryDefinition(currentTrajName{1});
+                        cfgCopy.traj.batch = struct('names', {currentTrajName});
                     end
+
+                    % Select gains for this simIdx.
+                    cfgCopy.controller.Kp = fth.sim.ConfigUtils.selectRow(obj.controller.Kp, simIdx);
+                    cfgCopy.controller.Kd = fth.sim.ConfigUtils.selectRow(obj.controller.Kd, simIdx);
+                    if isfield(obj.controller, 'Gamma') && ~isempty(obj.controller.Gamma)
+                        cfgCopy.controller.Gamma = fth.sim.ConfigUtils.selectGammaRow( ...
+                            obj.controller.adaptation, obj.controller.Gamma, simIdx);
+                    end
+
+                    % Select coriolisFactorization for this simIdx.
+                    if numel(forms) > 1
+                        cfgCopy.controller.coriolisFactorization = forms{simIdx};
+                    else
+                        cfgCopy.controller.coriolisFactorization = forms{1};
+                    end
+
+                    % Select payload fields for this simIdx.
+                    if isfield(obj.payload, 'mass') && numel(obj.payload.mass) > 1
+                        cfgCopy.payload.mass = obj.payload.mass(simIdx);
+                    end
+                    if isfield(obj.payload, 'CoG') && size(obj.payload.CoG,1) == 3 && size(obj.payload.CoG,2) == 1
+                        % scalar 3×1 — broadcast as-is
+                    elseif isfield(obj.payload, 'CoG') && size(obj.payload.CoG,2) == 3 && size(obj.payload.CoG,1) > 1
+                        cfgCopy.payload.CoG = obj.payload.CoG(simIdx,:)';
+                    end
+                    if isfield(obj.payload, 'dropTime') && numel(obj.payload.dropTime) > 1
+                        cfgCopy.payload.dropTime = obj.payload.dropTime(simIdx);
+                    end
+
+                    % Build run name: from batchNames or fallback.
+                    if ~isempty(batchNames) && simIdx <= numel(batchNames)
+                        runName = batchNames{simIdx};
+                    else
+                        runName = sprintf('run_%03d', simIdx);
+                    end
+                    cfgCopy.sim.runName = runName;
+                    cfgCopy.sim.batchRunIndex = simIdx;
+                    cfgCopy.sim.globalBatchIndex = cfgIndex;
+
+                    % Build results folder.
+                    if ~isempty(parentResultsDir)
+                        leafFolder = runName;
+                        if N > 1
+                            trajFolder = fth.sim.ConfigUtils.trajectoryFolderName(currentTrajName{1}, trajIdx);
+                            cfgCopy.sim.resultsDirOverride = fullfile(parentResultsDir, trajFolder, leafFolder);
+                        else
+                            cfgCopy.sim.resultsDirOverride = fullfile(parentResultsDir, leafFolder);
+                        end
+                    end
+
+                    cfgCopy.sim.captureConsoleExternally = batchCount > 1;
+                    cfgs{cfgIndex} = cfgCopy;
+                    cfgIndex = cfgIndex + 1;
                 end
             end
         end
@@ -329,13 +365,55 @@ classdef Config < handle
 
         function obj = validateBatchGains(obj)
             %VALIDATEBATCHGAINS Validate configured gain shapes and counts.
-            obj.validateGainShape('Kp', 6);
-            obj.validateGainShape('Kd', 6);
-            if isfield(obj.controller, 'Gamma') && ~isempty(obj.controller.Gamma)
-                obj.validateGammaShape();
+            kpVal = []; if isfield(obj.controller, 'Kp'), kpVal = obj.controller.Kp; end
+            fth.sim.ConfigUtils.validateGainShape(kpVal, 'Kp', 6);
+            kdVal = []; if isfield(obj.controller, 'Kd'), kdVal = obj.controller.Kd; end
+            fth.sim.ConfigUtils.validateGainShape(kdVal, 'Kd', 6);
+            gVal = []; if isfield(obj.controller, 'Gamma'), gVal = obj.controller.Gamma; end
+            adaptMode = 'none'; if isfield(obj.controller, 'adaptation'), adaptMode = obj.controller.adaptation; end
+            if ~isempty(gVal)
+                fth.sim.ConfigUtils.validateGammaShape(gVal, adaptMode);
             end
-            obj.validateTrajectoryBatch();
-            obj.getBatchCount();
+            [trajNames, trajHover, ~] = obj.getTrajectoryBatchEntries();
+            fth.sim.ConfigUtils.validateTrajectoryBatch(trajNames, trajHover);
+            M = obj.resolveM();
+            % Validate that all batched fields agree on M.
+            % Gain rows must be 1 (broadcast) or exactly M.
+            gainRows = fth.sim.ConfigUtils.gainBatchCount(kpVal, 'Kp', 6);
+            gammaRows = fth.sim.ConfigUtils.gammaBatchCount(gVal, adaptMode);
+            for rowCount = [gainRows, gammaRows]
+                if rowCount > 1 && rowCount ~= M
+                    error('Config:InconsistentBatchCounts', ...
+                        'Gain row count (%d) must match batch count M=%d.', rowCount, M);
+                end
+            end
+            if isfield(obj.controller, 'coriolisFactorization') && ...
+                    iscell(obj.controller.coriolisFactorization) && ...
+                    numel(obj.controller.coriolisFactorization) > 1
+                if numel(obj.controller.coriolisFactorization) ~= M
+                    error('Config:InconsistentBatchCounts', ...
+                        'coriolisFactorization cell array length (%d) must match batch count M=%d.', ...
+                        numel(obj.controller.coriolisFactorization), M);
+                end
+            end
+            if isfield(obj.payload, 'mass') && numel(obj.payload.mass) > 1
+                if numel(obj.payload.mass) ~= M
+                    error('Config:InconsistentBatchCounts', ...
+                        'payload.mass length (%d) must match batch count M=%d.', numel(obj.payload.mass), M);
+                end
+            end
+            if isfield(obj.payload, 'CoG') && size(obj.payload.CoG,1) > 1 && size(obj.payload.CoG,2) == 3
+                if size(obj.payload.CoG,1) ~= M
+                    error('Config:InconsistentBatchCounts', ...
+                        'payload.CoG row count (%d) must match batch count M=%d.', size(obj.payload.CoG,1), M);
+                end
+            end
+            if isfield(obj.payload, 'dropTime') && numel(obj.payload.dropTime) > 1
+                if numel(obj.payload.dropTime) ~= M
+                    error('Config:InconsistentBatchCounts', ...
+                        'payload.dropTime length (%d) must match batch count M=%d.', numel(obj.payload.dropTime), M);
+                end
+            end
         end
 
         function obj = setSimParams(obj, sim_dt, duration)
@@ -374,7 +452,7 @@ classdef Config < handle
             end
             if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
                 if ~strcmpi(obj.controller.adaptation, 'none')
-                    obj.controller.Gamma = obj.defaultAdaptiveGains();
+                    obj.controller.Gamma = fth.sim.ConfigUtils.defaultGains(obj.controller.adaptation);
                 end
             end
             if ~isfield(obj.controller, 'lambda') || isempty(obj.controller.lambda)
@@ -401,7 +479,13 @@ classdef Config < handle
                 obj.payload.mass = mass;
             end
             if nargin > 2
-                obj.payload.CoG = cog(:);
+                if isvector(cog) && numel(cog) == 3
+                    obj.payload.CoG = cog(:);        % any 3-element vector → 3×1 column
+                elseif size(cog, 1) > 1 && size(cog, 2) == 3
+                    obj.payload.CoG = cog;           % M×3 batch (M > 1)
+                else
+                    obj.payload.CoG = cog(:);        % fallback: force column
+                end
             end
             if nargin > 3
                 obj.payload.dropTime = dropTime;
@@ -605,15 +689,23 @@ classdef Config < handle
         function obj = usePayloadOptions(obj, opts)
             %USEPAYLOADOPTIONS Apply payload settings from a struct.
             %   Recognised fields:
-            %     .mass     - payload mass [kg]
-            %     .CoG      - 3x1 payload CoG offset [m]
-            %     .dropTime - drop time [s]
+            %     .mass     - payload mass [kg], scalar or M-element vector
+            %     .CoG      - 3x1 payload CoG offset [m], or M×3 batch
+            %     .dropTime - drop time [s], scalar or M-element vector
             %
             %   Output:
             %     obj - Config instance (for chaining).
-            if isfield(opts, 'mass'),     obj.payload.mass     = opts.mass;     end
-            if isfield(opts, 'CoG'),      obj.payload.CoG      = opts.CoG(:);   end
-            if isfield(opts, 'dropTime'), obj.payload.dropTime = opts.dropTime; end
+            if isfield(opts, 'mass'),     obj.payload.mass     = opts.mass;       end
+            if isfield(opts, 'CoG')
+                if isvector(opts.CoG) && numel(opts.CoG) == 3
+                    obj.payload.CoG = opts.CoG(:);       % any 3-element vector → 3×1 column
+                elseif size(opts.CoG, 1) > 1 && size(opts.CoG, 2) == 3
+                    obj.payload.CoG = opts.CoG;          % M×3 batch (M > 1)
+                else
+                    obj.payload.CoG = opts.CoG(:);       % fallback: force column
+                end
+            end
+            if isfield(opts, 'dropTime'), obj.payload.dropTime = opts.dropTime;   end
         end
 
         function obj = useSimOptions(obj, opts)
@@ -623,6 +715,7 @@ classdef Config < handle
             %     .duration     - total run time [s] (required together with .dt)
             %     .controlDt    - controller update period [s]
             %     .adaptationDt - adaptation update period [s]
+            %     .names        - M-element cellstr of run names for batch labelling
             %
             %   Output:
             %     obj - Config instance (for chaining).
@@ -631,6 +724,9 @@ classdef Config < handle
             end
             if isfield(opts, 'controlDt'),    obj.setControlParams(opts.controlDt);       end
             if isfield(opts, 'adaptationDt'), obj.setAdaptationParams(opts.adaptationDt); end
+            if isfield(opts, 'names') && ~isempty(opts.names)
+                obj.sim.batchNames = fth.sim.ConfigUtils.normalizeNames(opts.names);
+            end
         end
 
         function obj = useVizOptions(obj, opts)
@@ -852,128 +948,35 @@ classdef Config < handle
             end
         end
 
-        function count = getGainBatchCount(obj, fieldName, expectedRows)
-            %GETGAINBATCHCOUNT Return number of gain columns for a field.
-            count = 1;
-            if ~isfield(obj.controller, fieldName) || isempty(obj.controller.(fieldName))
-                return;
-            end
-            value = obj.controller.(fieldName);
-            obj.validateGainShape(fieldName, expectedRows);
-            if ismatrix(value) && size(value,2) == expectedRows && size(value,1) > 1
-                count = size(value,1);
-            end
-        end
-
-        function count = getGammaBatchCount(obj)
-            %GETGAMMABATCHCOUNT Return number of adaptive gain rows.
-            count = 1;
-            if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
-                return;
-            end
-            obj.validateGammaShape();
-            value = obj.controller.Gamma;
-            if strcmpi(obj.controller.adaptation, 'bregman') && ...
-                    ismatrix(value) && size(value,2) == 1 && size(value,1) > 1
-                count = size(value,1);
-            elseif ~strcmpi(obj.controller.adaptation, 'bregman') && ...
-                    ismatrix(value) && size(value,2) == 10 && size(value,1) > 1
-                count = size(value,1);
-            end
-        end
-
-        function validateGainShape(obj, fieldName, expectedRows)
-            %VALIDATEGAINSHAPE Validate the row count for a configured gain field.
-            if ~isfield(obj.controller, fieldName) || isempty(obj.controller.(fieldName))
-                return;
-            end
-            value = obj.controller.(fieldName);
-            isValidVector = isvector(value) && numel(value) == expectedRows;
-            isValidMatrix = ismatrix(value) && size(value,2) == expectedRows;
-            if ~(isValidVector || isValidMatrix)
-                error('Config:InvalidGainShape', ...
-                    '%s must be a %dx1 vector, 1x%d vector, or Nx%d matrix.', ...
-                    fieldName, expectedRows, expectedRows, expectedRows);
-            end
-        end
-
-        function validateGammaShape(obj)
-            %VALIDATEGAMMASHAPE Validate adaptive gain shape for the selected mode.
-            if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
-                return;
-            end
-            value = obj.controller.Gamma;
-            adaptation = 'none';
-            if isfield(obj.controller, 'adaptation') && ~isempty(obj.controller.adaptation)
-                adaptation = lower(char(obj.controller.adaptation));
-            end
-
-            if strcmpi(adaptation, 'bregman')
-                isScalarBatch = isnumeric(value) && ...
-                    (isscalar(value) || (ismatrix(value) && size(value,2) == 1 && numel(value) ~= 10));
-                if ~isScalarBatch || any(~isfinite(value(:))) || any(value(:) <= 0)
-                    error('Config:InvalidGainShape', ...
-                        'Bregman Gamma must be a positive scalar or Nx1 positive scalar batch; 10-element gain vectors are not valid for Bregman.');
-                end
-                return;
-            end
-
-            isScalar = isnumeric(value) && isscalar(value);
-            isValidVector = isnumeric(value) && isvector(value) && numel(value) == 10;
-            isValidMatrix = isnumeric(value) && ismatrix(value) && size(value,2) == 10;
-            if ~(isScalar || isValidVector || isValidMatrix)
-                error('Config:InvalidGainShape', ...
-                    'Gamma must be scalar, a 10x1 vector, 1x10 vector, or Nx10 matrix.');
-            end
-        end
-
-        function value = selectGainRow(~, gainValue, index)
-            %SELECTGAINROW Select or broadcast a gain row for a run index.
-            if isvector(gainValue)
-                value = gainValue(:);
-            elseif size(gainValue,1) == 1
-                value = gainValue(:);
-            else
-                value = gainValue(index,:).';
-            end
-        end
-
-        function value = selectGammaRow(obj, gammaValue, index)
-            %SELECTGAMMAROW Select or broadcast Gamma for a run index.
-            if strcmpi(obj.controller.adaptation, 'bregman')
-                if isscalar(gammaValue)
-                    value = gammaValue;
-                else
-                    value = gammaValue(index, 1);
-                end
-            else
-                value = obj.selectGainRow(gammaValue, index);
-            end
-        end
-
-        function Gamma = defaultAdaptiveGains(obj, adaptation)
-            %DEFAULTADAPTIVEGAINS Return adaptation-mode-specific Gamma default.
-            if nargin < 2 || isempty(adaptation)
-                adaptation = obj.controller.adaptation;
-            end
-            if strcmpi(adaptation, 'bregman')
-                Gamma = 4e-3 * 20;
-            else
-                Gamma = 4e-3 * [20;20;30;1;1;1;90;30;30;60];
-            end
-        end
-
         function count = getSharedGainBatchCount(obj)
             %GETSHAREDGAINBATCHCOUNT Return the shared gain batch size.
             count = 1;
+            kpVal = []; if isfield(obj.controller, 'Kp'), kpVal = obj.controller.Kp; end
+            kdVal = []; if isfield(obj.controller, 'Kd'), kdVal = obj.controller.Kd; end
+            gVal  = []; if isfield(obj.controller, 'Gamma'), gVal = obj.controller.Gamma; end
+            adaptMode = 'none'; if isfield(obj.controller, 'adaptation'), adaptMode = obj.controller.adaptation; end
             counts = [ ...
-                obj.getGainBatchCount('Kp', 6), ...
-                obj.getGainBatchCount('Kd', 6), ...
-                obj.getGammaBatchCount()];
+                fth.sim.ConfigUtils.gainBatchCount(kpVal, 'Kp', 6), ...
+                fth.sim.ConfigUtils.gainBatchCount(kdVal, 'Kd', 6), ...
+                fth.sim.ConfigUtils.gammaBatchCount(gVal, adaptMode)];
             batched = counts(counts > 1);
-            if ~isempty(batched)
-                count = batched(1);
-            end
+            if ~isempty(batched), count = batched(1); end
+        end
+
+        function M = resolveM(obj)
+            %RESOLVEM Return the per-trajectory sim count (M).
+            batchNames = {};
+            if isfield(obj.sim, 'batchNames'), batchNames = obj.sim.batchNames; end
+
+            kpVal = []; if isfield(obj.controller, 'Kp'), kpVal = obj.controller.Kp; end
+            kdVal = []; if isfield(obj.controller, 'Kd'), kdVal = obj.controller.Kd; end
+            gVal  = []; if isfield(obj.controller, 'Gamma'), gVal = obj.controller.Gamma; end
+            cfVal = []; if isfield(obj.controller, 'coriolisFactorization'), cfVal = obj.controller.coriolisFactorization; end
+            massVal = []; if isfield(obj.payload, 'mass'), massVal = obj.payload.mass; end
+            cogVal  = []; if isfield(obj.payload, 'CoG'), cogVal = obj.payload.CoG; end
+            dtVal   = []; if isfield(obj.payload, 'dropTime'), dtVal = obj.payload.dropTime; end
+
+            M = fth.sim.ConfigUtils.resolveSimBatchCount(batchNames, {kpVal, kdVal, gVal, cfVal, massVal, cogVal, dtVal});
         end
 
         function count = getTrajectoryBatchCount(obj)
@@ -1012,18 +1015,6 @@ classdef Config < handle
                 trajNames = {char(string(obj.traj.name))};
                 trajHover = [];
                 hasHoverOverride = false;
-            end
-        end
-
-        function validateTrajectoryBatch(obj)
-            %VALIDATETRAJECTORYBATCH Validate trajectory batch configuration.
-            [trajNames, trajHover, hasHoverOverride] = obj.getTrajectoryBatchEntries();
-            if isempty(trajNames)
-                error('Config:InvalidTrajectoryBatch', 'At least one trajectory must be configured.');
-            end
-            if hasHoverOverride && numel(trajHover) ~= numel(trajNames)
-                error('Config:InvalidTrajectoryHover', ...
-                    'Trajectory goToHoverBeforePathStarts must be a scalar or match the number of trajectories.');
             end
         end
 
@@ -1073,41 +1064,5 @@ classdef Config < handle
             end
         end
 
-        function trajNames = normalizeTrajectoryNames(~, name)
-            %NORMALIZETRAJECTORYNAMES Normalize trajectory input into a cellstr.
-            if ischar(name) || (isstring(name) && isscalar(name))
-                trajNames = {char(string(name))};
-            elseif isstring(name)
-                trajNames = cellstr(name(:));
-            elseif iscell(name)
-                trajNames = cellfun(@char, cellfun(@string, name(:), 'UniformOutput', false), 'UniformOutput', false);
-            else
-                error('Config:InvalidTrajectoryInput', ...
-                    'Trajectory must be a char, string scalar, string array, or cell array.');
-            end
-            trajNames = cellfun(@strtrim, trajNames, 'UniformOutput', false);
-            if any(cellfun(@isempty, trajNames))
-                error('Config:InvalidTrajectoryInput', 'Trajectory names cannot be empty.');
-            end
-        end
-
-        function trajHover = normalizeTrajectoryHover(~, goToHoverBeforePathStarts, count)
-            %NORMALIZETRAJECTORYHOVER Normalize trajectory hover input.
-            if isscalar(goToHoverBeforePathStarts)
-                trajHover = repmat(logical(goToHoverBeforePathStarts), 1, count);
-                return;
-            end
-            trajHover = logical(goToHoverBeforePathStarts(:)).';
-            if numel(trajHover) ~= count
-                error('Config:InvalidTrajectoryHover', ...
-                    'Trajectory goToHoverBeforePathStarts must be a scalar or match the number of trajectories.');
-            end
-        end
-
-        function folderName = getTrajectoryFolderName(~, name, index)
-            %GETTRAJECTORYFOLDERNAME Build a compact trajectory folder name.
-            shortName = fth.io.NamingUtils.trajectoryLabel(name);
-            folderName = sprintf('t%02d_%s', index, shortName);
-        end
     end
 end

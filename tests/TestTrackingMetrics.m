@@ -3,7 +3,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
 
     methods (Test)
         function testZeroErrorGivesPerfectScore(testCase)
-            %Zero tracking error should yield RMSE=0 and score=100%.
+            %Zero tracking error should yield RMSE=0 and NRMSE=0.
             N = 100;
             pos = repmat([1 2 3], N, 1);
             rpy = repmat([0.1 0.2 0.3], N, 1);
@@ -11,7 +11,6 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             tm = fth.core.TrackingMetrics(logs, 'ZeroError');
             m = tm.computeAll();
             testCase.verifyEqual(m.position.rmse_total, 0, 'AbsTol', 1e-14);
-            testCase.verifyEqual(m.position.tracking_score, 100, 'AbsTol', 1e-10);
             testCase.verifyEqual(m.orientation.rmse_total, 0, 'AbsTol', 1e-12);
             testCase.verifyEqual(m.combined.rmse_total, 0, 'AbsTol', 1e-12);
         end
@@ -56,8 +55,8 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             testCase.verifyEqual(m.rmse_total, 0, 'AbsTol', 1e-12);
         end
 
-        function testCombinedScoreBetweenZeroAndHundred(testCase)
-            %Combined tracking score must always be in [0, 100].
+        function testCombinedNRMSEIsNonnegative(testCase)
+            %Combined NRMSE must be non-negative.
             N = 100;
             desPos = repmat([0 0 5], N, 1);
             actPos = desPos + 0.1 * randn(N, 3);
@@ -66,8 +65,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             logs = testCase.buildLogs(actPos, desPos, rpy, desRpy);
             tm = fth.core.TrackingMetrics(logs, 'Bounded');
             m = tm.computeCombined();
-            testCase.verifyGreaterThanOrEqual(m.tracking_score, 0);
-            testCase.verifyLessThanOrEqual(m.tracking_score, 100);
+            testCase.verifyGreaterThanOrEqual(m.nrmse_total, 0);
         end
 
         function testPositionMetricsCaching(testCase)
@@ -97,7 +95,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
         end
 
         function testParameterEstimationPerfectMass(testCase)
-            %Perfect mass estimation should give score=100.
+            %Perfect mass estimation should give RMSE=0.
             N = 100;
             mass = 3.646 * ones(N, 1);
             logs = testCase.buildAdaptiveLogs(N, mass, mass, ...
@@ -116,11 +114,8 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             tm = fth.core.TrackingMetrics(logs, 'IdentHigh');
             m = tm.computeAll();
 
-            testCase.verifyEqual(m.parameters.identifiability.mass.score, 100, 'AbsTol', 1e-12);
-            testCase.verifyEqual(m.parameters.identifiability.mcog.score, 100, 'AbsTol', 1e-12);
-            testCase.verifyEqual(m.parameters.identifiability.inertia.score, 100, 'AbsTol', 1e-12);
-            testCase.verifyEqual(m.parameters.identifiability.mass.sigma_min, 1, 'AbsTol', 1e-12);
-            testCase.verifyEqual(m.parameters.identifiability.update_count, N);
+            testCase.verifyEqual(m.parameters.regressorInfo.mass.sigma_min, 1, 'AbsTol', 1e-12);
+            testCase.verifyEqual(m.parameters.regressorInfo.update_count, N);
         end
 
         function testIdentifiabilityMassScoreLowWhenExplainedByOthers(testCase)
@@ -135,7 +130,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             tm = fth.core.TrackingMetrics(logs, 'IdentMassLow');
             m = tm.computeAll();
 
-            testCase.verifyLessThan(m.parameters.identifiability.mass.score, 1e-9);
+            testCase.verifyLessThan(m.parameters.regressorInfo.mass.sigma_min, 1e-9);
         end
 
         function testIdentifiabilityMcogLowWhenOneDirectionUnexcited(testCase)
@@ -148,8 +143,8 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             tm = fth.core.TrackingMetrics(logs, 'IdentMcogLow');
             m = tm.computeAll();
 
-            testCase.verifyEqual(m.parameters.identifiability.mcog.rank, 2);
-            testCase.verifyLessThan(m.parameters.identifiability.mcog.score, 1e-9);
+            testCase.verifyEqual(m.parameters.regressorInfo.mcog.rank, 2);
+            testCase.verifyLessThan(m.parameters.regressorInfo.mcog.sigma_min, 1e-9);
         end
 
         function testIdentifiabilityDefaultsToNaNWhenUnavailable(testCase)
@@ -159,9 +154,26 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             tm = fth.core.TrackingMetrics(logs, 'IdentMissing');
             m = tm.computeAll();
 
-            testCase.verifyTrue(isnan(m.parameters.identifiability.mass.score));
-            testCase.verifyTrue(isnan(m.parameters.identifiability.mcog.score));
-            testCase.verifyTrue(isnan(m.parameters.identifiability.inertia.score));
+            testCase.verifyTrue(isnan(m.parameters.regressorInfo.mass.sigma_min));
+            testCase.verifyTrue(isnan(m.parameters.regressorInfo.mcog.sigma_min));
+            testCase.verifyTrue(isnan(m.parameters.regressorInfo.inertia.sigma_min));
+        end
+
+        function testOrientationNRMSEUsesMaxMinRange(testCase)
+            % Orientation NRMSE should use (max-min) of error norm, not fixed pi.
+            N = 100;
+            t = linspace(0, 2*pi, N)';
+            desRpy = zeros(N, 3);
+            actRpy = [0.1*sin(t), zeros(N,1), zeros(N,1)];
+            logs = testCase.buildLogs(zeros(N,3), zeros(N,3), actRpy, desRpy);
+            tm = fth.core.TrackingMetrics(logs, 'OriNRMSE');
+            m = tm.computeOrientation();
+            % NRMSE should be finite and > 0
+            testCase.verifyTrue(isfinite(m.nrmse_total));
+            testCase.verifyGreaterThan(m.nrmse_total, 0);
+            % NRMSE should NOT use pi as denominator (would give a very small value)
+            % With max-min normalization it should be around 0.5 (RMS/range ≈ (amp/sqrt2)/(2*amp) ≈ 0.35)
+            testCase.verifyLessThan(m.nrmse_total, 2.0); % sanity bound
         end
 
         function testMissingLogsThrows(testCase)
@@ -178,8 +190,8 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             testCase.verifyTrue(isfield(m, 'orientation'));
             testCase.verifyTrue(isfield(m, 'combined'));
             testCase.verifyTrue(isfield(m.position, 'rmse_total'));
-            testCase.verifyTrue(isfield(m.position, 'tracking_score'));
-            testCase.verifyTrue(isfield(m.combined, 'tracking_score'));
+            testCase.verifyFalse(isfield(m.position, 'tracking_score'));
+            testCase.verifyFalse(isfield(m.combined, 'tracking_score'));
         end
     end
 
