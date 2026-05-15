@@ -37,29 +37,27 @@ methods
         obj.infoMatrix = zeros(10, 10);
         obj.updateCount = 0;
         obj.updateEstimates();
+        obj.initFromCfg(cfg);
     end
 
-    function params = update(obj, ~, H, ~, V, Ades, dt, s, VR, VRDot)
-        %UPDATE Step parameter estimates using the composite regressor.
+    function pi = doUpdate(obj, dt, s, Y)
+        %DOUPDATE Step parameter estimates using the pre-computed regressor.
         % Inputs:
-        % H     - 4×4 current pose.
-        % V     - 6×1 current body velocity.
-        % Ades - 6×1 desired acceleration (unused; VRDot used instead).
-        % dt   - timestep [s].
-        % s    - 6×1 composite sliding variable Ve + Lambda*eH.
-        % VR   - 6×1 reference body velocity.
-        % VRDot- 6×1 reference body acceleration.
+        % dt - timestep [s].
+        % s  - 6×1 composite sliding variable Ve + Lambda*eH.
+        % Y  - 6×10 regressor matrix (pre-computed by base class).
         % Output:
-        % params - struct with updated parameters.
-        [~, dt, s, VR, VRDot] = obj.parseUpdateArgs(Ades, dt, s, VR, VRDot);
-
-        Y = obj.regressor(H, V, VR, VRDot);
-        obj.infoMatrix = obj.infoMatrix + dt * (Y.' * Y);
+        % pi - 10×1 updated parameter vector.
+        obj.infoMatrix  = obj.infoMatrix + dt * (Y.' * Y);
         obj.updateCount = obj.updateCount + 1;
-        obj.pi_hat = obj.pi_hat - obj.Gamma * (Y.' * s) * dt;
+        obj.pi_hat      = obj.pi_hat - obj.Gamma * (Y.' * s) * dt;
         obj.updateEstimates();
+        pi = obj.pi_hat;
+    end
 
-        params = obj.getParams();
+    function pi = getPi(obj)
+        %GETPI Return current parameter estimate.
+        pi = obj.pi_hat;
     end
 
     function params = getParams(obj)

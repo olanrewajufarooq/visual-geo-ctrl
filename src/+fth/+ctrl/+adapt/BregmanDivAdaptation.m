@@ -53,40 +53,31 @@ methods
 
         obj.updateCount = 0;
         obj.updateEstimates();
+        obj.initFromCfg(cfg);
     end
 
-    function params = update(obj, ~, H, ~, V, Ades, dt, s, VR, VRDot)
-        %UPDATE Advance pseudo-inertia estimate by one Euler step.
+    function pi = doUpdate(obj, dt, s, Y)
+        %DOUPDATE Advance pseudo-inertia estimate by one Euler step.
         % Inputs:
-        % H     - 4×4 current pose.
-        % V     - 6×1 current body velocity.
-        % Ades - 6×1 desired acceleration (unused).
-        % dt   - timestep [s].
-        % s    - 6×1 composite sliding variable Ve + Lambda*eH.
-        % VR   - 6×1 reference body velocity.
-        % VRDot- 6×1 reference body acceleration.
+        % dt - timestep [s].
+        % s  - 6×1 composite sliding variable Ve + Lambda*eH.
+        % Y  - 6×10 regressor matrix (pre-computed by base class).
         % Output:
-        % params - struct with updated parameters.
-        [~, dt, s, VR, VRDot] = obj.parseUpdateArgs(Ades, dt, s, VR, VRDot);
-
-        Y = obj.regressor(H, V, VR, VRDot);
-
-        % Gradient direction in R^{4×4}: G = vec_inv(E^T * N^T * Y^T * s)
-        g_vec = obj.E' * (obj.N' * (Y' * s));   % 16×1
-        G     = reshape(g_vec, 4, 4);            % 4×4
-
-        % SPD manifold step: J_dot = -gamma * J * sym(G) * J
+        % pi - 10×1 updated parameter vector.
+        g_vec = obj.E' * (obj.N' * (Y' * s));
+        G     = reshape(g_vec, 4, 4);
         G_sym = fth.se3.sym(G);
-        
-        A = sqrtm(obj.J_hat);
-        B = A * G_sym * A;
-
-        obj.J_hat = fth.se3.sym(A * expm(-obj.gamma * dt * B) * A);
-
+        A     = sqrtm(obj.J_hat);
+        B     = A * G_sym * A;
+        obj.J_hat       = fth.se3.sym(A * expm(-obj.gamma * dt * B) * A);
         obj.updateCount = obj.updateCount + 1;
         obj.updateEstimates();
+        pi = fth.ctrl.adapt.AdaptationUtils.spd2params(obj.J_hat);
+    end
 
-        params = obj.getParams();
+    function pi = getPi(obj)
+        %GETPI Return current parameter estimate as a 10×1 vector.
+        pi = fth.ctrl.adapt.AdaptationUtils.spd2params(obj.J_hat);
     end
 
     function params = getParams(obj)
@@ -113,21 +104,6 @@ methods
         % pi - 10×1 vector [m; h; Jparams].
         validateattributes(pi, {'numeric'}, {'vector', 'numel', 10});
         obj.J_hat = fth.ctrl.adapt.AdaptationUtils.params2spd(pi(:));
-        obj.updateEstimates();
-    end
-end
-
-methods (Access = protected)
-    function setPayloadEstimate(obj, m_payload, CoG_payload)
-        %SETPAYLOADESTIMATE Shift estimates based on payload guess.
-        % Overrides base class since Bregman stores J_hat instead of pi_hat.
-        % Inputs:
-        % m_payload   - payload mass [kg].
-        % CoG_payload - 3×1 payload CoG offset [m].
-        pi = fth.ctrl.adapt.AdaptationUtils.spd2params(obj.J_hat);
-        pi(1) = pi(1) + m_payload;
-        pi(2:4) = pi(2:4) + m_payload * CoG_payload(:);
-        obj.J_hat = fth.ctrl.adapt.AdaptationUtils.params2spd(pi);
         obj.updateEstimates();
     end
 end

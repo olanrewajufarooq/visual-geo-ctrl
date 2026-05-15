@@ -23,14 +23,17 @@ classdef NoAdaptation < fth.ctrl.adapt.AdaptationBase
             else
                 obj.I6 = fth.se3.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
             end
+            obj.initFromCfg(cfg);
         end
 
-        function params = update(obj, ~, ~, ~, ~, ~, ~, ~, ~, ~)
-            %UPDATE Return nominal parameters without changes.
-            %   (All inputs ignored.)
-            %   Output:
-            %     params - struct with m, CoG, Iparams, I6.
-            params = obj.getParams();
+        function pi = doUpdate(obj, ~, ~, ~)
+            %DOUPDATE No-op; returns fixed parameter vector.
+            pi = obj.getPi();
+        end
+
+        function pi = getPi(obj)
+            %GETPI Return fixed parameter vector.
+            pi = obj.packPi(obj.m, obj.CoG, obj.Iparams);
         end
 
         function params = getParams(obj)
