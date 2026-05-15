@@ -107,6 +107,10 @@ classdef ConfigUtils
 
         function validateTrajectoryBatch(trajNames, trajHover)
             %VALIDATETRAJECTORYBATCH Validate trajectory batch configuration.
+            %   trajNames: cell array of trajectory name strings.
+            %   trajHover: logical array of hover flags, or [] when no hover override
+            %              was set (from getTrajectoryBatchEntries hasHoverOverride=false).
+            %   Precondition: pass trajHover=[] when there is no explicit hover override.
             if isempty(trajNames)
                 error('Config:InvalidTrajectoryBatch', 'At least one trajectory must be configured.');
             end
@@ -126,11 +130,11 @@ classdef ConfigUtils
             end
         end
 
-        function count = gainBatchCount(value, expectedRows)
+        function count = gainBatchCount(value, fieldName, expectedRows)
             %GAINBATCHCOUNT Return 1 or N based on matrix row count.
             count = 1;
             if isempty(value), return; end
-            fth.sim.ConfigUtils.validateGainShape(value, 'gain', expectedRows);
+            fth.sim.ConfigUtils.validateGainShape(value, fieldName, expectedRows);
             if ismatrix(value) && size(value,2) == expectedRows && size(value,1) > 1
                 count = size(value,1);
             end
@@ -152,11 +156,11 @@ classdef ConfigUtils
         end
 
         function M = resolveSimBatchCount(batchNames, fields)
-            %RESOLVESIMBATCHCOUNT Return M, the number of named sim runs.
-            %   batchNames: cell array of strings (from sim.batchNames), may be empty.
-            %   fields: cell array of values from batched option fields.
-            %   If batchNames is non-empty: M = numel(batchNames).
-            %   Else: M = max row count among all fields that have >1 row.
+            %RESOLVESIMBATCHCOUNT Resolve the number of named simulation runs (M).
+            %   Called in Phase 2 batch standardization by expandBatchConfigs.
+            %   batchNames: cell array from sim.batchNames, or {} if not set.
+            %   fields: cell array of batched option values (Kp, Kd, Gamma, etc.).
+            %   Returns M = numel(batchNames) if names are set, else max row count.
             if ~isempty(batchNames)
                 M = numel(batchNames);
                 return;
