@@ -45,7 +45,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
-            
+
             % Perform multiple update steps
             for step = 1:10
                 Hd = eye(4);
@@ -56,11 +56,8 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
                 V = Vd + 0.01 * randn(6,1);
                 Ades = 0.1 * randn(6,1);
                 dt = 0.001;
-                s = 0.1 * randn(6,1);
-                VR = Vd + 0.05 * randn(6,1);
-                VRDot = 0.1 * randn(6,1);
-                
-                adapt.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
+
+                adapt.update(Hd, H, Vd, V, Ades, dt);
                 
                 % After each update, verify SPD property
                 diag_after = adapt.getDiagnostics();
@@ -80,6 +77,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
         function testBregmanUpdateProducesExpectedParameterChange(testCase)
             %TESTBREGMANUPDATEPRODUCESEXPECTEDPARAMETERCHANGE
             %   Regression test: verify parameter change with known input.
+            %   Uses doUpdate directly to control s and Y explicitly.
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
@@ -87,22 +85,22 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
-            [m_init, cog_init, I_init] = adapt.getEstimate();
-            
-            % Single deterministic update
-            Hd = eye(4);
+            [~, ~, I_init] = adapt.getEstimate();
+
+            % Build regressor for a known scenario
             H = eye(4);
-            Vd = zeros(6,1);
             V = [0.1; 0.2; 0.3; 0.4; 0.5; 0.6];
-            Ades = zeros(6,1);
-            dt = 0.001;
-            s = V;  % Sliding variable equals velocity
             VR = V;
             VRDot = zeros(6,1);
-            
-            adapt.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
-            [m_after, cog_after, I_after] = adapt.getEstimate();
-            
+            Y = adapt.regressor(H, V, VR, VRDot);
+
+            % Use a non-zero sliding variable to ensure update is not trivial
+            s = V;
+            dt = 0.001;
+
+            adapt.doUpdate(dt, s, Y);
+            [~, ~, I_after] = adapt.getEstimate();
+
             % Parameters should have changed
             testCase.verifyNotEqual(norm(I_after - I_init), 0, ...
                 'Inertia estimate should change with non-zero sliding variable');
@@ -132,7 +130,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
                 % Random initial condition
                 Hd = eye(4);
                 Hd(1:3, 4) = randn(3,1);
-                
+
                 for step = 1:steps_per_traj
                     H = eye(4);
                     H(1:3, 4) = Hd(1:3, 4) + 0.05 * randn(3,1);
@@ -140,11 +138,8 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
                     V = Vd + 0.05 * randn(6,1);
                     Ades = randn(6,1);
                     dt = 0.001;
-                    s = randn(6,1);
-                    VR = randn(6,1);
-                    VRDot = randn(6,1);
-                    
-                    adapt.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
+
+                    adapt.update(Hd, H, Vd, V, Ades, dt);
                     
                     % Track minimum eigenvalue
                     diag_state = adapt.getDiagnostics();
@@ -179,11 +174,8 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
                 V = Vd + 0.1 * randn(6,1);
                 Ades = randn(6,1);
                 dt = 0.001;
-                s = randn(6,1);
-                VR = randn(6,1);
-                VRDot = randn(6,1);
-                
-                adapt.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
+
+                adapt.update(Hd, H, Vd, V, Ades, dt);
                 
                 % Check parameter bounds
                 [m_hat, cog_hat, Iparams_hat] = adapt.getEstimate();
@@ -228,16 +220,18 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
                 V = test_cases{i}{2};
                 VR = test_cases{i}{3};
                 VRDot = randn(6,1);
-                
-                % Access regressor through a private method via update
-                % We verify via consistency of the model fitting
+
+                % Verify regressor dimensions directly
+                Y = adapt.regressor(H, V, VR, VRDot);
+                testCase.verifyEqual(size(Y), [6, 10], ...
+                    sprintf('Case %d: regressor must be 6×10', i));
+
+                % Also verify update runs without error
                 Hd = eye(4);
                 Ades = zeros(6,1);
                 dt = 0.001;
-                s = randn(6,1);
-                
-                params = adapt.update(Hd, H, zeros(6,1), V, Ades, dt, s, VR, VRDot);
-                testCase.verifyTrue(isstruct(params));
+                pi = adapt.update(Hd, H, zeros(6,1), V, Ades, dt);
+                testCase.verifyEqual(size(pi), [10, 1]);
             end
         end
 
@@ -261,18 +255,15 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             V = randn(6,1);
             Ades = zeros(6,1);
             dt = 0.001;
-            s = zeros(6,1);
-            VR = zeros(6,1);
-            VRDot = zeros(6,1);
             Vd = zeros(6,1);
-            
+
             [m1, ~, I1] = adapt1.getEstimate();
-            adapt1.update(Hd, H_upright, Vd, V, Ades, dt, s, VR, VRDot);
+            adapt1.update(Hd, H_upright, Vd, V, Ades, dt);
             [m1_after, ~, I1_after] = adapt1.getEstimate();
-            
+
             % Re-initialize for fair comparison
             adapt2 = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
-            adapt2.update(Hd, H_rotated, Vd, V, Ades, dt, s, VR, VRDot);
+            adapt2.update(Hd, H_rotated, Vd, V, Ades, dt);
             [m2_after, ~, I2_after] = adapt2.getEstimate();
             
             % Mass estimates may differ due to gravity (column 1 contribution)
@@ -324,14 +315,12 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
                 V = randn(6,1);
                 Ades = randn(6,1);
                 dt = 0.001;
-                s = randn(6,1);
-                VR = randn(6,1);
-                VRDot = randn(6,1);
-                
-                params = adapt.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
+
+                adapt.update(Hd, H, Vd, V, Ades, dt);
+                params = adapt.getParams();
                 [m_hat, cog_hat, Iparams_hat] = adapt.getEstimate();
-                
-                % Verify consistency
+
+                % Verify consistency between getParams() and getEstimate()
                 testCase.verifyEqual(params.m, m_hat);
                 testCase.verifyEqual(params.CoG, cog_hat);
                 testCase.verifyEqual(params.Iparams, Iparams_hat);
@@ -349,22 +338,21 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
 
             % Run 1
             adapt1 = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
-            Hd = eye(4);
             H = eye(4);
-            Vd = [0.1; 0.2; 0.3; 0.4; 0.5; 0.6];
             V = [0.15; 0.25; 0.35; 0.45; 0.55; 0.65];
-            Ades = zeros(6,1);
-            dt = 0.001;
-            s = [0.01; 0.02; 0.03; 0.04; 0.05; 0.06];
             VR = [0.1; 0.1; 0.1; 0.1; 0.1; 0.1];
             VRDot = zeros(6,1);
-            
-            adapt1.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
+            s = [0.01; 0.02; 0.03; 0.04; 0.05; 0.06];
+            dt = 0.001;
+
+            Y1 = adapt1.regressor(H, V, VR, VRDot);
+            adapt1.doUpdate(dt, s, Y1);
             [m1, cog1, I1] = adapt1.getEstimate();
-            
-            % Run 2 (same inputs)
+
+            % Run 2 (same inputs — must produce identical result)
             adapt2 = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
-            adapt2.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
+            Y2 = adapt2.regressor(H, V, VR, VRDot);
+            adapt2.doUpdate(dt, s, Y2);
             [m2, cog2, I2] = adapt2.getEstimate();
             
             % Results should be identical

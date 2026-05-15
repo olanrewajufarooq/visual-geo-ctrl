@@ -56,7 +56,8 @@ classdef TestAdaptationInterface < matlab.unittest.TestCase
 
         function testUpdateReturnsParamsStructWithRequiredFields(testCase)
             %TESTUPDATERETURNSPARAMSSTRUCTWITHREQUIREDFIELDS
-            %   Verify update() returns struct with m, CoG, Iparams, I6.
+            %   Verify update() returns a 10x1 pi vector, and getParams() returns
+            %   a struct with m, CoG, Iparams, I6.
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('euclidean');
@@ -64,19 +65,22 @@ classdef TestAdaptationInterface < matlab.unittest.TestCase
             cfg.done();
 
             adapt = fth.ctrl.adapt.EuclideanAdaptation(cfg);
-            
+
             Hd = eye(4);
             H = eye(4);
             Vd = zeros(6,1);
             V = [0.1; 0.2; 0.3; 0.4; 0.5; 0.6];
             Ades = zeros(6,1);
             dt = 0.001;
-            s = zeros(6,1);
-            VR = zeros(6,1);
-            VRDot = zeros(6,1);
-            
-            params = adapt.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
-            
+
+            pi = adapt.update(Hd, H, Vd, V, Ades, dt);
+
+            % update() now returns a 10×1 parameter vector
+            testCase.verifyEqual(size(pi), [10, 1]);
+            testCase.verifyTrue(isnumeric(pi));
+
+            % getParams() returns the struct with required fields
+            params = adapt.getParams();
             testCase.verifyTrue(isstruct(params));
             testCase.verifyTrue(isfield(params, 'm'));
             testCase.verifyTrue(isfield(params, 'CoG'));

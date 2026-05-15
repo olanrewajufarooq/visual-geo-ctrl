@@ -72,7 +72,7 @@ methods
         obj.J_hat       = fth.se3.sym(A * expm(-obj.gamma * dt * B) * A);
         obj.updateCount = obj.updateCount + 1;
         obj.updateEstimates();
-        pi = fth.ctrl.adapt.AdaptationUtils.spd2params(obj.J_hat);
+        pi = obj.getPi();
     end
 
     function pi = getPi(obj)
