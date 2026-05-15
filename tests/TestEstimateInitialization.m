@@ -46,7 +46,7 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
             VRDot = zeros(6,1); % Reference acceleration
 
             [~, ~, I_before] = adapt.getEstimate();
-            adapt.update(Hd, H, Vd, V, Ades, dt, s, VR, VRDot);
+            adapt.update(Hd, H, Vd, V, Ades, dt);
             [~, ~, I_after] = adapt.getEstimate();
 
             B1 = zeros(6,6);
