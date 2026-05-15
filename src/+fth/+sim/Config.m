@@ -274,8 +274,8 @@ classdef Config < handle
             batchNames = {};
             if isfield(obj.sim, 'batchNames'), batchNames = obj.sim.batchNames; end
 
-            % Build coriolisFactorization list (M-element cell or scalar).
-            forms = obj.getCoriolisFormBatchEntries();  % always a cell array
+            % Build coriolisFactorization list (always returned as a cell array).
+            forms = obj.getCoriolisFormBatchEntries();
 
             cfgs = cell(batchCount, 1);
             cfgIndex = 1;
@@ -376,7 +376,6 @@ classdef Config < handle
             end
             [trajNames, trajHover, ~] = obj.getTrajectoryBatchEntries();
             fth.sim.ConfigUtils.validateTrajectoryBatch(trajNames, trajHover);
-            obj.getBatchCount();
             M = obj.resolveM();
             % Validate that all batched fields agree on M.
             % Gain rows must be 1 (broadcast) or exactly M.
@@ -480,10 +479,10 @@ classdef Config < handle
                 obj.payload.mass = mass;
             end
             if nargin > 2
-                if size(cog, 1) == 3 && size(cog, 2) == 1
-                    obj.payload.CoG = cog;           % 3×1 column, scalar
-                elseif size(cog, 2) == 3
-                    obj.payload.CoG = cog;           % M×3 batch
+                if isvector(cog) && numel(cog) == 3
+                    obj.payload.CoG = cog(:);        % any 3-element vector → 3×1 column
+                elseif size(cog, 1) > 1 && size(cog, 2) == 3
+                    obj.payload.CoG = cog;           % M×3 batch (M > 1)
                 else
                     obj.payload.CoG = cog(:);        % fallback: force column
                 end
@@ -698,10 +697,10 @@ classdef Config < handle
             %     obj - Config instance (for chaining).
             if isfield(opts, 'mass'),     obj.payload.mass     = opts.mass;       end
             if isfield(opts, 'CoG')
-                if size(opts.CoG, 1) == 3 && size(opts.CoG, 2) == 1
-                    obj.payload.CoG = opts.CoG;          % 3×1 column, scalar
-                elseif size(opts.CoG, 2) == 3
-                    obj.payload.CoG = opts.CoG;          % M×3 batch
+                if isvector(opts.CoG) && numel(opts.CoG) == 3
+                    obj.payload.CoG = opts.CoG(:);       % any 3-element vector → 3×1 column
+                elseif size(opts.CoG, 1) > 1 && size(opts.CoG, 2) == 3
+                    obj.payload.CoG = opts.CoG;          % M×3 batch (M > 1)
                 else
                     obj.payload.CoG = opts.CoG(:);       % fallback: force column
                 end
