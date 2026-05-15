@@ -38,6 +38,7 @@ cfg.useControllerOptions(ctrlOpts);
 % Adaptation.
 adaptOpts.type  = 'euclidean';          % 'none','euclidean','bregman'
 adaptOpts.Gamma = 1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4];  % pi = [m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]
+% adaptOpts.Gamma = 1/80 % Gamma value for Bregman
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).

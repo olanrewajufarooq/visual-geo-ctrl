@@ -4,3 +4,4 @@ tmp/
 docs/
 .claude/settings.local.json
 opencode.jsonc
+.worktrees/
