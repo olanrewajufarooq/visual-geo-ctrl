@@ -171,7 +171,12 @@ classdef BatchRunnerUtils
                 metricsEntry = fth.io.ResultsManager.loadMetricsFile(childDirs{i});
                 entries(i).trajectory = metricsEntry.trajectory;
                 entries(i).runLabel = metricsEntry.run_label;
-                entries(i).gainIndex = fth.sim.BatchRunnerUtils.readGainIndex(metricsEntry.run_label);
+                % Prefer batch_run_index (written since Phase 2) over the regex fallback.
+                if isfield(metricsEntry, 'batch_run_index') && isfinite(metricsEntry.batch_run_index)
+                    entries(i).gainIndex = metricsEntry.batch_run_index;
+                else
+                    entries(i).gainIndex = fth.sim.BatchRunnerUtils.readGainIndex(metricsEntry.run_label);
+                end
                 entries(i).gamma = fth.sim.BatchRunnerUtils.gammaForGainIndex(cfg, entries(i).gainIndex);
                 entries(i).isZeroGain = fth.sim.BatchRunnerUtils.isZeroAdaptiveGain(entries(i).gamma);
                 entries(i).massMetric = fth.sim.BatchRunnerUtils.readStructField(metricsEntry, 'mass_regressor_info');

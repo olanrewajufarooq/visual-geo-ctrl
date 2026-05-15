@@ -32,7 +32,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             c = onCleanup(@() rmdir(rootDir, 's'));
 
             logs = struct('actual', struct('pos', [0 0 0]), 'des', struct('pos', [0 0 0]));
-            metrics = struct('combined', struct('rmse_total', 0.1, 'tracking_score', 99));
+            metrics = struct('combined', struct('rmse_total', 0.1));
             est = struct('mass', 3.5);
             runInfo = struct('isAdaptive', true, 'duration', 1, 'dt', 0.01);
             cfg = fth.sim.Config();
@@ -289,7 +289,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
                 'cmd', struct('wrenchF', wrenchF, 'wrenchT', wrenchT));
 
             est = [];
-            metrics = struct('combined', struct('rmse_total', 0.12, 'tracking_score', 98.7));
+            metrics = struct('combined', struct('rmse_total', 0.12));
             cfg = fth.sim.Config();
             cfg.setTrajectory('circle');
             if isAdaptive

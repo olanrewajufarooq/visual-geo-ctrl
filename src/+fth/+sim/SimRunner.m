@@ -764,6 +764,9 @@ classdef SimRunner < handle
             end
 
             est.t = t;
+            % Note: field name 'identifiability' is intentionally kept as the on-wire key
+            % for backward compatibility with saved log files. TrackingMetrics.setLogs reads
+            % logs.est.identifiability and stores it internally as EstRegressorInfo.
             est.identifiability = obj.ctrl.getAdaptationDiagnostics();
 
             m_base   = obj.cfg.vehicle.m;

@@ -79,9 +79,16 @@ classdef ResultsManager
                 runLabel = sprintf('Run %d', cfgSnapshot.sim.batchRunIndex);
             end
 
+            batchRunIdx = NaN;
+            if isprop(cfgSnapshot, 'sim') && isfield(cfgSnapshot.sim, 'batchRunIndex') ...
+                    && ~isempty(cfgSnapshot.sim.batchRunIndex)
+                batchRunIdx = cfgSnapshot.sim.batchRunIndex;
+            end
+
             entry = struct();
             entry.trajectory = char(string(cfgSnapshot.traj.name));
             entry.run_label = runLabel;
+            entry.batch_run_index = batchRunIdx;
             entry.is_adaptive = logical(runInfo.isAdaptive);
             entry.track_rmse = metrics.combined.rmse_total;
             entry.mass_rmse = NaN;
@@ -107,9 +114,15 @@ classdef ResultsManager
                 end
             end
 
+            batchRunIdxText = 'N/A';
+            if isfinite(entry.batch_run_index)
+                batchRunIdxText = sprintf('%d', entry.batch_run_index);
+            end
+
             lines = { ...
                 sprintf('trajectory=%s', entry.trajectory), ...
                 sprintf('run_label=%s', entry.run_label), ...
+                sprintf('batch_run_index=%s', batchRunIdxText), ...
                 sprintf('is_adaptive=%s', fth.io.ResultsManager.boolText(entry.is_adaptive)), ...
                 sprintf('track_rmse=%s', fth.io.ResultsManager.metricText(entry.track_rmse, 4)), ...
                 sprintf('mass_rmse=%s', fth.io.ResultsManager.metricText(entry.mass_rmse, 4)), ...
