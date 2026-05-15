@@ -134,7 +134,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             G = reshape(E' * (N' * (Y' * s)), 4, 4);
             G_sym = fth.se3.symOfMat(G);
             J_hatDot = -gamma * J_before * G_sym * J_before;
-            J_expected = fth.se3.symOfMat(J_before - dt * J_hatDot);
+            J_expected = fth.se3.symOfMat(J_before + dt * J_hatDot);
 
             adapt.doUpdate(dt, s, Y);
             diag_after = adapt.getDiagnostics();
