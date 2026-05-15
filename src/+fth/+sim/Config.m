@@ -379,6 +379,15 @@ classdef Config < handle
             obj.getBatchCount();
             M = obj.resolveM();
             % Validate that all batched fields agree on M.
+            % Gain rows must be 1 (broadcast) or exactly M.
+            gainRows = fth.sim.ConfigUtils.gainBatchCount(kpVal, 'Kp', 6);
+            gammaRows = fth.sim.ConfigUtils.gammaBatchCount(gVal, adaptMode);
+            for rowCount = [gainRows, gammaRows]
+                if rowCount > 1 && rowCount ~= M
+                    error('Config:InconsistentBatchCounts', ...
+                        'Gain row count (%d) must match batch count M=%d.', rowCount, M);
+                end
+            end
             if isfield(obj.controller, 'coriolisFactorization') && ...
                     iscell(obj.controller.coriolisFactorization) && ...
                     numel(obj.controller.coriolisFactorization) > 1
