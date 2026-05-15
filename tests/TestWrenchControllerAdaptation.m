@@ -1,6 +1,6 @@
 classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
-    %TESTWRENCHCONTROLLERADAPTATION Integration tests for updateAdaptation.
-    %   Tests that updateAdaptation executes without error with valid inputs.
+    %TESTWRENCHCONTROLLERADAPTATION Integration tests for updatePi.
+    %   Tests that updatePi executes without error with valid inputs.
 
     methods (Test)
         function testUpdateAdaptationWithZeroVelocity(testCase)
@@ -12,7 +12,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             cfg.setAdaptiveGains(ones(10,1));
             cfg.done();
 
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             
             Hd = eye(4);
             H = eye(4);
@@ -21,7 +21,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             Ades = zeros(6,1);
             dt = 0.001;
             
-            ctrl.updateAdaptation(Hd, H, Vd, V, Ades, dt);
+            ctrl.updatePi(Hd, H, Vd, V, Ades, dt);
             testCase.verifyTrue(true);
         end
 
@@ -34,14 +34,14 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             cfg.setAdaptiveGains([0.5; zeros(9,1)]);
             cfg.done();
 
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             
             Hd = eye(4);
             H = eye(4);
             Vd = [0.1; 0.2; 0.3; 0.4; 0.5; 0.6];
             V = [0.11; 0.21; 0.31; 0.41; 0.51; 0.61];
             
-            ctrl.updateAdaptation(Hd, H, Vd, V);
+            ctrl.updatePi(Hd, H, Vd, V);
             testCase.verifyTrue(true);
         end
 
@@ -54,7 +54,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             cfg.setAdaptiveGains([0.1; zeros(9,1)]);
             cfg.done();
 
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             
             Hd = eye(4);
             Hd(1:3, 4) = [0.2; 0.1; 0.05];
@@ -65,7 +65,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             Ades = [0.001; 0.002; 0.003; 0.004; 0.005; 0.006];
             dt = 0.001;
             
-            ctrl.updateAdaptation(Hd, H, Vd, V, Ades, dt);
+            ctrl.updatePi(Hd, H, Vd, V, Ades, dt);
             testCase.verifyTrue(true);
         end
 
@@ -78,7 +78,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             cfg.setAdaptiveGains([0.05; zeros(9,1)]);
             cfg.done();
 
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             
             Hd = eye(4);
             Hd(1:3, 4) = [0.1; 0.05; 0.02];
@@ -89,7 +89,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             Ades = [0.01; 0.02; 0.03; 0.04; 0.05; 0.06];
             dt = 0.001;
             
-            ctrl.updateAdaptation(Hd, H, Vd, V, Ades, dt);
+            ctrl.updatePi(Hd, H, Vd, V, Ades, dt);
             testCase.verifyTrue(true);
         end
 
@@ -102,7 +102,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             cfg.setAdaptiveGains([0.1; 0.05; zeros(8,1)]);
             cfg.done();
 
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             
             for step = 1:5
                 Hd = eye(4);
@@ -114,7 +114,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
                 Ades = 0.01 * randn(6,1);
                 dt = 0.001;
                 
-                ctrl.updateAdaptation(Hd, H, Vd, V, Ades, dt);
+                ctrl.updatePi(Hd, H, Vd, V, Ades, dt);
             end
             
             testCase.verifyTrue(true);
@@ -129,7 +129,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             cfg.setAdaptiveGains([0.1; zeros(9,1)]);
             cfg.done();
 
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             
             for step = 1:5
                 Hd = eye(4);
@@ -141,7 +141,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
                 Ades = 0.01 * randn(6,1);
                 dt = 0.001;
                 
-                ctrl.updateAdaptation(Hd, H, Vd, V, Ades, dt);
+                ctrl.updatePi(Hd, H, Vd, V, Ades, dt);
             end
             
             testCase.verifyTrue(true);
@@ -156,7 +156,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             cfg.setAdaptiveGains(ones(10,1));
             cfg.done();
 
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             
             Hd = eye(4);
             Hd(1:3, 4) = [1.0; 0.5; 0.3];
@@ -168,7 +168,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             V = [0.48; -0.22; 0.32; 0.42; 0.12; 0.22];
             dt = 0.001;
             
-            ctrl.updateAdaptation(Hd, H, Vd, V, Ades, dt);
+            ctrl.updatePi(Hd, H, Vd, V, Ades, dt);
             testCase.verifyTrue(true);
         end
     end

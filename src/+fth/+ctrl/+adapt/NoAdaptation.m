@@ -15,6 +15,7 @@ classdef NoAdaptation < fth.ctrl.adapt.AdaptationBase
             %NOADAPTATION Cache nominal parameters from config.
             %   Input:
             %     cfg - configuration with vehicle fields.
+            obj.g      = cfg.vehicle.g;
             obj.m      = cfg.vehicle.m;
             obj.CoG    = cfg.vehicle.CoG(:);
             obj.Iparams = cfg.vehicle.I_params(:);

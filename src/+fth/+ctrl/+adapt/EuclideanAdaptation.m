@@ -9,7 +9,7 @@ classdef EuclideanAdaptation < fth.ctrl.adapt.AdaptationBase
 % Adaptation law:
 % pi_hat_dot = Gamma * Y(H, V, VR, VRDot)^T * s
 % where s = Ve + Lambda*eH is the composite sliding variable from
-% WrenchController, and Y is the 6×10 composite reference regressor
+% ControllerWrench, and Y is the 6×10 composite reference regressor
 % including a gravity contribution.
 
 properties (Access = private)

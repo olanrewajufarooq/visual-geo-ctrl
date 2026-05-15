@@ -1,5 +1,5 @@
 classdef TestWrenchController < matlab.unittest.TestCase
-    %TESTWRENCHCONTROLLER Unit tests for WrenchController wrench computation.
+    %TESTWRENCHCONTROLLER Unit tests for ControllerWrench wrench computation.
     %   Tests the composite-variable control law with the new potential interface.
 
     methods (Test)
@@ -8,7 +8,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
             %the wrench should equal gravity cancellation only.
             %   s=0, VR=0, VRDot=0 => W = -Wg
             cfg  = testCase.buildCfg('log');
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             Hd = eye(4); Hd(3,4) = 5;
             H  = Hd;
             V  = zeros(6,1);
@@ -28,7 +28,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
         function testWrenchIncreasesWithPoseError(testCase)
             %Larger pose error should produce a larger wrench magnitude.
             cfg  = testCase.buildCfg('log');
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             Hd = eye(4); Hd(3,4) = 5;
             V  = zeros(6,1);
             Vd = zeros(6,1);
@@ -45,7 +45,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
         function testWrenchIsFinite(testCase)
             %Wrench output must be finite for valid inputs.
             cfg  = testCase.buildCfg('log');
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             Hd = eye(4); Hd(3,4) = 5;
             H  = Hd; H(1,4) = 0.5; H(2,4) = -0.3;
             V  = [0.01; -0.02; 0.03; 0.1; -0.1; 0.2];
@@ -59,7 +59,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
             %Wrench must always be 6x1.
             for potType = {'log', 'inertia-gain', 'sym-inv'}
                 cfg  = testCase.buildCfg(potType{1});
-                ctrl = fth.ctrl.WrenchController(cfg);
+                ctrl = fth.ctrl.ControllerFactory.create(cfg);
                 W = ctrl.computeWrench(eye(4), eye(4), zeros(6,1), zeros(6,1));
                 testCase.verifySize(W, [6, 1], ...
                     sprintf('Wrench must be 6x1 for potType ''%s''.', potType{1}));
@@ -144,7 +144,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
 
         function testGetEstimateReturnsEmptyForNoAdaptation(testCase)
             cfg  = testCase.buildCfg('log');
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             [m_hat, cog_hat, I_hat] = ctrl.getEstimate();
             testCase.verifyEmpty(m_hat);
             testCase.verifyEmpty(cog_hat);
@@ -154,7 +154,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
         function testComputeWrenchUsesRegressor(testCase)
             %W is finite and 6x1 for non-trivial state (smoke + size check).
             cfg  = testCase.buildCfg('log');
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
 
             [Q, ~] = qr(randn(3));
             if det(Q) < 0; Q(:,1) = -Q(:,1); end

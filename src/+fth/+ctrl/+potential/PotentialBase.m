@@ -1,7 +1,7 @@
 classdef (Abstract) PotentialBase < handle
     %POTENTIALBASE Interface for SE(3) potential functions.
     %   Implementations provide the potential error eH and its time
-    %   derivative eHDot, used by WrenchController to form the composite
+    %   derivative eHDot, used by ControllerWrench to form the composite
     %   sliding variable s = Ve - lambda*eH.
     %
     %   Output ordering for both methods: [rotational (3x1); translational (3x1)].

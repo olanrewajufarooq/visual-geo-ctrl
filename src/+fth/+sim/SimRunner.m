@@ -308,8 +308,8 @@ classdef SimRunner < handle
         function ctrl = createController(obj)
             %CREATECONTROLLER Instantiate the configured controller.
             %   Output:
-            %     ctrl - fth.ctrl.WrenchController instance.
-            ctrl = fth.ctrl.WrenchController(obj.cfg);
+            %     ctrl - fth.ctrl.ControllerWrench instance.
+            ctrl = fth.ctrl.ControllerFactory.create(obj.cfg);
         end
 
         function setupResultsDir(obj)
@@ -520,7 +520,7 @@ classdef SimRunner < handle
             %MAYBEUPDATEADAPTATION Update adaptation on schedule.
             %   Uses adaptation_dt to rate-limit updates.
             if obj.shouldUpdate(obj.nextAdaptTime)
-                obj.ctrl.updateAdaptation(Hd, H, Vd, V, Ad, obj.adaptation_dt);
+                obj.ctrl.updatePi(Hd, H, Vd, V, Ad, obj.adaptation_dt);
                 obj.lastAdaptTime = obj.tCurrent;
                 obj.nextAdaptTime = obj.nextAdaptTime + obj.adaptation_dt;
             end

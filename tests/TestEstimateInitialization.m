@@ -9,7 +9,7 @@ classdef TestEstimateInitialization < matlab.unittest.TestCase
             cfg.setAdaptiveGains(ones(10,1));
             cfg.done();
 
-            ctrl = fth.ctrl.WrenchController(cfg);
+            ctrl = fth.ctrl.ControllerFactory.create(cfg);
             % New pi format: [m; hx; hy; hz; Ixx; Iyy; Izz; Ixy; Ixz; Iyz]
             m = 7;
             h = [8; 9; 10];
