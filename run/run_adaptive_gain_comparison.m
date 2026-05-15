@@ -20,7 +20,7 @@ cfg.useSimOptions(simOpts);
 
 % Reference trajectory batch.
 trajOpts.names                      = {'circle', 'lissajous3d', 'helix3d', 'poly3d'};
-trajOpts.goToHoverBeforePathStarts  = true;
+trajOpts.goToHoverBeforePathStarts  = false;
 trajOpts.period                     = [duration, duration, duration/2, duration/2];
 cfg.useTrajectoryOptions(trajOpts);
 
@@ -35,7 +35,7 @@ ctrlOpts.coriolisForm   = 'consistent';             % 'basic', 'consistent'
 cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation (batch Gamma rows — one row per run).
-adaptOpts.type  = 'bregman';          % 'none','euclidean','bregman'
+adaptOpts.type  = 'euclidean';          % 'none','euclidean','bregman'
 adaptOpts.Gamma = 1e-2 * [ ...   % pi = [m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]
       0,   0,   0,   0,   0,   0,   0,   0,   0,   0; ...
      36,  12,  12,  12,   8,   8,  12, 0.4, 0.4, 0.4; ...
