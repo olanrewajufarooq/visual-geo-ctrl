@@ -155,12 +155,17 @@ classdef TrackingMetrics < handle
             metrics.rmse_rpy = sqrt(mean(oriErr .^ 2, 1));
             metrics.rmse_total = sqrt(mean(oriErrNorm .^ 2));
 
-            denom = max(oriErrNorm) - min(oriErrNorm);
-            if denom < 1e-6
-                denom = pi;
+            % Per-axis NRMSE for RPY
+            range_rpy = max(oriErr, [], 1) - min(oriErr, [], 1);  % 1x3
+            range_rpy(range_rpy < 1e-6) = pi;
+            metrics.nrmse_rpy = metrics.rmse_rpy ./ range_rpy;
+
+            % Total NRMSE from scalar norm range
+            denom_total = max(oriErrNorm) - min(oriErrNorm);
+            if denom_total < 1e-6
+                denom_total = pi;
             end
-            metrics.nrmse_rpy = metrics.rmse_rpy ./ denom;
-            metrics.nrmse_total = mean(metrics.nrmse_rpy);
+            metrics.nrmse_total = sqrt(mean(oriErrNorm .^ 2)) / denom_total;
 
             metrics.max_error = max(oriErrNorm);
             metrics.mean_error = mean(oriErrNorm);

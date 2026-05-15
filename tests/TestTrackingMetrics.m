@@ -3,7 +3,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
 
     methods (Test)
         function testZeroErrorGivesPerfectScore(testCase)
-            %Zero tracking error should yield RMSE=0 and score=100%.
+            %Zero tracking error should yield RMSE=0 and NRMSE=0.
             N = 100;
             pos = repmat([1 2 3], N, 1);
             rpy = repmat([0.1 0.2 0.3], N, 1);
@@ -55,8 +55,8 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             testCase.verifyEqual(m.rmse_total, 0, 'AbsTol', 1e-12);
         end
 
-        function testCombinedScoreBetweenZeroAndHundred(testCase)
-            %Combined tracking score must always be in [0, 100].
+        function testCombinedNRMSEIsNonnegative(testCase)
+            %Combined NRMSE must be non-negative.
             N = 100;
             desPos = repmat([0 0 5], N, 1);
             actPos = desPos + 0.1 * randn(N, 3);
@@ -65,7 +65,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             logs = testCase.buildLogs(actPos, desPos, rpy, desRpy);
             tm = fth.core.TrackingMetrics(logs, 'Bounded');
             m = tm.computeCombined();
-            testCase.verifyGreaterThan(m.nrmse_total, -1);
+            testCase.verifyGreaterThanOrEqual(m.nrmse_total, 0);
         end
 
         function testPositionMetricsCaching(testCase)
@@ -95,7 +95,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
         end
 
         function testParameterEstimationPerfectMass(testCase)
-            %Perfect mass estimation should give score=100.
+            %Perfect mass estimation should give RMSE=0.
             N = 100;
             mass = 3.646 * ones(N, 1);
             logs = testCase.buildAdaptiveLogs(N, mass, mass, ...
