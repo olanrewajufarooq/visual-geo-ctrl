@@ -121,7 +121,7 @@ classdef Config < handle
             end
             if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
                 if ~strcmpi(obj.controller.adaptation, 'none')
-                    obj.controller.Gamma = 4e-3 * [20;20;30;1;1;1;90;30;30;60];
+                    obj.controller.Gamma = obj.defaultAdaptiveGains();
                 end
             end
         end
@@ -145,7 +145,7 @@ classdef Config < handle
             obj.controller.adaptation = type;
             if ~strcmpi(type, 'none')
                 if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
-                    obj.controller.Gamma = 4e-3 * [20;20;30;1;1;1;90;30;30;60];
+                    obj.controller.Gamma = obj.defaultAdaptiveGains(type);
                 end
             end
         end
@@ -213,19 +213,26 @@ classdef Config < handle
 
         function obj = setAdaptiveGains(obj, Gamma)
             %SETADAPTIVEGAINS Set adaptive gains for one or more runs.
-            %   Gamma: 10x1, 1x10, or Nx10 adaptive gains.
+            %   Gamma: scalar, 10x1, 1x10, Nx1, or Nx10 adaptive gains.
+            %   Bregman adaptation uses scalar gamma only; Nx1 is a batch of
+            %   scalar gamma values. Euclidean adaptation accepts scalar gains
+            %   and 10-parameter gain vectors.
             %
             %   Output:
             %     obj - Config instance (for chaining).
             if nargin < 2 || isempty(Gamma)
                 return;
             end
-            if isvector(Gamma) && numel(Gamma) == 10
+            if isscalar(Gamma)
+                obj.controller.Gamma = Gamma;
+            elseif isfield(obj.controller, 'adaptation') && strcmpi(obj.controller.adaptation, 'bregman')
+                obj.controller.Gamma = Gamma;
+            elseif isvector(Gamma) && numel(Gamma) == 10
                 obj.controller.Gamma = Gamma(:);
             elseif ismatrix(Gamma) && size(Gamma,2) == 10
                 obj.controller.Gamma = Gamma;
             else
-                warning('setAdaptiveGains: Invalid input, Gamma must be a 10x1 vector, 1x10 vector, or Nx10 matrix.');
+                warning('setAdaptiveGains: Invalid input, Gamma must be scalar, 10x1, 1x10, Nx1, or Nx10.');
             end
         end
 
@@ -235,7 +242,7 @@ classdef Config < handle
             counts = [ ...
                 obj.getGainBatchCount('Kp', 6), ...
                 obj.getGainBatchCount('Kd', 6), ...
-                obj.getGainBatchCount('Gamma', 10)];
+                obj.getGammaBatchCount()];
             batched = counts(counts > 1);
             if ~isempty(batched)
                 gainBatchCount = batched(1);
@@ -278,7 +285,7 @@ classdef Config < handle
                         cfgCopy.controller.Kp = obj.selectGainRow(obj.controller.Kp, gainIdx);
                         cfgCopy.controller.Kd = obj.selectGainRow(obj.controller.Kd, gainIdx);
                         if isfield(obj.controller, 'Gamma') && ~isempty(obj.controller.Gamma)
-                            cfgCopy.controller.Gamma = obj.selectGainRow(obj.controller.Gamma, gainIdx);
+                            cfgCopy.controller.Gamma = obj.selectGammaRow(obj.controller.Gamma, gainIdx);
                         end
                         cfgCopy.controller.coriolisFactorization = forms{formIdx};
                         if ~isempty(parentResultsDir)
@@ -325,7 +332,7 @@ classdef Config < handle
             obj.validateGainShape('Kp', 6);
             obj.validateGainShape('Kd', 6);
             if isfield(obj.controller, 'Gamma') && ~isempty(obj.controller.Gamma)
-                obj.validateGainShape('Gamma', 10);
+                obj.validateGammaShape();
             end
             obj.validateTrajectoryBatch();
             obj.getBatchCount();
@@ -367,7 +374,7 @@ classdef Config < handle
             end
             if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
                 if ~strcmpi(obj.controller.adaptation, 'none')
-                    obj.controller.Gamma = 4e-3 * [20;20;30;1;1;1;90;30;30;60];
+                    obj.controller.Gamma = obj.defaultAdaptiveGains();
                 end
             end
             if ~isfield(obj.controller, 'lambda') || isempty(obj.controller.lambda)
@@ -585,7 +592,7 @@ classdef Config < handle
             %USEADAPTATIONOPTIONS Apply adaptation settings from a struct.
             %   Recognised fields:
             %     .type   - adaptation mode: 'none','euclidean','bregman'
-            %     .Gamma  - 10x1 adaptive gains
+            %     .Gamma  - scalar or 10x1 adaptive gains
             %     .dt     - adaptation timestep [s]
             %
             %   Output:
@@ -858,6 +865,23 @@ classdef Config < handle
             end
         end
 
+        function count = getGammaBatchCount(obj)
+            %GETGAMMABATCHCOUNT Return number of adaptive gain rows.
+            count = 1;
+            if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
+                return;
+            end
+            obj.validateGammaShape();
+            value = obj.controller.Gamma;
+            if strcmpi(obj.controller.adaptation, 'bregman') && ...
+                    ismatrix(value) && size(value,2) == 1 && size(value,1) > 1
+                count = size(value,1);
+            elseif ~strcmpi(obj.controller.adaptation, 'bregman') && ...
+                    ismatrix(value) && size(value,2) == 10 && size(value,1) > 1
+                count = size(value,1);
+            end
+        end
+
         function validateGainShape(obj, fieldName, expectedRows)
             %VALIDATEGAINSHAPE Validate the row count for a configured gain field.
             if ~isfield(obj.controller, fieldName) || isempty(obj.controller.(fieldName))
@@ -873,6 +897,36 @@ classdef Config < handle
             end
         end
 
+        function validateGammaShape(obj)
+            %VALIDATEGAMMASHAPE Validate adaptive gain shape for the selected mode.
+            if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
+                return;
+            end
+            value = obj.controller.Gamma;
+            adaptation = 'none';
+            if isfield(obj.controller, 'adaptation') && ~isempty(obj.controller.adaptation)
+                adaptation = lower(char(obj.controller.adaptation));
+            end
+
+            if strcmpi(adaptation, 'bregman')
+                isScalarBatch = isnumeric(value) && ...
+                    (isscalar(value) || (ismatrix(value) && size(value,2) == 1 && numel(value) ~= 10));
+                if ~isScalarBatch || any(~isfinite(value(:))) || any(value(:) <= 0)
+                    error('Config:InvalidGainShape', ...
+                        'Bregman Gamma must be a positive scalar or Nx1 positive scalar batch; 10-element gain vectors are not valid for Bregman.');
+                end
+                return;
+            end
+
+            isScalar = isnumeric(value) && isscalar(value);
+            isValidVector = isnumeric(value) && isvector(value) && numel(value) == 10;
+            isValidMatrix = isnumeric(value) && ismatrix(value) && size(value,2) == 10;
+            if ~(isScalar || isValidVector || isValidMatrix)
+                error('Config:InvalidGainShape', ...
+                    'Gamma must be scalar, a 10x1 vector, 1x10 vector, or Nx10 matrix.');
+            end
+        end
+
         function value = selectGainRow(~, gainValue, index)
             %SELECTGAINROW Select or broadcast a gain row for a run index.
             if isvector(gainValue)
@@ -884,13 +938,38 @@ classdef Config < handle
             end
         end
 
+        function value = selectGammaRow(obj, gammaValue, index)
+            %SELECTGAMMAROW Select or broadcast Gamma for a run index.
+            if strcmpi(obj.controller.adaptation, 'bregman')
+                if isscalar(gammaValue)
+                    value = gammaValue;
+                else
+                    value = gammaValue(index, 1);
+                end
+            else
+                value = obj.selectGainRow(gammaValue, index);
+            end
+        end
+
+        function Gamma = defaultAdaptiveGains(obj, adaptation)
+            %DEFAULTADAPTIVEGAINS Return adaptation-mode-specific Gamma default.
+            if nargin < 2 || isempty(adaptation)
+                adaptation = obj.controller.adaptation;
+            end
+            if strcmpi(adaptation, 'bregman')
+                Gamma = 4e-3 * 20;
+            else
+                Gamma = 4e-3 * [20;20;30;1;1;1;90;30;30;60];
+            end
+        end
+
         function count = getSharedGainBatchCount(obj)
             %GETSHAREDGAINBATCHCOUNT Return the shared gain batch size.
             count = 1;
             counts = [ ...
                 obj.getGainBatchCount('Kp', 6), ...
                 obj.getGainBatchCount('Kd', 6), ...
-                obj.getGainBatchCount('Gamma', 10)];
+                obj.getGammaBatchCount()];
             batched = counts(counts > 1);
             if ~isempty(batched)
                 count = batched(1);

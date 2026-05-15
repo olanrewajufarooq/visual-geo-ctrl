@@ -8,6 +8,7 @@ classdef EuclideanAdaptation < fth.ctrl.adapt.AdaptationBase
 %
 % Adaptation law:
 % pi_hat_dot = Gamma * Y(H, V, VR, VRDot)^T * s
+% Gamma may be scalar (expanded to Gamma*I_10) or a 10-vector.
 % where s = Ve + Lambda*eH is the composite sliding variable from
 % ControllerWrench, and Y is the 6×10 composite reference regressor
 % including a gravity contribution.
@@ -30,7 +31,12 @@ methods
         CoG = cfg.vehicle.CoG(:);
         obj.pi_hat = obj.packPi(m, CoG, cfg.vehicle.I_params(:));
 
-        obj.Gamma = diag(cfg.controller.Gamma(:));
+        gamma_raw = cfg.controller.Gamma;
+        if isscalar(gamma_raw)
+            obj.Gamma = gamma_raw * eye(10);
+        else
+            obj.Gamma = diag(gamma_raw(:));
+        end
         validateattributes(obj.Gamma, {'numeric'}, {'size', [10, 10]}, ...
             'EuclideanAdaptation', 'Gamma');
 

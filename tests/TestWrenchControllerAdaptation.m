@@ -75,7 +75,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.05; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.05);
             cfg.done();
 
             ctrl = fth.ctrl.ControllerFactory.create(cfg);
@@ -126,7 +126,7 @@ classdef TestWrenchControllerAdaptation < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.1; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.1);
             cfg.done();
 
             ctrl = fth.ctrl.ControllerFactory.create(cfg);

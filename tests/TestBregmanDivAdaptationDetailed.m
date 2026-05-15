@@ -14,7 +14,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.1; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.1);
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
@@ -41,7 +41,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.15; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.15);
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
@@ -81,7 +81,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.05; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.05);
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
@@ -106,6 +106,42 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
                 'Inertia estimate should change with non-zero sliding variable');
         end
 
+        function testBregmanUpdateMatchesEulerLaw(testCase)
+            %TESTBREGMANUPDATEMATCHESEULERLAW
+            %   Verify Jhat = Jhat - dt*JhatDot with
+            %   JhatDot = -gamma*Jhat*sym(G)*Jhat.
+            gamma = 0.2;
+            cfg = fth.sim.Config();
+            cfg.setController('Feedforward');
+            cfg.setAdaptation('bregman');
+            cfg.setAdaptiveGains(gamma);
+            cfg.done();
+
+            adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
+            diag_before = adapt.getDiagnostics();
+            J_before = diag_before.J_hat;
+
+            H = eye(4);
+            V = [0.1; -0.2; 0.3; -0.4; 0.5; -0.6];
+            VR = [0.05; 0.1; -0.15; 0.2; -0.25; 0.3];
+            VRDot = [0.01; -0.02; 0.03; -0.04; 0.05; -0.06];
+            s = [0.02; -0.01; 0.03; -0.04; 0.05; -0.06];
+            dt = 0.001;
+
+            Y = adapt.regressor(H, V, VR, VRDot);
+            N = fth.ctrl.adapt.AdaptationUtils.spd2params_jacobian();
+            E = fth.ctrl.adapt.AdaptationUtils.eliminationspd4();
+            G = reshape(E' * (N' * (Y' * s)), 4, 4);
+            G_sym = fth.se3.symOfMat(G);
+            J_hatDot = -gamma * J_before * G_sym * J_before;
+            J_expected = fth.se3.symOfMat(J_before - dt * J_hatDot);
+
+            adapt.doUpdate(dt, s, Y);
+            diag_after = adapt.getDiagnostics();
+
+            testCase.verifyEqual(diag_after.J_hat, J_expected, 'AbsTol', 1e-14);
+        end
+
         % ======================================================================
         % Property-Based Tests: Mathematical invariants
         % ======================================================================
@@ -116,7 +152,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.1; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.1);
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
@@ -159,7 +195,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.2; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.2);
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
@@ -203,7 +239,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.1; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.1);
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
@@ -241,7 +277,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.05; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.05);
             cfg.done();
 
             adapt1 = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
@@ -277,7 +313,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.1; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.1);
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
@@ -325,7 +361,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.1; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.1);
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
@@ -356,7 +392,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.1; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.1);
             cfg.done();
 
             % Run 1

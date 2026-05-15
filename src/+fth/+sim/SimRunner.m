@@ -128,7 +128,9 @@ classdef SimRunner < handle
             end
             if isfield(obj.cfg.controller, 'Gamma') && ~strcmpi(obj.cfg.controller.adaptation, 'none')
                 Gamma = obj.cfg.controller.Gamma;
-                if isvector(Gamma) && numel(Gamma) == 10
+                if strcmpi(obj.cfg.controller.adaptation, 'bregman') && isscalar(Gamma)
+                    fprintf('  Bregman Gamma: %.4f\n', Gamma);
+                elseif isvector(Gamma) && numel(Gamma) == 10
                     fprintf('%s', fth.io.ConsoleFormatter.vector('Adaptive Gains', Gamma, '%.4f'));
                 end
             end

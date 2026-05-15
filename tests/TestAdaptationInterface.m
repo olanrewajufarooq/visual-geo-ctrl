@@ -35,7 +35,7 @@ classdef TestAdaptationInterface < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.1; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.1);
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
@@ -92,6 +92,36 @@ classdef TestAdaptationInterface < matlab.unittest.TestCase
             testCase.verifyEqual(size(params.I6), [6,6]);
         end
 
+        function testEuclideanScalarGammaMatchesUniformVector(testCase)
+            cfg_scalar = fth.sim.Config();
+            cfg_scalar.setController('Feedforward');
+            cfg_scalar.setAdaptation('euclidean');
+            cfg_scalar.setAdaptiveGains(0.25);
+            cfg_scalar.done();
+
+            cfg_vector = fth.sim.Config();
+            cfg_vector.setController('Feedforward');
+            cfg_vector.setAdaptation('euclidean');
+            cfg_vector.setAdaptiveGains(0.25 * ones(10, 1));
+            cfg_vector.done();
+
+            adapt_scalar = fth.ctrl.adapt.EuclideanAdaptation(cfg_scalar);
+            adapt_vector = fth.ctrl.adapt.EuclideanAdaptation(cfg_vector);
+
+            H = eye(4);
+            V = [0.1; -0.2; 0.3; -0.4; 0.5; -0.6];
+            VR = [0.05; 0.1; -0.15; 0.2; -0.25; 0.3];
+            VRDot = zeros(6, 1);
+            s = [0.02; -0.01; 0.03; -0.04; 0.05; -0.06];
+            dt = 0.001;
+
+            Y = adapt_scalar.regressor(H, V, VR, VRDot);
+            pi_scalar = adapt_scalar.doUpdate(dt, s, Y);
+            pi_vector = adapt_vector.doUpdate(dt, s, Y);
+
+            testCase.verifyEqual(pi_scalar, pi_vector, 'AbsTol', 1e-14);
+        end
+
         function testDiagnosticsStructFormatEuclidean(testCase)
             %TESTDIAGNOSTICSSTRUCTFORMATEUCLID EAN
             %   Verify getDiagnostics returns expected struct for Euclidean.
@@ -117,7 +147,7 @@ classdef TestAdaptationInterface < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
-            cfg.setAdaptiveGains([0.05; zeros(9,1)]);
+            cfg.setAdaptiveGains(0.05);
             cfg.done();
 
             adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);

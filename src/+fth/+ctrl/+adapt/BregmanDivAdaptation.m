@@ -4,9 +4,10 @@ classdef BregmanDivAdaptation < fth.ctrl.adapt.AdaptationBase
 % definite pseudo-inertia matrix J_hat under a natural-gradient law.
 %
 % Adaptation law:
-% G       = vec_inv(E^T * N^T * Y^T * s)   [4×4 gradient direction]
-% G_sym   = fth.se3.symOfMat(G)             [symmetric part]
-% J_dot   = -gamma * J_hat * G_sym * J_hat  [Euler step on SPD manifold]
+% G        = vec_inv(E^T * N^T * Y^T * s)       [4×4 gradient direction]
+% G_sym    = fth.se3.symOfMat(G)                [symmetric part]
+% J_hatDot = -gamma * J_hat * G_sym * J_hat
+% J_hat    = J_hat - dt * J_hatDot
 %
 % Physical parameters are recovered via:
 % pi = N * E * vec(J_hat)  ≡  fth.ctrl.adapt.AdaptationUtils.spd2params(J_hat)
@@ -25,8 +26,7 @@ methods
         %BREGMANDIVADAPTATION Initialize pseudo-inertia estimate and gain.
         % Input:
         % cfg - configuration with vehicle and controller fields.
-        %       cfg.controller.Gamma may be a scalar or 10-vector;
-        %       the first element is used as the scalar gain gamma.
+        %       cfg.controller.Gamma must be a positive scalar gamma.
         obj.g = cfg.vehicle.g;
         obj.dt = cfg.sim.adaptation_dt;
 
@@ -38,14 +38,11 @@ methods
         % Convert to pseudo-inertia matrix
         obj.J_hat = fth.ctrl.adapt.AdaptationUtils.params2spd(pi0);
 
-        % Scalar gain: accept a scalar or take first element of a vector
         gamma_raw = cfg.controller.Gamma;
-        if isscalar(gamma_raw)
-            obj.gamma = gamma_raw;
-        else
-            obj.gamma = gamma_raw(1);
-        end
-        assert(obj.gamma > 0, 'BregmanDivAdaptation: gamma must be positive.');
+        validateattributes(gamma_raw, {'numeric'}, ...
+            {'scalar', 'real', 'finite', 'positive'}, ...
+            'BregmanDivAdaptation', 'gamma');
+        obj.gamma = gamma_raw;
 
         % Cache constant matrices
         obj.N = fth.ctrl.adapt.AdaptationUtils.spd2params_jacobian();
@@ -67,9 +64,8 @@ methods
         g_vec = obj.E' * (obj.N' * (Y' * s));
         G     = reshape(g_vec, 4, 4);
         G_sym = fth.se3.symOfMat(G);
-        A     = sqrtm(obj.J_hat);
-        B     = A * G_sym * A;
-        obj.J_hat       = fth.se3.symOfMat(A * expm(-obj.gamma * dt * B) * A);
+        J_hatDot = -obj.gamma * obj.J_hat * G_sym * obj.J_hat;
+        obj.J_hat       = obj.J_hat + dt * J_hatDot;
         obj.updateCount = obj.updateCount + 1;
         obj.updateEstimates();
         pi = obj.getPi();

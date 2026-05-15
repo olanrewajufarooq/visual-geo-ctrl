@@ -150,6 +150,38 @@ classdef TestConfig < matlab.unittest.TestCase
             testCase.verifyEqual(cfg.controller.Gamma, Gamma);
         end
 
+        function testSetAdaptiveGainsScalar(testCase)
+            cfg = fth.sim.Config();
+            cfg.setAdaptiveGains(0.25);
+            testCase.verifyEqual(cfg.controller.Gamma, 0.25);
+        end
+
+        function testBregmanDefaultGammaIsScalar(testCase)
+            cfg = fth.sim.Config();
+            cfg.setController('Feedforward');
+            cfg.setAdaptation('bregman');
+            cfg.done();
+            testCase.verifyTrue(isscalar(cfg.controller.Gamma));
+            testCase.verifyGreaterThan(cfg.controller.Gamma, 0);
+        end
+
+        function testBregmanRejectsTenVectorGamma(testCase)
+            cfg = fth.sim.Config();
+            cfg.setController('Feedforward');
+            cfg.setAdaptation('bregman');
+            cfg.setAdaptiveGains(ones(10, 1));
+            testCase.verifyError(@() cfg.done(), 'Config:InvalidGainShape');
+        end
+
+        function testBregmanGammaBatchCount(testCase)
+            cfg = fth.sim.Config();
+            cfg.setController('Feedforward');
+            cfg.setAdaptation('bregman');
+            cfg.setAdaptiveGains([0.1; 0.2]);
+            cfg.done();
+            testCase.verifyEqual(cfg.getBatchCount(), 2);
+        end
+
         function testFluentChaining(testCase)
             cfg = fth.sim.Config();
             cfg = cfg.setTrajectory('circle') ...

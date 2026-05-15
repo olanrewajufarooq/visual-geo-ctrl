@@ -235,7 +235,7 @@ cfg.setPlotLayout('column-major');            % 'row-major' | 'column-major'
 % Tuning Gains
 cfg.setKpGains([5.5 5.5 5.5 5.5 5.5 5.5]);     % 6x1 proportional gain vector
 cfg.setKdGains([2.05 2.05 2.05 2.05 2.05 2.05]); % 6x1 derivative gain vector
-cfg.setAdaptiveGains(4e-3 * [20 20 30 1 1 1 90 30 30 60]); % 10x1 or Nx10
+cfg.setAdaptiveGains(4e-3 * [20 20 30 1 1 1 90 30 30 60]); % Euclidean: scalar, 10x1, or Nx10; Bregman: scalar
 
 % Payload
 cfg.setPayloadScenario(1.5, [0.115; 0.05; -0.05], 20);
@@ -246,7 +246,7 @@ cfg.setEstimateInitialization('fixed');
 
 ## Batch Simulations
 
-Batch mode runs multiple trajectories and/or multiple gain configurations in a single call. Pass a cell array of trajectory names and a matrix of adaptive gains (one row per run):
+Batch mode runs multiple trajectories and/or multiple gain configurations in a single call. Pass a cell array of trajectory names and a matrix of Euclidean adaptive gains (one row per run). For Bregman adaptation, use a scalar gamma for a single run or an Nx1 column of scalar gamma values for gain batches:
 
 ```matlab
 cfg = fth.sim.Config();
