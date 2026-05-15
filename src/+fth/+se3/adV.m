@@ -7,7 +7,7 @@ function adV = adV(V)
 %
 %   Input:  V - 6x1 body twist [angular; linear].
 %   Output: adV - 6x6 small adjoint matrix.
-    w_hat = fth.se3.hat3(V(1:3));
-    v_hat = fth.se3.hat3(V(4:6));
+    w_hat = fth.se3.vec2tilde(V(1:3));
+    v_hat = fth.se3.vec2tilde(V(4:6));
     adV = [w_hat, zeros(3); v_hat, w_hat];
 end

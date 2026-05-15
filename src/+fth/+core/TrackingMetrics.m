@@ -294,7 +294,7 @@ classdef TrackingMetrics < handle
                 T(1:3, 1:3) = Rerr;
                 zeta = fth.se3.logSE3(T);
                 oriErr(i, :) = zeta(1:3).';
-                oriErrNorm(i, 1) = norm(fth.se3.hat3(zeta(1:3)), 'fro');
+                oriErrNorm(i, 1) = norm(fth.se3.vec2tilde(zeta(1:3)), 'fro');
             end
         end
 
@@ -307,7 +307,7 @@ classdef TrackingMetrics < handle
                 Hd = obj.buildSE3(desiredPos(i, :), desiredRpy(i, :));
                 He = fth.se3.invSE3(Hd) * H;
                 zeta = fth.se3.logSE3(He);
-                se3mat = fth.se3.hat6(zeta);
+                se3mat = fth.se3.vec2tilde(zeta);
                 se3Err(i, 1) = norm(se3mat, 'fro');
             end
         end

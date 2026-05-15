@@ -296,6 +296,29 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
                 'Parameter round-trip conversion should preserve values');
         end
 
+        function testPseudoInertiaVectorizationRoundTrip(testCase)
+            P_original = [1.0 0.1 0.2 0.3;
+                          0.1 2.0 0.4 0.5;
+                          0.2 0.4 3.0 0.6;
+                          0.3 0.5 0.6 4.0];
+
+            P_vec = fth.ctrl.adapt.AdaptationUtils.pseudoInertiaMat2Vec(P_original);
+            P_recovered = fth.ctrl.adapt.AdaptationUtils.pseudoInertiaVec2Mat(P_vec);
+
+            testCase.verifyEqual(P_recovered, P_original, 'AbsTol', 1e-14);
+        end
+
+        function testCoRotInertiaConversionRoundTrip(testCase)
+            J_original = [2.0 0.1 0.2;
+                          0.1 2.5 0.3;
+                          0.2 0.3 3.0];
+
+            S = fth.ctrl.adapt.AdaptationUtils.rotInertia2CoRotInertia(J_original);
+            J_recovered = fth.ctrl.adapt.AdaptationUtils.coRotInertia2RotInertia(S);
+
+            testCase.verifyEqual(J_recovered, J_original, 'AbsTol', 1e-14);
+        end
+
         function testBregmanParamsStructConsistency(testCase)
             %TESTBREGMANPARAMSSTRUCTCONSISTENCY
             %   getParams output should match cached values.

@@ -58,7 +58,7 @@ classdef TestRigidBodyRegressor < matlab.unittest.TestCase
     %  Consistency checks: Y*pi == I6*VRDot + C(V,I6)*VR + Wg
     %
     %  Gravity wrench convention (body frame, V=[omega;v]):
-    %    Wg(1:3) = R'*hat3(gW)*h   (torque)
+    %    Wg(1:3) = R'*vec2tilde(gW)*h   (torque)
     %    Wg(4:6) = m * R'*gW       (force)
     %  where gW is world gravity and h = pi(2:4) is the first moment.
     % ------------------------------------------------------------------ %
@@ -80,7 +80,7 @@ classdef TestRigidBodyRegressor < matlab.unittest.TestCase
             gB      = R.' * gW;
             m       = pi(1);
             h       = pi(2:4);
-            Wg      = [R.' * fth.se3.hat3(gW) * h; m * gB];
+            Wg      = [R.' * fth.se3.vec2tilde(gW) * h; m * gB];
             Wref    = I6 * VRDot(:) + C_basic * VR(:) + Wg;
 
             tc.verifyEqual(Ypred, Wref, 'AbsTol', 1e-10);
@@ -96,17 +96,17 @@ classdef TestRigidBodyRegressor < matlab.unittest.TestCase
             Y     = rbr.getRegressor(H, V, VR, VRDot);
             Ypred = Y * pi;
 
-            % C(V,I) = 0.5*(I*adV(V) - adV(I*V) - adV(V)'*I)
+            % C(V,I) = 0.5*(I*adV(V) - coadP(I*V) - adV(V)'*I)
             I6     = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi);
             C_cons = 0.5 * (I6 * fth.se3.adV(V) ...
-                          - fth.se3.adV(I6 * V) ...
+                          - fth.se3.coadP(I6 * V) ...
                           - fth.se3.adV(V).' * I6);
             R      = H(1:3, 1:3);
             gW     = [0; 0; 9.81];
             gB     = R.' * gW;
             m      = pi(1);
             h      = pi(2:4);
-            Wg     = [R.' * fth.se3.hat3(gW) * h; m * gB];
+            Wg     = [R.' * fth.se3.vec2tilde(gW) * h; m * gB];
             Wref   = I6 * VRDot(:) + C_cons * VR(:) + Wg;
 
             tc.verifyEqual(Ypred, Wref, 'AbsTol', 1e-10);

@@ -5,7 +5,7 @@ classdef bodyGainPotential < fth.ctrl.potential.PotentialBase
     %     Psi(R, xi) = 0.5 tr(K_R (I - Rd^T R)) + 0.5 ep^T K_xi ep
     %
     %   Errors:
-    %     eR  = vee(skew(0.5 K_R Re - K_xi ep xi_e^T R))
+    %     eR  = tilde2vec(skewOfMat(0.5 K_R Re - K_xi ep xi_e^T R))
     %     eXi = K_xi ep
     %
     %   Note: eHDot is not yet derived. Calling getPotentialErrorDerivative
@@ -29,7 +29,7 @@ classdef bodyGainPotential < fth.ctrl.potential.PotentialBase
             st  = fth.se3.poseDecompose(H, Hd);
             ep  = st.R' * st.xi_e;
             A   =  0.5 * obj.K_R * st.Re - obj.K_xi * ep * st.xi_e' * st.R;
-            eR  = fth.se3.vee3(fth.se3.skew(A));
+            eR  = fth.se3.tilde2vec(fth.se3.skewOfMat(A));
             eXi = obj.K_xi * ep;
             eH  = [eR; eXi];
         end

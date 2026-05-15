@@ -36,9 +36,9 @@ classdef TestUtils < matlab.unittest.TestCase
             testCase.verifyEqual(rpy_out, rpy_in, 'AbsTol', 1e-14);
         end
 
-        function testRotInertParams2MatrixSymmetric(testCase)
+        function testRotInertiaVec2MatSymmetric(testCase)
             Ip = [0.01, 0.02, 0.03, 0.001, 0.002, 0.003];
-            J = fth.se3.rotInertParams2Matrix(Ip);
+            J = fth.se3.rotInertiaVec2Mat(Ip);
             testCase.verifyEqual(J, J', 'AbsTol', 1e-14);
         end
 

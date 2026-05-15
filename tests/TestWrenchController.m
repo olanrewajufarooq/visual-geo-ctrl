@@ -21,7 +21,7 @@ classdef TestWrenchController < matlab.unittest.TestCase
             CoG  = cfg.vehicle.CoG;
             gW = [0; 0; g];
             h  = m * CoG(:);
-            Wg = [fth.se3.hat3(gW) * h; m * gW];
+            Wg = [fth.se3.vec2tilde(gW) * h; m * gW];
             testCase.verifyEqual(W, Wg, 'AbsTol', 1e-10);
         end
 

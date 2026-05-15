@@ -13,7 +13,7 @@ classdef RigidBodyRegressor < handle
     %
     %   coriolisForm:
     %     'basic'      -> C(V, I) = -ad(V)' * I
-    %     'consistent' -> C(V, I) = 1/2*(I*ad(V) - ad(I*V) - ad(V)'*I)
+    %     'consistent' -> C(V, I) = 1/2*(I*ad(V) - coadP(I*V) - ad(V)'*I)
 
     properties (SetAccess = private)
         GravityWorld (3,1) double
@@ -84,10 +84,10 @@ classdef RigidBodyRegressor < handle
             v     = k(4:6);
 
             YI = zeros(6, 10);
-            YI(1:3, 2:4)  = -fth.se3.hat3(v);
+            YI(1:3, 2:4)  = -fth.se3.vec2tilde(v);
             YI(1:3, 5:10) = fth.ctrl.RigidBodyRegressor.rotInertiaReg_(omega);
             YI(4:6, 1)    = v;
-            YI(4:6, 2:4)  = fth.se3.hat3(omega);
+            YI(4:6, 2:4)  = fth.se3.vec2tilde(omega);
         end
 
         function YC = coriolisRegressor(obj, V, VR)
@@ -114,13 +114,13 @@ classdef RigidBodyRegressor < handle
 
             Z = zeros(6, 10);
             % Torque rows (1:3):
-            Z(1:3, 1)    = -fth.se3.hat3(vr) * v;
-            Z(1:3, 2:4)  = fth.se3.hat3(omega_r) * fth.se3.hat3(v) ...
-                           - fth.se3.hat3(vr)      * fth.se3.hat3(omega);
-            Z(1:3, 5:10) = -fth.se3.hat3(omega_r) * rIR;
+            Z(1:3, 1)    = -fth.se3.vec2tilde(vr) * v;
+            Z(1:3, 2:4)  = fth.se3.vec2tilde(omega_r) * fth.se3.vec2tilde(v) ...
+                           - fth.se3.vec2tilde(vr)      * fth.se3.vec2tilde(omega);
+            Z(1:3, 5:10) = -fth.se3.vec2tilde(omega_r) * rIR;
             % Force rows (4:6):
-            Z(4:6, 1)    = -fth.se3.hat3(omega_r) * v;
-            Z(4:6, 2:4)  =  -fth.se3.hat3(omega_r) * fth.se3.hat3(omega);
+            Z(4:6, 1)    = -fth.se3.vec2tilde(omega_r) * v;
+            Z(4:6, 2:4)  =  -fth.se3.vec2tilde(omega_r) * fth.se3.vec2tilde(omega);
         end
 
         function YG = gravityRegressor(obj, H)
@@ -128,7 +128,7 @@ classdef RigidBodyRegressor < handle
             % Rows 1:3 = torque, rows 4:6 = force (V=[omega;v] convention).
             R  = H(1:3, 1:3);
             YG = zeros(6, 10);
-            YG(1:3, 2:4) = R.' * fth.se3.hat3(obj.GravityWorld);
+            YG(1:3, 2:4) = R.' * fth.se3.vec2tilde(obj.GravityWorld);
             YG(4:6, 1)   = R.' * obj.GravityWorld;
         end
     end

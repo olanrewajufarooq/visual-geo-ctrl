@@ -98,7 +98,7 @@ classdef Dynamics < handle
             %   Integrates the Euler-Poincare equation on SE(3):
             %     I6 * Vdot + C(I6, V) * V + W_gravity = W_cmd + W_ground
             %     C(I6, V) = -ad_V^T * I6
-            %     H_{k+1}  = H_k * exp(hat6(V_mid * dt))  (midpoint rule)
+            %     H_{k+1}  = H_k * exp(vec2tilde(V_mid * dt))  (midpoint rule)
             %
             %   Inputs:
             %     dt    - integration step [s].
@@ -110,7 +110,7 @@ classdef Dynamics < handle
 
             % Midpoint integration: use V at half-step for the pose update.
             Vmid = obj.V + 0.5 * Vdot * dt;
-            obj.H = obj.H * fth.se3.expSE3(fth.se3.hat6(Vmid * dt));
+            obj.H = obj.H * fth.se3.expSE3(fth.se3.vec2tilde(Vmid * dt));
             obj.V = obj.V + Vdot * dt;
         end
 

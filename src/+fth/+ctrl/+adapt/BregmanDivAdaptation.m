@@ -5,7 +5,7 @@ classdef BregmanDivAdaptation < fth.ctrl.adapt.AdaptationBase
 %
 % Adaptation law:
 % G       = vec_inv(E^T * N^T * Y^T * s)   [4×4 gradient direction]
-% G_sym   = fth.se3.sym(G)                  [symmetric part]
+% G_sym   = fth.se3.symOfMat(G)             [symmetric part]
 % J_dot   = -gamma * J_hat * G_sym * J_hat  [Euler step on SPD manifold]
 %
 % Physical parameters are recovered via:
@@ -66,10 +66,10 @@ methods
         % pi - 10×1 updated parameter vector.
         g_vec = obj.E' * (obj.N' * (Y' * s));
         G     = reshape(g_vec, 4, 4);
-        G_sym = fth.se3.sym(G);
+        G_sym = fth.se3.symOfMat(G);
         A     = sqrtm(obj.J_hat);
         B     = A * G_sym * A;
-        obj.J_hat       = fth.se3.sym(A * expm(-obj.gamma * dt * B) * A);
+        obj.J_hat       = fth.se3.symOfMat(A * expm(-obj.gamma * dt * B) * A);
         obj.updateCount = obj.updateCount + 1;
         obj.updateEstimates();
         pi = obj.getPi();

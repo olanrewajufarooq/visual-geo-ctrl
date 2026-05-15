@@ -10,6 +10,6 @@ function AdT = Ad(T)
 %   Output: AdT - 6x6 adjoint matrix.
     R = T(1:3,1:3);
     p = T(1:3,4);
-    p_hat = fth.se3.hat3(p);
+    p_hat = fth.se3.vec2tilde(p);
     AdT = [R, zeros(3); p_hat*R, R];
 end

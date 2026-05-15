@@ -1024,7 +1024,7 @@ classdef SimRunner < handle
             %ADDPAYLOAD Combine payload mass/CoG with base parameters (private).
             m_total   = m_base + m_payload;
             cog_total = (m_base * cog_base(:) + m_payload * cog_payload(:)) / m_total;
-            J_base    = fth.se3.rotInertParams2Matrix(Iparams_base(:));
+            J_base    = fth.se3.rotInertiaVec2Mat(Iparams_base(:));
             r         = cog_payload(:);
             J_payload = m_payload * (dot(r,r) * eye(3) - r * r.');
             J_total   = J_base + J_payload;

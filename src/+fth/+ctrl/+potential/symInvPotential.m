@@ -5,7 +5,7 @@ classdef symInvPotential < fth.ctrl.potential.PotentialBase
     %     Psi(R, xi) = 0.5 tr(K_R (I - Rd^T R)) + 0.5 ep^T K_xi ep
     %
     %   Errors:
-    %     eR  = vee(skew(0.5 K_R Re - K_xi ep xi_e^T R))
+    %     eR  = tilde2vec(skewOfMat(0.5 K_R Re - K_xi ep xi_e^T R))
     %     eXi = (I + R^T Rd) K_xi ep
     %
     %   potType: 'sym-inv'
@@ -26,7 +26,7 @@ classdef symInvPotential < fth.ctrl.potential.PotentialBase
             st  = fth.se3.poseDecompose(H, Hd);
             ep  = (st.R' + st.Rd') * st.xi_e;
             A   = 0.5 * obj.K_R * st.Re - obj.K_xi * ep * st.xi_e' * st.R;
-            eR  = fth.se3.vee3(fth.se3.skew(A));
+            eR  = fth.se3.tilde2vec(fth.se3.skewOfMat(A));
             eXi = (eye(3) + st.R' * st.Rd) * obj.K_xi * ep;
             eH  = [eR; eXi];
         end
@@ -36,17 +36,17 @@ classdef symInvPotential < fth.ctrl.potential.PotentialBase
             st = fth.se3.trackingState(H, Hd, V, Vd);
             ep = (st.R' + st.Rd') * st.xi_e;
 
-            epDot = -(fth.se3.hat3(st.omega) * st.R' + fth.se3.hat3(st.omega_d) * st.Rd') ...
+            epDot = -(fth.se3.vec2tilde(st.omega) * st.R' + fth.se3.vec2tilde(st.omega_d) * st.Rd') ...
                       * st.xi_e ...
                     + (st.R' + st.Rd') * (st.R * st.v - st.Rd * st.v_d);
 
-            ADot = 0.5 * obj.K_R * st.Re * fth.se3.hat3(st.omega_e) ...
+            ADot = 0.5 * obj.K_R * st.Re * fth.se3.vec2tilde(st.omega_e) ...
                    - obj.K_xi * epDot * st.xi_e' * st.R ...
                    - obj.K_xi * ep * (st.v - st.Re' * st.v_d)' ...
-                   - obj.K_xi * ep * st.xi_e' * st.R * fth.se3.hat3(st.omega);
+                   - obj.K_xi * ep * st.xi_e' * st.R * fth.se3.vec2tilde(st.omega);
 
-            eRDot  = fth.se3.vee3(fth.se3.skew(ADot));
-            eXiDot = -fth.se3.hat3(st.omega_e) * st.Re' * obj.K_xi * ep ...
+            eRDot  = fth.se3.tilde2vec(fth.se3.skewOfMat(ADot));
+            eXiDot = -fth.se3.vec2tilde(st.omega_e) * st.Re' * obj.K_xi * ep ...
                      + (eye(3) + st.Re') * obj.K_xi * epDot;
             
             eHDot  = [eRDot; eXiDot];

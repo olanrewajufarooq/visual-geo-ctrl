@@ -16,6 +16,6 @@ function G = getGeneralizedInertia(m, Iparams, CoG)
     G = zeros(6,6);
     G(1:3,1:3) = I_mat;
     G(4:6,4:6) = m * eye(3);
-    G(4:6,1:3) = -m * fth.se3.hat3(CoG);
-    G(1:3,4:6) =  m * fth.se3.hat3(CoG);
+    G(4:6,1:3) = -m * fth.se3.vec2tilde(CoG);
+    G(1:3,4:6) =  m * fth.se3.vec2tilde(CoG);
 end

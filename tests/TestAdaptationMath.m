@@ -28,7 +28,7 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
             J  = [Iv(1) Iv(4) Iv(5);
                   Iv(4) Iv(2) Iv(6);
                   Iv(5) Iv(6) Iv(3)];
-            hx = fth.se3.hat3(h);
+            hx = fth.se3.vec2tilde(h);
             I6 = [J,   hx;
                   -hx, m*eye(3)];
         end

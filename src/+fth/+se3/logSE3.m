@@ -1,6 +1,6 @@
 function zeta = logSE3(T)
 %LOGSE3 Logarithmic map from SE(3) to a 6x1 twist coordinate.
-%   zeta = vee(log(T)) = [omega; v], the inverse of expSE3.
+%   zeta = tilde2vec(log(T)) = [omega; v], the inverse of expSE3.
 %
 %   Recovers the rotation angle via theta = acos((tr(R)-1)/2) and
 %   computes the inverse left-Jacobian G^{-1} to extract the linear
@@ -22,7 +22,7 @@ function zeta = logSE3(T)
         else
             omg = (1 / sqrt(2*(1+R(1,1)))) * [1+R(1,1); R(2,1); R(3,1)];
         end
-        omgmat = fth.se3.hat3(pi * omg);
+        omgmat = fth.se3.vec2tilde(pi * omg);
     else
         theta = acos(acosinput);
         omgmat = theta / (2 * sin(theta)) * (R - R');
@@ -38,5 +38,5 @@ function zeta = logSE3(T)
         se3mat = [omgmat, v; 0 0 0 0];
     end
 
-    zeta = fth.se3.vee6(se3mat);
+    zeta = fth.se3.tilde2vec(se3mat);
 end

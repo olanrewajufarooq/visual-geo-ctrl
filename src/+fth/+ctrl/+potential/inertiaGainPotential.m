@@ -5,7 +5,7 @@ classdef inertiaGainPotential < fth.ctrl.potential.PotentialBase
     %     Psi(R, xi) = 0.5 tr(K_R (I - Rd^T R)) + 0.5 (xi-xi_d)^T K_xi (xi-xi_d)
     %
     %   Errors:
-    %     eR  = vee(skew(0.5 K_R Re))
+    %     eR  = tilde2vec(skewOfMat(0.5 K_R Re))
     %     eXi = R^T K_xi xi_e
     %
     %   potType: 'inertia-gain'
@@ -25,7 +25,7 @@ classdef inertiaGainPotential < fth.ctrl.potential.PotentialBase
             %GETPOTENTIALERROR Compute eH = [eR; eXi].
             st  = fth.se3.poseDecompose(H, Hd);
             A   =  0.5 * obj.K_R * st.Re;
-            eR  = fth.se3.vee3(fth.se3.skew(A));
+            eR  = fth.se3.tilde2vec(fth.se3.skewOfMat(A));
             eXi = st.R' * obj.K_xi * st.xi_e;
             eH  = [eR; eXi];
         end
@@ -34,9 +34,9 @@ classdef inertiaGainPotential < fth.ctrl.potential.PotentialBase
             %GETPOTENTIALERRORDERIVATIVE Compute eHDot = [eRDot; eXiDot].
             st = fth.se3.trackingState(H, Hd, V, Vd);
 
-            ADot   =  0.5 * obj.K_R * st.Re * fth.se3.hat3(st.omega_e);
-            eRDot  = fth.se3.vee3(fth.se3.skew(ADot));
-            eXiDot = -fth.se3.hat3(st.omega) * st.R' * obj.K_xi * st.xi_e ...
+            ADot   =  0.5 * obj.K_R * st.Re * fth.se3.vec2tilde(st.omega_e);
+            eRDot  = fth.se3.tilde2vec(fth.se3.skewOfMat(ADot));
+            eXiDot = -fth.se3.vec2tilde(st.omega) * st.R' * obj.K_xi * st.xi_e ...
                      + st.R' * obj.K_xi * (st.R * st.v - st.Rd * st.v_d);
             eHDot  = [eRDot; eXiDot];
         end

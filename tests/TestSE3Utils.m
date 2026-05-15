@@ -2,28 +2,38 @@ classdef TestSE3Utils < matlab.unittest.TestCase
     %TESTSE3UTILS Unit tests for the SE(3) Lie group utility functions.
 
     methods (Test)
-        function testHat3Vee3Roundtrip(testCase)
+        function testVec2TildeTilde2Vec3Roundtrip(testCase)
             w = [1; 2; 3];
-            S = fth.se3.hat3(w);
-            testCase.verifyEqual(fth.se3.vee3(S), w, 'AbsTol', 1e-14);
+            S = fth.se3.vec2tilde(w);
+            testCase.verifyEqual(fth.se3.tilde2vec(S), w, 'AbsTol', 1e-14);
         end
 
-        function testHat3SkewSymmetry(testCase)
+        function testVec2Tilde3SkewSymmetry(testCase)
             w = [0.5; -1.3; 2.7];
-            S = fth.se3.hat3(w);
+            S = fth.se3.vec2tilde(w);
             testCase.verifyEqual(S, -S', 'AbsTol', 1e-14);
         end
 
-        function testHat3CrossProduct(testCase)
+        function testVec2Tilde3CrossProduct(testCase)
             a = [1; 2; 3];
             b = [4; 5; 6];
-            testCase.verifyEqual(fth.se3.hat3(a) * b, cross(a, b), 'AbsTol', 1e-14);
+            testCase.verifyEqual(fth.se3.vec2tilde(a) * b, cross(a, b), 'AbsTol', 1e-14);
         end
 
-        function testHat6Vee6Roundtrip(testCase)
+        function testVec2TildeTilde2Vec6Roundtrip(testCase)
             V = [0.1; 0.2; 0.3; 0.4; 0.5; 0.6];
-            se3mat = fth.se3.hat6(V);
-            testCase.verifyEqual(fth.se3.vee6(se3mat), V, 'AbsTol', 1e-14);
+            se3mat = fth.se3.vec2tilde(V);
+            testCase.verifyEqual(fth.se3.tilde2vec(se3mat), V, 'AbsTol', 1e-14);
+        end
+
+        function testVec2TildeRejectsInvalidDimension(testCase)
+            testCase.verifyError(@() fth.se3.vec2tilde([1; 2]), ...
+                                 'fth:vec2tilde:InvalidDimension');
+        end
+
+        function testTilde2VecRejectsInvalidDimension(testCase)
+            testCase.verifyError(@() fth.se3.tilde2vec(eye(2)), ...
+                                 'fth:tilde2vec:InvalidDimension');
         end
 
         function testExpSE3Identity(testCase)
@@ -54,7 +64,7 @@ classdef TestSE3Utils < matlab.unittest.TestCase
         function testLogSE3InverseOfExp(testCase)
             % log(exp(xi)) should return xi for small twists.
             xi = [0.1; -0.2; 0.3; 0.4; -0.5; 0.6];
-            se3mat = fth.se3.hat6(xi);
+            se3mat = fth.se3.vec2tilde(xi);
             T = fth.se3.expSE3(se3mat);
             xi_recovered = fth.se3.logSE3(T);
             testCase.verifyEqual(xi_recovered, xi, 'AbsTol', 1e-10);
@@ -83,7 +93,7 @@ classdef TestSE3Utils < matlab.unittest.TestCase
             xi = [0.1; 0.2; 0.3; 0.4; 0.5; 0.6];
             AdH = fth.se3.Ad(H);
             result_Ad = AdH * xi;
-            result_conj = fth.se3.vee6(H * fth.se3.hat6(xi) * fth.se3.invSE3(H));
+            result_conj = fth.se3.tilde2vec(H * fth.se3.vec2tilde(xi) * fth.se3.invSE3(H));
             testCase.verifyEqual(result_Ad, result_conj, 'AbsTol', 1e-12);
         end
 
@@ -101,15 +111,21 @@ classdef TestSE3Utils < matlab.unittest.TestCase
             V = [0.1; 0.2; 0.3; 0.4; 0.5; 0.6];
             W = [0.6; 0.5; 0.4; 0.3; 0.2; 0.1];
             adV = fth.se3.adV(V);
-            bracket = fth.se3.vee6(fth.se3.hat6(V) * fth.se3.hat6(W) - fth.se3.hat6(W) * fth.se3.hat6(V));
+            bracket = fth.se3.tilde2vec(fth.se3.vec2tilde(V) * fth.se3.vec2tilde(W) - fth.se3.vec2tilde(W) * fth.se3.vec2tilde(V));
             testCase.verifyEqual(adV * W, bracket, 'AbsTol', 1e-12);
         end
 
-        function testInertiaFromParamsUsesCanonicalOffDiagOrder(testCase)
+        function testRotInertiaVec2MatUsesCanonicalOffDiagOrder(testCase)
             Iparams = [1; 2; 3; 4; 5; 6];
-            J = fth.se3.rotInertParams2Matrix(Iparams);
+            J = fth.se3.rotInertiaVec2Mat(Iparams);
             J_expected = [1 4 5; 4 2 6; 5 6 3];
             testCase.verifyEqual(J, J_expected, 'AbsTol', 1e-14);
+        end
+
+        function testRotInertiaMat2VecInverse(testCase)
+            Iparams = [1; 2; 3; 4; 5; 6];
+            J = fth.se3.rotInertiaVec2Mat(Iparams);
+            testCase.verifyEqual(fth.se3.rotInertiaMat2Vec(J), Iparams, 'AbsTol', 1e-14);
         end
     end
 end
