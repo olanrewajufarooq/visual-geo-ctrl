@@ -1,5 +1,5 @@
-classdef RBInertia
-    %RBINERTIA Rigid-body inertia parameterization utilities.
+classdef AdaptationUtils
+    %ADAPTATIONUTILS Rigid-body inertia parameterization utilities.
     %   Static methods for converting between the 10×1 parameter vector pi,
     %   the 4×4 pseudo-inertia matrix J (symmetric positive definite), and
     %   the 6×6 generalized inertia matrix I6.
@@ -22,8 +22,8 @@ classdef RBInertia
             %     psi - 10×1 parameter vector.
             m = P(4, 4);
             h = P(1:3, 4);
-            J = fth.utils.RBInertia.coinertia2inertia(P(1:3, 1:3));
-            psi = [m; h; fth.utils.RBInertia.vecs3d(J)];
+            J = fth.ctrl.adapt.AdaptationUtils.coinertia2inertia(P(1:3, 1:3));
+            psi = [m; h; fth.ctrl.adapt.AdaptationUtils.vecs3d(J)];
         end
 
         function P = params2spd(psi)
@@ -34,9 +34,9 @@ classdef RBInertia
             %     P - 4×4 symmetric positive definite pseudo-inertia matrix.
             m = psi(1);
             h = psi(2:4);
-            J = fth.utils.RBInertia.vecs3dinv(psi(5:10));
+            J = fth.ctrl.adapt.AdaptationUtils.vecs3dinv(psi(5:10));
             P = zeros(4, 4, 'like', psi);
-            P(1:3, 1:3) = fth.utils.RBInertia.inertia2coinertia(J);
+            P(1:3, 1:3) = fth.ctrl.adapt.AdaptationUtils.inertia2coinertia(J);
             P(1:3, 4) = h;
             P(4, 1:3) = h';
             P(4, 4) = m;
@@ -52,7 +52,7 @@ classdef RBInertia
             %     I - 6×6 generalized inertia matrix.
             m = psi(1);
             h = psi(2:4);
-            J = fth.utils.RBInertia.vecs3dinv(psi(5:10));
+            J = fth.ctrl.adapt.AdaptationUtils.vecs3dinv(psi(5:10));
             I = zeros(6, 6, 'like', psi);
             I(1:3, 1:3) = J;
             I(1:3, 4:6) =  fth.se3.hat3(h);
@@ -70,7 +70,7 @@ classdef RBInertia
             h_hat = I6(1:3, 4:6);
             h = [h_hat(3,2); h_hat(1,3); h_hat(2,1)];
             J = I6(1:3, 1:3);
-            psi = [m; h; fth.utils.RBInertia.vecs3d(J)];
+            psi = [m; h; fth.ctrl.adapt.AdaptationUtils.vecs3d(J)];
         end
 
         function N = spd2params_jacobian()
@@ -175,8 +175,8 @@ classdef RBInertia
 
         function isValid = is_valid_params(psi)
             %IS_VALID_PARAMS Check if parameter vector corresponds to a valid (SPD) pseudo-inertia.
-            P = fth.utils.RBInertia.params2spd(psi);
-            isValid = fth.utils.RBInertia.is_spd(P);
+            P = fth.ctrl.adapt.AdaptationUtils.params2spd(psi);
+            isValid = fth.ctrl.adapt.AdaptationUtils.is_spd(P);
         end
     end
 end

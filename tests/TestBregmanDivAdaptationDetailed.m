@@ -192,7 +192,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
                     sprintf('Step %d: Mass must be positive', step));
                 
                 % Inertia matrix should be positive definite
-                I_mat = fth.utils.RBInertia.params2genInertia( ...
+                I_mat = fth.ctrl.adapt.AdaptationUtils.params2genInertia( ...
                     [m_hat; m_hat * cog_hat; Iparams_hat]);
                 I_3x3 = I_mat(1:3, 1:3);
                 eigs_I = eig(I_3x3);
@@ -295,10 +295,10 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             pi_original = [10.0; 0.05; 0.1; -0.15; 2.0; 2.5; 3.0; 0.1; 0.2; 0.15];
             
             % Forward conversion: pi → J_hat
-            J_hat = fth.utils.RBInertia.params2spd(pi_original);
+            J_hat = fth.ctrl.adapt.AdaptationUtils.params2spd(pi_original);
             
             % Backward conversion: J_hat → pi
-            pi_recovered = fth.utils.RBInertia.spd2params(J_hat);
+            pi_recovered = fth.ctrl.adapt.AdaptationUtils.spd2params(J_hat);
             
             % Should recover original (within numerical precision)
             testCase.verifyEqual(pi_recovered, pi_original, 'AbsTol', 1e-10, ...

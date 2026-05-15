@@ -53,7 +53,7 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
             %TESTPARAMGENMOMENTUMIDENTITY
             %   X(V) * pi == I6 * V for several velocity vectors.
             pi = TestAdaptationMath.PI_TRUE;
-            I6 = fth.utils.RBInertia.params2genInertia(pi);
+            I6 = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi);
 
             velocities = {
                 [0.1; -0.2; 0.3; 0.5; -0.3; 0.1], ...
@@ -85,8 +85,8 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
 
             pi = [m; m * CoG(:); Iparams];
 
-            I6_new = fth.utils.RBInertia.params2genInertia(pi);
-            I6_old = fth.utils.getGeneralizedInertia(m, Iparams, CoG);
+            I6_new = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi);
+            I6_old = fth.se3.getGeneralizedInertia(m, Iparams, CoG);
 
             testCase.verifyEqual(I6_new, I6_old, 'AbsTol', 1e-12, ...
                 'params2genInertia and getGeneralizedInertia differ');
@@ -103,7 +103,7 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
             %   Critically, the Coriolis uses adjoint(VR)^T (matching the control
             %   law's basicCoriolisFactor), NOT adjoint(V)^T.
             pi    = TestAdaptationMath.PI_TRUE;
-            I6    = fth.utils.RBInertia.params2genInertia(pi);
+            I6    = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi);
 
             % Arbitrary but realistic tracking scenario
             H     = eye(4);
@@ -138,7 +138,7 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
             %   Confirm that using adjoint(V)^T (the bug) breaks the identity.
             %   This test documents that the two formulations differ when V != VR.
             pi    = TestAdaptationMath.PI_TRUE;
-            I6    = fth.utils.RBInertia.params2genInertia(pi);
+            I6    = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi);
 
             H     = eye(4);
             V     = [0.1; -0.15; 0.2; 0.3; -0.1; 0.4];
@@ -191,8 +191,8 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
 
             % Sliding variable from inertia error: s ≈ Y*(pi_hat - pi_true)/I6_diagonal
             % Use a simple s proportional to the wrench error
-            I6_hat = fth.utils.RBInertia.params2genInertia(pi_hat);
-            I6_true = fth.utils.RBInertia.params2genInertia(pi_true);
+            I6_hat = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi_hat);
+            I6_true = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi_true);
             Wg_hat  = [cross(pi_hat(2:4)/pi_hat(1),  pi_hat(1)*g_b); pi_hat(1)*g_b];
             Wg_true = [cross(pi_true(2:4)/pi_true(1), pi_true(1)*g_b); pi_true(1)*g_b];
             s = (I6_hat - I6_true) * VRDot + ...
@@ -231,8 +231,8 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
             Y(4:6, 1)   = Y(4:6, 1)   + g_b;
             Y(1:3, 2:4) = Y(1:3, 2:4) - fth.se3.hat3(g_b);
 
-            I6_hat  = fth.utils.RBInertia.params2genInertia(pi_hat);
-            I6_true = fth.utils.RBInertia.params2genInertia(pi_true);
+            I6_hat  = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi_hat);
+            I6_true = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi_true);
             Wg_hat  = [cross(pi_hat(2:4)/pi_hat(1),  pi_hat(1)*g_b); pi_hat(1)*g_b];
             Wg_true = [cross(pi_true(2:4)/pi_true(1), pi_true(1)*g_b); pi_true(1)*g_b];
             s = (I6_hat - I6_true) * VRDot + ...

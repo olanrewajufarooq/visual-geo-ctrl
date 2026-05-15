@@ -320,7 +320,7 @@ classdef TrackingMetrics < handle
         end
 
         function R = rpyToRotm(~, rpy)
-            R = fth.utils.rpy2rotm(rpy(:));
+            R = fth.se3.rpy2rotm(rpy(:));
         end
 
         function metrics = computeParameterEstimation(obj)

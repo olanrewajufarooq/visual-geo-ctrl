@@ -39,7 +39,7 @@ classdef Dynamics < handle
                 % obj.Iparams, discarding this override.
                 obj.I6 = cfg.vehicle.I6;
             else
-                obj.I6 = fth.utils.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
+                obj.I6 = fth.se3.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
             end
             obj.H = eye(4);
             obj.V = zeros(6,1);
@@ -130,7 +130,7 @@ classdef Dynamics < handle
             if nargin >= 4 && ~isempty(Iparams)
                 obj.Iparams = Iparams;
             end
-            obj.I6 = fth.utils.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
+            obj.I6 = fth.se3.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
         end
 
         function dropPayload(obj, m_new, CoG_new, Iparams_new)

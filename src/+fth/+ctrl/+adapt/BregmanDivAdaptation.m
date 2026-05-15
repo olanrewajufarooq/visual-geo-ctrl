@@ -9,7 +9,7 @@ classdef BregmanDivAdaptation < fth.ctrl.adapt.AdaptationBase
 % J_dot   = -gamma * J_hat * G_sym * J_hat  [Euler step on SPD manifold]
 %
 % Physical parameters are recovered via:
-% pi = N * E * vec(J_hat)  ≡  fth.utils.RBInertia.spd2params(J_hat)
+% pi = N * E * vec(J_hat)  ≡  fth.ctrl.adapt.AdaptationUtils.spd2params(J_hat)
 %
 % Config keyword: 'bregman'
 
@@ -36,7 +36,7 @@ methods
         pi0 = obj.packPi(m, CoG, cfg.vehicle.I_params(:));
 
         % Convert to pseudo-inertia matrix
-        obj.J_hat = fth.utils.RBInertia.params2spd(pi0);
+        obj.J_hat = fth.ctrl.adapt.AdaptationUtils.params2spd(pi0);
 
         % Scalar gain: accept a scalar or take first element of a vector
         gamma_raw = cfg.controller.Gamma;
@@ -48,8 +48,8 @@ methods
         assert(obj.gamma > 0, 'BregmanDivAdaptation: gamma must be positive.');
 
         % Cache constant matrices
-        obj.N = fth.utils.RBInertia.spd2params_jacobian();
-        obj.E = fth.utils.RBInertia.eliminationspd4();
+        obj.N = fth.ctrl.adapt.AdaptationUtils.spd2params_jacobian();
+        obj.E = fth.ctrl.adapt.AdaptationUtils.eliminationspd4();
 
         obj.updateCount = 0;
         obj.updateEstimates();
@@ -91,19 +91,19 @@ methods
 
     function params = getParams(obj)
         %GETPARAMS Return current estimated parameters.
-        pi_hat = fth.utils.RBInertia.spd2params(obj.J_hat);
+        pi_hat = fth.ctrl.adapt.AdaptationUtils.spd2params(obj.J_hat);
         params = struct( ...
             'm', obj.m_hat, ...
             'CoG', obj.cog_hat, ...
             'Iparams', obj.Iparams_hat, ...
-            'I6', fth.utils.RBInertia.params2genInertia(pi_hat));
+            'I6', fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi_hat));
     end
 
     function diagnostics = getDiagnostics(obj)
         %GETDIAGNOSTICS Return adaptation diagnostics.
         diagnostics = struct( ...
             'J_hat', obj.J_hat, ...
-            'is_spd', fth.utils.RBInertia.is_spd(obj.J_hat), ...
+            'is_spd', fth.ctrl.adapt.AdaptationUtils.is_spd(obj.J_hat), ...
             'updateCount', obj.updateCount);
     end
 
@@ -112,7 +112,7 @@ methods
         % Input:
         % pi - 10×1 vector [m; h; Jparams].
         validateattributes(pi, {'numeric'}, {'vector', 'numel', 10});
-        obj.J_hat = fth.utils.RBInertia.params2spd(pi(:));
+        obj.J_hat = fth.ctrl.adapt.AdaptationUtils.params2spd(pi(:));
         obj.updateEstimates();
     end
 end
@@ -124,10 +124,10 @@ methods (Access = protected)
         % Inputs:
         % m_payload   - payload mass [kg].
         % CoG_payload - 3×1 payload CoG offset [m].
-        pi = fth.utils.RBInertia.spd2params(obj.J_hat);
+        pi = fth.ctrl.adapt.AdaptationUtils.spd2params(obj.J_hat);
         pi(1) = pi(1) + m_payload;
         pi(2:4) = pi(2:4) + m_payload * CoG_payload(:);
-        obj.J_hat = fth.utils.RBInertia.params2spd(pi);
+        obj.J_hat = fth.ctrl.adapt.AdaptationUtils.params2spd(pi);
         obj.updateEstimates();
     end
 end
@@ -135,7 +135,7 @@ end
 methods (Access = private)
     function updateEstimates(obj)
         %UPDATEESTIMATES Unpack J_hat into physical parameter caches.
-        pi = fth.utils.RBInertia.spd2params(obj.J_hat);
+        pi = fth.ctrl.adapt.AdaptationUtils.spd2params(obj.J_hat);
         [obj.m_hat, obj.cog_hat, obj.Iparams_hat] = obj.unpackPi(pi);
     end
 end

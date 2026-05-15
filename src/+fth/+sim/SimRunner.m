@@ -420,7 +420,7 @@ classdef SimRunner < handle
             m_base   = obj.cfg.vehicle.m;
             I_base   = obj.cfg.vehicle.I_params;
             cog_base = obj.cfg.vehicle.CoG(:);
-            [m_with, I_with, cog_with] = fth.utils.addPayload(m_base, I_base, cog_base, payloadMass, payloadCoG);
+            [m_with, I_with, cog_with] = obj.addPayload(m_base, I_base, cog_base, payloadMass, payloadCoG);
 
             obj.plant.updateParameters(m_with, cog_with, I_with);
             if payloadMass > 0
@@ -444,7 +444,7 @@ classdef SimRunner < handle
             I_base   = obj.cfg.vehicle.I_params;
             cog_base = obj.cfg.vehicle.CoG(:);
             if isAdaptive && payloadMass > 0
-                [m_true, I_true, cog_true] = fth.utils.addPayload(m_base, I_base, cog_base, payloadMass, payloadCoG);
+                [m_true, I_true, cog_true] = obj.addPayload(m_base, I_base, cog_base, payloadMass, payloadCoG);
             else
                 m_true   = m_base;
                 I_true   = I_base;
@@ -550,7 +550,7 @@ classdef SimRunner < handle
             %   Inputs: H (pose), V (body velocity).
             %   Output: actual struct (pos, rpy, linVel, angVel).
             pos = H(1:3,4);
-            rpy = fth.utils.rotm2rpy(H(1:3,1:3)).';
+            rpy = fth.se3.rotm2rpy(H(1:3,1:3)).';
             actual = struct('pos', pos', 'rpy', rpy, 'linVel', V(4:6)', 'angVel', V(1:3)');
         end
 
@@ -559,7 +559,7 @@ classdef SimRunner < handle
             %   Inputs: Hd, Vd, Ad desired pose/velocity/acceleration.
             %   Output: desired struct for logger.
             pos = Hd(1:3,4);
-            rpy = fth.utils.rotm2rpy(Hd(1:3,1:3)).';
+            rpy = fth.se3.rotm2rpy(Hd(1:3,1:3)).';
             Ad = Ad(:);
             desired = struct('pos', pos', 'rpy', rpy, 'linVel', Vd(4:6)', 'angVel', Vd(1:3)', 'acc6', Ad.');
         end
@@ -816,7 +816,7 @@ classdef SimRunner < handle
             %FINALIZE Compute metrics and cache run artifacts.
             %   Inputs: isAdaptive - whether adaptation was used.
             logs = obj.log.finalize();
-            logs = fth.utils.cleanNearZero(logs);
+            logs = fth.sim.SimRunner.cleanNearZero(logs);
             obj.executionFinishedAt = datetime('now');
             elapsedWallSeconds = toc(obj.executionWallClockStart);
             fprintf('%s', fth.io.ConsoleFormatter.section('Execution'));
@@ -995,7 +995,7 @@ classdef SimRunner < handle
             I_with = I_base_row;
             cog_with = cog_base_row;
             if obj.payloadMass > 0
-                [m_with, I_with, cog_with] = fth.utils.addPayload( ...
+                [m_with, I_with, cog_with] = fth.sim.SimRunner.addPayload( ...
                     m_base_scalar, I_base_row, cog_base_col, obj.payloadMass, obj.payloadCoG);
                 I_with = I_with(:).';
                 cog_with = cog_with(:).';
@@ -1015,6 +1015,41 @@ classdef SimRunner < handle
                 est.massActual = m_with * ones(numel(t), 1);
                 est.comActual = repmat(cog_with, numel(t), 1);
                 est.inertiaActual = repmat(I_with, numel(t), 1);
+            end
+        end
+    end
+
+    methods (Static, Access = private)
+        function [m_total, Iparams_total, cog_total] = addPayload(m_base, Iparams_base, cog_base, m_payload, cog_payload)
+            %ADDPAYLOAD Combine payload mass/CoG with base parameters (private).
+            m_total   = m_base + m_payload;
+            cog_total = (m_base * cog_base(:) + m_payload * cog_payload(:)) / m_total;
+            J_base    = fth.se3.rotInertParams2Matrix(Iparams_base(:));
+            r         = cog_payload(:);
+            J_payload = m_payload * (dot(r,r) * eye(3) - r * r.');
+            J_total   = J_base + J_payload;
+            Iparams_total = [J_total(1,1), J_total(2,2), J_total(3,3), ...
+                             J_total(1,2), J_total(1,3), J_total(2,3)];
+        end
+
+        function out = cleanNearZero(in, tol)
+            %CLEANNEARZERO Replace values near zero with exact zero (private).
+            if nargin < 2
+                tol = 1e-12;
+            end
+
+            if isstruct(in)
+                out = in;
+                fields = fieldnames(in);
+                for i = 1:numel(fields)
+                    out.(fields{i}) = fth.sim.SimRunner.cleanNearZero(in.(fields{i}), tol);
+                end
+            elseif isnumeric(in)
+                out = in;
+                nearZero = abs(in) < tol;
+                out(nearZero) = 0;
+            else
+                out = in;
             end
         end
     end

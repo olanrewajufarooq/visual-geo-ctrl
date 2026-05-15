@@ -82,7 +82,12 @@ classdef TestDynamics < matlab.unittest.TestCase
 
             m_payload = 0.5;
             cog_payload = [0; 0; -0.1];
-            [m_comp, I_comp, cog_comp] = fth.utils.addPayload(m_base, I_base, cog_base, m_payload, cog_payload);
+            m_comp    = m_base + m_payload;
+            cog_comp  = (m_base * cog_base + m_payload * cog_payload(:)) / m_comp;
+            r         = cog_payload(:);
+            J_base_mat = [I_base(1) I_base(4) I_base(5); I_base(4) I_base(2) I_base(6); I_base(5) I_base(6) I_base(3)];
+            J_total   = J_base_mat + m_payload * (dot(r,r)*eye(3) - r*r.');
+            I_comp    = [J_total(1,1) J_total(2,2) J_total(3,3) J_total(1,2) J_total(1,3) J_total(2,3)];
             plant.updateParameters(m_comp, cog_comp, I_comp);
 
             H0 = eye(4); H0(3,4) = 5;
@@ -113,7 +118,12 @@ classdef TestDynamics < matlab.unittest.TestCase
 
             m_payload = 0.5;
             cog_payload = [0.05; -0.03; -0.1];
-            [m_comp, I_comp, cog_comp] = fth.utils.addPayload(m_base, I_base, cog_base, m_payload, cog_payload);
+            m_comp    = m_base + m_payload;
+            cog_comp  = (m_base * cog_base + m_payload * cog_payload(:)) / m_comp;
+            r         = cog_payload(:);
+            J_base_mat = [I_base(1) I_base(4) I_base(5); I_base(4) I_base(2) I_base(6); I_base(5) I_base(6) I_base(3)];
+            J_total   = J_base_mat + m_payload * (dot(r,r)*eye(3) - r*r.');
+            I_comp    = [J_total(1,1) J_total(2,2) J_total(3,3) J_total(1,2) J_total(1,3) J_total(2,3)];
             plant.updateParameters(m_comp, cog_comp, I_comp);
 
             H0 = eye(4); H0(3,4) = 5;

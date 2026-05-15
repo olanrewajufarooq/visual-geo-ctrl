@@ -21,7 +21,7 @@ classdef NoAdaptation < fth.ctrl.adapt.AdaptationBase
             if isfield(cfg.vehicle, 'I6')
                 obj.I6 = cfg.vehicle.I6;
             else
-                obj.I6 = fth.utils.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
+                obj.I6 = fth.se3.getGeneralizedInertia(obj.m, obj.Iparams, obj.CoG);
             end
         end
 
@@ -53,7 +53,7 @@ classdef NoAdaptation < fth.ctrl.adapt.AdaptationBase
             % Input:
             % pi - 10×1 vector [m; hx; hy; hz; Ixx; Iyy; Izz; Ixy; Ixz; Iyz].
             [obj.m, obj.CoG, obj.Iparams] = obj.unpackPi(pi(:));
-            obj.I6 = fth.utils.RBInertia.params2genInertia(pi(:));
+            obj.I6 = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi(:));
         end
     end
 end

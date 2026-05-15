@@ -73,7 +73,7 @@ classdef TestRigidBodyRegressor < matlab.unittest.TestCase
             Y     = rbr.getRegressor(H, V, VR, VRDot);
             Ypred = Y * pi;
 
-            I6      = fth.utils.RBInertia.params2genInertia(pi);
+            I6      = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi);
             C_basic = -fth.se3.adV(V).' * I6;
             R       = H(1:3, 1:3);
             gW      = [0; 0; 9.81];
@@ -97,7 +97,7 @@ classdef TestRigidBodyRegressor < matlab.unittest.TestCase
             Ypred = Y * pi;
 
             % C(V,I) = 0.5*(I*adV(V) - adV(I*V) - adV(V)'*I)
-            I6     = fth.utils.RBInertia.params2genInertia(pi);
+            I6     = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi);
             C_cons = 0.5 * (I6 * fth.se3.adV(V) ...
                           - fth.se3.adV(I6 * V) ...
                           - fth.se3.adV(V).' * I6);

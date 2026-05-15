@@ -733,7 +733,7 @@ classdef Config < handle
             obj.vehicle.CoG = [0; 0; -0.00229];
             obj.vehicle.I_params = [0.04092, 0.04017, 0.06921, 5.656e-5, 1.313e-5, -6.494e-5];
             % Compute I6 immediately using utility
-            obj.vehicle.I6 = fth.utils.getGeneralizedInertia(obj.vehicle.m, obj.vehicle.I_params, obj.vehicle.CoG);
+            obj.vehicle.I6 = fth.se3.getGeneralizedInertia(obj.vehicle.m, obj.vehicle.I_params, obj.vehicle.CoG);
         end
         
         function initSimulation(obj)

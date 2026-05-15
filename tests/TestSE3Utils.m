@@ -107,7 +107,7 @@ classdef TestSE3Utils < matlab.unittest.TestCase
 
         function testInertiaFromParamsUsesCanonicalOffDiagOrder(testCase)
             Iparams = [1; 2; 3; 4; 5; 6];
-            J = fth.utils.inertiaFromParams(Iparams);
+            J = fth.se3.rotInertParams2Matrix(Iparams);
             J_expected = [1 4 5; 4 2 6; 5 6 3];
             testCase.verifyEqual(J, J_expected, 'AbsTol', 1e-14);
         end
