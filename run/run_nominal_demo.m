@@ -18,9 +18,9 @@ simOpts.controlDt = 0.005;
 cfg.useSimOptions(simOpts);
 
 % Reference trajectory.
-trajOpts.name = 'lissajous3d';
-trajOpts.goToHoverBeforePathStarts = false;
-trajOpts.period                  = duration;
+trajOpts.name                       = 'lissajous3d';
+trajOpts.goToHoverBeforePathStarts  = false;
+trajOpts.period                     = duration;
 cfg.useTrajectoryOptions(trajOpts);
 
 % Controller and gains.

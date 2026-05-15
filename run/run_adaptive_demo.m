@@ -20,7 +20,7 @@ cfg.useSimOptions(simOpts);
 
 % Reference trajectory.
 trajOpts.name                       = 'lissajous3d';
-trajOpts.goToHoverBeforePathStarts  = false;
+trajOpts.goToHoverBeforePathStarts  = true;
 trajOpts.period                     = duration;
 cfg.useTrajectoryOptions(trajOpts);
 
@@ -35,7 +35,7 @@ ctrlOpts.coriolisForm = 'consistent';    % 'basic', 'consistent'
 cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation.
-adaptOpts.type  = 'bregman';          % 'none','euclidean','bregman'
+adaptOpts.type  = 'euclidean';          % 'none','euclidean','bregman'
 adaptOpts.Gamma = 1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4];  % pi = [m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]
 cfg.useAdaptationOptions(adaptOpts);
 
