@@ -109,8 +109,8 @@ classdef BatchRunner < handle
             if obj.isAdaptiveBatch()
                 summaryPath = fullfile(obj.resultsDir, 'adaptive_report.txt');
                 fth.io.ResultsManager.writeTextFile(summaryPath, obj.buildSummaryTable());
-                identPath = fullfile(obj.resultsDir, 'ident_report.txt');
-                fth.io.ResultsManager.writeTextFile(identPath, obj.buildIdentifiabilityReport());
+                identPath = fullfile(obj.resultsDir, 'regressor_info_report.txt');
+                fth.io.ResultsManager.writeTextFile(identPath, obj.buildRegressorInfoReport());
             end
         end
 
@@ -130,17 +130,17 @@ classdef BatchRunner < handle
         function tableText = buildSummaryTable(obj)
             %BUILDSUMMARYTABLE Build an aligned summary table from saved runs.
             nRuns = numel(obj.childDirs);
-            headers = {'Trajectory', 'Run', 'Track RMSE', 'Track Score', ...
-                'Mass RMSE', 'Mass NRMSE', 'Mass Tracking Score', 'Mass Ident Metric', 'Mass Ident Score', ...
-                'CoG RMSE', 'CoG NRMSE', 'CoG Tracking Score', 'CoG Ident Metric', 'CoG Ident Score', ...
-                'Inertia RMSE', 'Inertia NRMSE', 'Inertia Tracking Score', 'Inertia Ident Metric', 'Inertia Ident Score'};
+            headers = {'Trajectory', 'Run', 'Track RMSE', ...
+                'Mass RMSE', 'Mass NRMSE', 'Mass Regressor Info', ...
+                'CoG RMSE', 'CoG NRMSE', 'CoG Regressor Info', ...
+                'Inertia RMSE', 'Inertia NRMSE', 'Inertia Regressor Info'};
             rawRows = cell(nRuns, numel(headers));
             numericValues = nan(nRuns, numel(headers));
             trajectoryNames = cell(nRuns, 1);
-            betterIsLower = [false, false, true, false, ...
-                true, true, false, false, false, ...
-                true, true, false, false, false, ...
-                true, true, false, false, false];
+            betterIsLower = [false, false, true, ...
+                true, true, false, ...
+                true, true, false, ...
+                true, true, false];
 
             for i = 1:nRuns
                 metrics = fth.io.ResultsManager.loadMetricsFile(obj.childDirs{i});
@@ -149,43 +149,29 @@ classdef BatchRunner < handle
                 rawRows{i,2} = metrics.run_label;
 
                 rawRows{i,3} = obj.fmtMetric(metrics.track_rmse, 4);
-                rawRows{i,4} = obj.fmtMetric(metrics.track_score, 2);
                 numericValues(i,3) = metrics.track_rmse;
-                numericValues(i,4) = metrics.track_score;
 
                 if metrics.is_adaptive
-                    rawRows{i,5} = obj.fmtMetric(metrics.mass_rmse, 4);
-                    rawRows{i,6} = obj.fmtMetric(metrics.mass_nrmse, 4);
-                    rawRows{i,7} = obj.fmtMetric(metrics.mass_tracking_score, 2);
-                    rawRows{i,8} = obj.fmtMetric(metrics.mass_ident_metric, 4);
-                    rawRows{i,9} = obj.fmtMetric(metrics.mass_ident_score, 2);
-                    rawRows{i,10} = obj.fmtMetric(metrics.cog_rmse, 4);
-                    rawRows{i,11} = obj.fmtMetric(metrics.cog_nrmse, 4);
-                    rawRows{i,12} = obj.fmtMetric(metrics.cog_tracking_score, 2);
-                    rawRows{i,13} = obj.fmtMetric(metrics.cog_ident_metric, 4);
-                    rawRows{i,14} = obj.fmtMetric(metrics.cog_ident_score, 2);
-                    rawRows{i,15} = obj.fmtMetric(metrics.inertia_rmse, 4);
-                    rawRows{i,16} = obj.fmtMetric(metrics.inertia_nrmse, 4);
-                    rawRows{i,17} = obj.fmtMetric(metrics.inertia_tracking_score, 2);
-                    rawRows{i,18} = obj.fmtMetric(metrics.inertia_ident_metric, 4);
-                    rawRows{i,19} = obj.fmtMetric(metrics.inertia_ident_score, 2);
-                    numericValues(i,5) = metrics.mass_rmse;
-                    numericValues(i,6) = metrics.mass_nrmse;
-                    numericValues(i,7) = metrics.mass_tracking_score;
-                    numericValues(i,8) = metrics.mass_ident_metric;
-                    numericValues(i,9) = metrics.mass_ident_score;
-                    numericValues(i,10) = metrics.cog_rmse;
-                    numericValues(i,11) = metrics.cog_nrmse;
-                    numericValues(i,12) = metrics.cog_tracking_score;
-                    numericValues(i,13) = metrics.cog_ident_metric;
-                    numericValues(i,14) = metrics.cog_ident_score;
-                    numericValues(i,15) = metrics.inertia_rmse;
-                    numericValues(i,16) = metrics.inertia_nrmse;
-                    numericValues(i,17) = metrics.inertia_tracking_score;
-                    numericValues(i,18) = metrics.inertia_ident_metric;
-                    numericValues(i,19) = metrics.inertia_ident_score;
+                    rawRows{i,4} = obj.fmtMetric(metrics.mass_rmse, 4);
+                    rawRows{i,5} = obj.fmtMetric(metrics.mass_nrmse, 4);
+                    rawRows{i,6} = obj.fmtMetric(metrics.mass_regressor_info, 4);
+                    rawRows{i,7} = obj.fmtMetric(metrics.cog_rmse, 4);
+                    rawRows{i,8} = obj.fmtMetric(metrics.cog_nrmse, 4);
+                    rawRows{i,9} = obj.fmtMetric(metrics.cog_regressor_info, 4);
+                    rawRows{i,10} = obj.fmtMetric(metrics.inertia_rmse, 4);
+                    rawRows{i,11} = obj.fmtMetric(metrics.inertia_nrmse, 4);
+                    rawRows{i,12} = obj.fmtMetric(metrics.inertia_regressor_info, 4);
+                    numericValues(i,4) = metrics.mass_rmse;
+                    numericValues(i,5) = metrics.mass_nrmse;
+                    numericValues(i,6) = metrics.mass_regressor_info;
+                    numericValues(i,7) = metrics.cog_rmse;
+                    numericValues(i,8) = metrics.cog_nrmse;
+                    numericValues(i,9) = metrics.cog_regressor_info;
+                    numericValues(i,10) = metrics.inertia_rmse;
+                    numericValues(i,11) = metrics.inertia_nrmse;
+                    numericValues(i,12) = metrics.inertia_regressor_info;
                 else
-                    rawRows(i,5:19) = {'N/A'};
+                    rawRows(i,4:12) = {'N/A'};
                 end
             end
 
@@ -231,14 +217,14 @@ classdef BatchRunner < handle
             tableText = strjoin(cellstr(lines), newline);
         end
 
-        function reportText = buildIdentifiabilityReport(obj)
-            %BUILDIDENTIFIABILITYREPORT Build a gain-first identifiability report.
-            entries = obj.collectIdentifiabilityEntries();
+        function reportText = buildRegressorInfoReport(obj)
+            %BUILDREGRESSORINFOREPORT Build a gain-first regressor information report.
+            entries = obj.collectRegressorInfoEntries();
             nonzeroMask = ~[entries.isZeroGain];
             included = entries(nonzeroMask);
 
             lines = { ...
-                'Batch Identifiability Report'; ...
+                'Batch Regressor Information Report'; ...
                 'Zero adaptive gain runs are excluded.'; ...
                 ''};
 
@@ -254,30 +240,27 @@ classdef BatchRunner < handle
                 lines{end+1,1} = sprintf('Gain %03d', gainId);
                 lines{end+1,1} = obj.formatGainVector(gainRows(1).gamma);
                 headers = {'Trajectory', ...
-                    'Mass Ident Metric', 'Mass Ident Score', ...
-                    'CoG Ident Metric', 'CoG Ident Score', ...
-                    'Inertia Ident Metric', 'Inertia Ident Score'};
+                    'Mass Regressor Info', ...
+                    'CoG Regressor Info', ...
+                    'Inertia Regressor Info'};
                 rows = cell(numel(gainRows), numel(headers));
                 for i = 1:numel(gainRows)
                     rows{i,1} = gainRows(i).trajectory;
                     rows{i,2} = obj.fmtMetric(gainRows(i).massMetric, 4);
-                    rows{i,3} = obj.fmtMetric(gainRows(i).massScore, 2);
-                    rows{i,4} = obj.fmtMetric(gainRows(i).cogMetric, 4);
-                    rows{i,5} = obj.fmtMetric(gainRows(i).cogScore, 2);
-                    rows{i,6} = obj.fmtMetric(gainRows(i).inertiaMetric, 4);
-                    rows{i,7} = obj.fmtMetric(gainRows(i).inertiaScore, 2);
+                    rows{i,3} = obj.fmtMetric(gainRows(i).cogMetric, 4);
+                    rows{i,4} = obj.fmtMetric(gainRows(i).inertiaMetric, 4);
                 end
                 tableLines = cellstr(obj.buildTable(headers, rows));
                 lines = [lines; tableLines; {''}];
             end
 
-            lines{end+1,1} = 'Trajectory Mean Summary';
-            lines = [lines; cellstr(obj.buildIdentifiabilitySummary(included))];
+            lines{end+1,1} = 'Trajectory Mean Regressor Info Summary';
+            lines = [lines; cellstr(obj.buildRegressorInfoSummary(included))];
             reportText = strjoin(lines, newline);
         end
 
-        function entries = collectIdentifiabilityEntries(obj)
-            %COLLECTIDENTIFIABILITYENTRIES Read batch metrics for identifiability reporting.
+        function entries = collectRegressorInfoEntries(obj)
+            %COLLECTREGRESSORINFOENTRIES Read batch metrics for regressor info reporting.
             entries = repmat(struct( ...
                 'trajectory', '', ...
                 'runLabel', '', ...
@@ -285,11 +268,8 @@ classdef BatchRunner < handle
                 'gamma', [], ...
                 'isZeroGain', false, ...
                 'massMetric', NaN, ...
-                'massScore', NaN, ...
                 'cogMetric', NaN, ...
-                'cogScore', NaN, ...
-                'inertiaMetric', NaN, ...
-                'inertiaScore', NaN), numel(obj.childDirs), 1);
+                'inertiaMetric', NaN), numel(obj.childDirs), 1);
 
             for i = 1:numel(obj.childDirs)
                 metricsEntry = fth.io.ResultsManager.loadMetricsFile(obj.childDirs{i});
@@ -298,33 +278,27 @@ classdef BatchRunner < handle
                 entries(i).gainIndex = obj.readGainIndex(metricsEntry.run_label);
                 entries(i).gamma = obj.gammaForGainIndex(entries(i).gainIndex);
                 entries(i).isZeroGain = obj.isZeroAdaptiveGain(entries(i).gamma);
-                entries(i).massMetric = obj.readStructField(metricsEntry, 'mass_ident_metric');
-                entries(i).massScore = obj.readStructField(metricsEntry, 'mass_ident_score');
-                entries(i).cogMetric = obj.readStructField(metricsEntry, 'cog_ident_metric');
-                entries(i).cogScore = obj.readStructField(metricsEntry, 'cog_ident_score');
-                entries(i).inertiaMetric = obj.readStructField(metricsEntry, 'inertia_ident_metric');
-                entries(i).inertiaScore = obj.readStructField(metricsEntry, 'inertia_ident_score');
+                entries(i).massMetric = obj.readStructField(metricsEntry, 'mass_regressor_info');
+                entries(i).cogMetric = obj.readStructField(metricsEntry, 'cog_regressor_info');
+                entries(i).inertiaMetric = obj.readStructField(metricsEntry, 'inertia_regressor_info');
             end
         end
 
-        function rowsText = buildIdentifiabilitySummary(obj, entries)
-            %BUILDIDENTIFIABILITYSUMMARY Build trajectory-wise mean identifiability table.
+        function rowsText = buildRegressorInfoSummary(obj, entries)
+            %BUILDREGRESSORINFOSUMMARY Build trajectory-wise mean regressor info table.
             trajNames = unique({entries.trajectory}, 'stable');
             headers = {'Trajectory', ...
-                'Mass Ident Metric Mean', 'Mass Ident Score Mean', ...
-                'CoG Ident Metric Mean', 'CoG Ident Score Mean', ...
-                'Inertia Ident Metric Mean', 'Inertia Ident Score Mean'};
+                'Mass Regressor Info Mean', ...
+                'CoG Regressor Info Mean', ...
+                'Inertia Regressor Info Mean'};
             rows = cell(numel(trajNames), numel(headers));
             for i = 1:numel(trajNames)
                 traj = trajNames{i};
                 trajEntries = entries(strcmp({entries.trajectory}, traj));
                 rows{i,1} = traj;
                 rows{i,2} = obj.fmtMetric(obj.meanFinite([trajEntries.massMetric]), 4);
-                rows{i,3} = obj.fmtMetric(obj.meanFinite([trajEntries.massScore]), 2);
-                rows{i,4} = obj.fmtMetric(obj.meanFinite([trajEntries.cogMetric]), 4);
-                rows{i,5} = obj.fmtMetric(obj.meanFinite([trajEntries.cogScore]), 2);
-                rows{i,6} = obj.fmtMetric(obj.meanFinite([trajEntries.inertiaMetric]), 4);
-                rows{i,7} = obj.fmtMetric(obj.meanFinite([trajEntries.inertiaScore]), 2);
+                rows{i,3} = obj.fmtMetric(obj.meanFinite([trajEntries.cogMetric]), 4);
+                rows{i,4} = obj.fmtMetric(obj.meanFinite([trajEntries.inertiaMetric]), 4);
             end
             rowsText = obj.buildTable(headers, rows);
         end

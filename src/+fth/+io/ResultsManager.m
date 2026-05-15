@@ -71,7 +71,10 @@ classdef ResultsManager
         function writeMetricsFile(resultsDir, metrics, runInfo, cfgSnapshot)
             %WRITEMETRICSFILE Save lightweight run metrics for reporting.
             runLabel = 'Run';
-            if isprop(cfgSnapshot, 'sim') && isfield(cfgSnapshot.sim, 'batchRunIndex') ...
+            if isprop(cfgSnapshot, 'sim') && isfield(cfgSnapshot.sim, 'runName') ...
+                    && ~isempty(cfgSnapshot.sim.runName)
+                runLabel = char(cfgSnapshot.sim.runName);
+            elseif isprop(cfgSnapshot, 'sim') && isfield(cfgSnapshot.sim, 'batchRunIndex') ...
                     && ~isempty(cfgSnapshot.sim.batchRunIndex)
                 runLabel = sprintf('Run %d', cfgSnapshot.sim.batchRunIndex);
             end
@@ -81,39 +84,26 @@ classdef ResultsManager
             entry.run_label = runLabel;
             entry.is_adaptive = logical(runInfo.isAdaptive);
             entry.track_rmse = metrics.combined.rmse_total;
-            entry.track_score = metrics.combined.tracking_score;
             entry.mass_rmse = NaN;
             entry.mass_nrmse = NaN;
-            entry.mass_tracking_score = NaN;
-            entry.mass_ident_metric = NaN;
-            entry.mass_ident_score = NaN;
+            entry.mass_regressor_info = NaN;
             entry.cog_rmse = NaN;
             entry.cog_nrmse = NaN;
-            entry.cog_tracking_score = NaN;
-            entry.cog_ident_metric = NaN;
-            entry.cog_ident_score = NaN;
+            entry.cog_regressor_info = NaN;
             entry.inertia_rmse = NaN;
             entry.inertia_nrmse = NaN;
-            entry.inertia_tracking_score = NaN;
-            entry.inertia_ident_metric = NaN;
-            entry.inertia_ident_score = NaN;
+            entry.inertia_regressor_info = NaN;
             if isfield(metrics, 'parameters')
                 entry.mass_rmse = metrics.parameters.mass.rmse;
                 entry.mass_nrmse = metrics.parameters.mass.nrmse;
-                entry.mass_tracking_score = metrics.parameters.mass.tracking_score;
                 entry.cog_rmse = metrics.parameters.cog.rmse_total;
                 entry.cog_nrmse = metrics.parameters.cog.nrmse_total;
-                entry.cog_tracking_score = metrics.parameters.cog.tracking_score;
                 entry.inertia_rmse = metrics.parameters.inertia.rmse_total;
                 entry.inertia_nrmse = metrics.parameters.inertia.nrmse_total;
-                entry.inertia_tracking_score = metrics.parameters.inertia.tracking_score;
-                if isfield(metrics.parameters, 'identifiability')
-                    entry.mass_ident_metric = metrics.parameters.identifiability.mass.sigma_min;
-                    entry.mass_ident_score = metrics.parameters.identifiability.mass.score;
-                    entry.cog_ident_metric = metrics.parameters.identifiability.mcog.sigma_min;
-                    entry.cog_ident_score = metrics.parameters.identifiability.mcog.score;
-                    entry.inertia_ident_metric = metrics.parameters.identifiability.inertia.sigma_min;
-                    entry.inertia_ident_score = metrics.parameters.identifiability.inertia.score;
+                if isfield(metrics.parameters, 'regressorInfo')
+                    entry.mass_regressor_info = metrics.parameters.regressorInfo.mass.sigma_min;
+                    entry.cog_regressor_info = metrics.parameters.regressorInfo.mcog.sigma_min;
+                    entry.inertia_regressor_info = metrics.parameters.regressorInfo.inertia.sigma_min;
                 end
             end
 
@@ -122,22 +112,15 @@ classdef ResultsManager
                 sprintf('run_label=%s', entry.run_label), ...
                 sprintf('is_adaptive=%s', fth.io.ResultsManager.boolText(entry.is_adaptive)), ...
                 sprintf('track_rmse=%s', fth.io.ResultsManager.metricText(entry.track_rmse, 4)), ...
-                sprintf('track_score=%s', fth.io.ResultsManager.metricText(entry.track_score, 2)), ...
                 sprintf('mass_rmse=%s', fth.io.ResultsManager.metricText(entry.mass_rmse, 4)), ...
                 sprintf('mass_nrmse=%s', fth.io.ResultsManager.metricText(entry.mass_nrmse, 4)), ...
-                sprintf('mass_tracking_score=%s', fth.io.ResultsManager.metricText(entry.mass_tracking_score, 2)), ...
-                sprintf('mass_ident_metric=%s', fth.io.ResultsManager.metricText(entry.mass_ident_metric, 4)), ...
-                sprintf('mass_ident_score=%s', fth.io.ResultsManager.metricText(entry.mass_ident_score, 2)), ...
+                sprintf('mass_regressor_info=%s', fth.io.ResultsManager.metricText(entry.mass_regressor_info, 4)), ...
                 sprintf('cog_rmse=%s', fth.io.ResultsManager.metricText(entry.cog_rmse, 4)), ...
                 sprintf('cog_nrmse=%s', fth.io.ResultsManager.metricText(entry.cog_nrmse, 4)), ...
-                sprintf('cog_tracking_score=%s', fth.io.ResultsManager.metricText(entry.cog_tracking_score, 2)), ...
-                sprintf('cog_ident_metric=%s', fth.io.ResultsManager.metricText(entry.cog_ident_metric, 4)), ...
-                sprintf('cog_ident_score=%s', fth.io.ResultsManager.metricText(entry.cog_ident_score, 2)), ...
+                sprintf('cog_regressor_info=%s', fth.io.ResultsManager.metricText(entry.cog_regressor_info, 4)), ...
                 sprintf('inertia_rmse=%s', fth.io.ResultsManager.metricText(entry.inertia_rmse, 4)), ...
                 sprintf('inertia_nrmse=%s', fth.io.ResultsManager.metricText(entry.inertia_nrmse, 4)), ...
-                sprintf('inertia_tracking_score=%s', fth.io.ResultsManager.metricText(entry.inertia_tracking_score, 2)), ...
-                sprintf('inertia_ident_metric=%s', fth.io.ResultsManager.metricText(entry.inertia_ident_metric, 4)), ...
-                sprintf('inertia_ident_score=%s', fth.io.ResultsManager.metricText(entry.inertia_ident_score, 2))};
+                sprintf('inertia_regressor_info=%s', fth.io.ResultsManager.metricText(entry.inertia_regressor_info, 4))};
             fth.io.ResultsManager.writeTextFile(fullfile(resultsDir, 'metrics.txt'), strjoin(lines, newline));
         end
 
