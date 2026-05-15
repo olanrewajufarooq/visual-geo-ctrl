@@ -18,7 +18,7 @@ classdef TrackingMetrics < handle
         EstCoGActual
         EstInertia
         EstInertiaActual
-        EstIdentifiability
+        EstRegressorInfo
         PositionMetrics
         OrientationMetrics
         CombinedMetrics
@@ -63,7 +63,7 @@ classdef TrackingMetrics < handle
             obj.EstCoGActual = [];
             obj.EstInertia = [];
             obj.EstInertiaActual = [];
-            obj.EstIdentifiability = struct();
+            obj.EstRegressorInfo = struct();
             if isfield(logs, 'est') && isstruct(logs.est)
                 if isfield(logs.est, 'mass') && isfield(logs.est, 'massActual')
                     obj.EstMass = logs.est.mass;
@@ -78,7 +78,7 @@ classdef TrackingMetrics < handle
                     obj.EstInertiaActual = logs.est.inertiaActual;
                 end
                 if isfield(logs.est, 'identifiability') && isstruct(logs.est.identifiability)
-                    obj.EstIdentifiability = logs.est.identifiability;
+                    obj.EstRegressorInfo = logs.est.identifiability;
                 end
             end
             obj.PositionMetrics = struct();
@@ -131,7 +131,6 @@ classdef TrackingMetrics < handle
             range_xyz(range_xyz == 0) = 1;
             metrics.nrmse_xyz = metrics.rmse_xyz ./ range_xyz;
             metrics.nrmse_total = mean(metrics.nrmse_xyz);
-            metrics.tracking_score = max(0, (1 - metrics.nrmse_total) * 100);
 
             metrics.max_error = max(vecnorm(posErr, 2, 2));
             metrics.mean_error = mean(vecnorm(posErr, 2, 2));
@@ -156,10 +155,12 @@ classdef TrackingMetrics < handle
             metrics.rmse_rpy = sqrt(mean(oriErr .^ 2, 1));
             metrics.rmse_total = sqrt(mean(oriErrNorm .^ 2));
 
-            denom = pi;
+            denom = max(oriErrNorm) - min(oriErrNorm);
+            if denom < 1e-6
+                denom = pi;
+            end
             metrics.nrmse_rpy = metrics.rmse_rpy ./ denom;
             metrics.nrmse_total = mean(metrics.nrmse_rpy);
-            metrics.tracking_score = max(0, (1 - metrics.nrmse_total) * 100);
 
             metrics.max_error = max(oriErrNorm);
             metrics.mean_error = mean(oriErrNorm);
@@ -189,7 +190,6 @@ classdef TrackingMetrics < handle
             posMetrics = obj.computePosition();
             oriMetrics = obj.computeOrientation();
             metrics.nrmse_total = mean([posMetrics.nrmse_total, oriMetrics.nrmse_total]);
-            metrics.tracking_score = max(0, (1 - metrics.nrmse_total) * 100);
 
             obj.CombinedMetrics = metrics;
             obj.IsCombinedErrComputed = true;
@@ -219,7 +219,6 @@ classdef TrackingMetrics < handle
             fprintf('%s', fth.io.ConsoleFormatter.subsection('Position Metrics'));
             fprintf('%s', fth.io.ConsoleFormatter.kv('RMSE Total', sprintf('%.4f m', metrics.rmse_total)));
             fprintf('%s', fth.io.ConsoleFormatter.kv('NRMSE Total', sprintf('%.4f', metrics.nrmse_total)));
-            fprintf('%s', fth.io.ConsoleFormatter.kv('Tracking Score', sprintf('%.2f %%', metrics.tracking_score)));
             fprintf('%s', fth.io.ConsoleFormatter.vector('RMSE XYZ', metrics.rmse_xyz, '%.4f', 'm'));
             fprintf('%s', fth.io.ConsoleFormatter.kv('Max Error', sprintf('%.4f m', metrics.max_error)));
             fprintf('%s', fth.io.ConsoleFormatter.kv('Mean Error', sprintf('%.4f m', metrics.mean_error)));
@@ -232,7 +231,6 @@ classdef TrackingMetrics < handle
             fprintf('%s', fth.io.ConsoleFormatter.subsection('Orientation Metrics (SO(3))'));
             fprintf('%s', fth.io.ConsoleFormatter.kv('RMSE Total', sprintf('%.4f rad', metrics.rmse_total)));
             fprintf('%s', fth.io.ConsoleFormatter.kv('NRMSE Total', sprintf('%.4f', metrics.nrmse_total)));
-            fprintf('%s', fth.io.ConsoleFormatter.kv('Tracking Score', sprintf('%.2f %%', metrics.tracking_score)));
             fprintf('%s', fth.io.ConsoleFormatter.vector('RMSE RPY', metrics.rmse_rpy, '%.4f', 'rad'));
             fprintf('%s', fth.io.ConsoleFormatter.kv('Max Error', sprintf('%.4f rad', metrics.max_error)));
             fprintf('%s', fth.io.ConsoleFormatter.kv('Mean Error', sprintf('%.4f rad', metrics.mean_error)));
@@ -245,7 +243,6 @@ classdef TrackingMetrics < handle
             fprintf('%s', fth.io.ConsoleFormatter.subsection('Combined Pose Metrics (SE(3))'));
             fprintf('%s', fth.io.ConsoleFormatter.kv('RMSE Total', sprintf('%.4f', metrics.rmse_total)));
             fprintf('%s', fth.io.ConsoleFormatter.kv('NRMSE Total', sprintf('%.4f', metrics.nrmse_total)));
-            fprintf('%s', fth.io.ConsoleFormatter.kv('Tracking Score', sprintf('%.2f %%', metrics.tracking_score)));
             fprintf('%s', fth.io.ConsoleFormatter.kv('Max Error', sprintf('%.4f', metrics.max_error)));
             fprintf('%s', fth.io.ConsoleFormatter.kv('Mean Error', sprintf('%.4f', metrics.mean_error)));
             fprintf('%s\n', fth.io.ConsoleFormatter.kv('Std Error', sprintf('%.4f', metrics.std_error)));
@@ -256,26 +253,20 @@ classdef TrackingMetrics < handle
 
             fprintf('%s', fth.io.ConsoleFormatter.subsection('Parameter Estimation Metrics (Diagnostic Only)'));
             fprintf('%s', fth.io.ConsoleFormatter.note('Convergence requires persistent excitation.'));
-            ident = metrics.identifiability;
+            ident = metrics.regressorInfo;
             fprintf('%s', fth.io.ConsoleFormatter.kv('Mass RMSE', sprintf('%.4f kg', metrics.mass.rmse)));
             fprintf('%s', fth.io.ConsoleFormatter.kv('Mass NRMSE', sprintf('%.4f', metrics.mass.nrmse)));
-            fprintf('%s', fth.io.ConsoleFormatter.kv('Mass Tracking Score', sprintf('%.2f %%', metrics.mass.tracking_score)));
-            fprintf('%s', fth.io.ConsoleFormatter.kv('Mass Identification Metric', sprintf('%.4f', ident.mass.sigma_min)));
-            fprintf('%s', fth.io.ConsoleFormatter.kv('Mass Identification Score', sprintf('%.2f %%', ident.mass.score)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('Mass Regressor Info', sprintf('%.4f', ident.mass.sigma_min)));
 
             fprintf('%s', fth.io.ConsoleFormatter.vector('CoG RMSE', metrics.cog.rmse_xyz, '%.4f', 'm'));
             fprintf('%s', fth.io.ConsoleFormatter.kv('CoG RMSE Total', sprintf('%.4f m', metrics.cog.rmse_total)));
             fprintf('%s', fth.io.ConsoleFormatter.kv('CoG NRMSE', sprintf('%.4f', metrics.cog.nrmse_total)));
-            fprintf('%s', fth.io.ConsoleFormatter.kv('CoG Tracking Score', sprintf('%.2f %%', metrics.cog.tracking_score)));
-            fprintf('%s', fth.io.ConsoleFormatter.kv('CoG Identification Metric', sprintf('%.4f', ident.mcog.sigma_min)));
-            fprintf('%s', fth.io.ConsoleFormatter.kv('CoG Identification Score', sprintf('%.2f %%', ident.mcog.score)));
+            fprintf('%s', fth.io.ConsoleFormatter.kv('CoG Regressor Info', sprintf('%.4f', ident.mcog.sigma_min)));
 
             fprintf('%s', fth.io.ConsoleFormatter.vector('Inertia RMSE', metrics.inertia.rmse_params, '%.4f'));
             fprintf('%s', fth.io.ConsoleFormatter.kv('Inertia RMSE Total', sprintf('%.4f', metrics.inertia.rmse_total)));
             fprintf('%s', fth.io.ConsoleFormatter.kv('Inertia NRMSE', sprintf('%.4f', metrics.inertia.nrmse_total)));
-            fprintf('%s', fth.io.ConsoleFormatter.kv('Inertia Tracking Score', sprintf('%.2f %%', metrics.inertia.tracking_score)));
-            fprintf('%s', fth.io.ConsoleFormatter.kv('Inertia Identification Metric', sprintf('%.4f', ident.inertia.sigma_min)));
-            fprintf('%s\n', fth.io.ConsoleFormatter.kv('Inertia Identification Score', sprintf('%.2f %%', ident.inertia.score)));
+            fprintf('%s\n', fth.io.ConsoleFormatter.kv('Inertia Regressor Info', sprintf('%.4f', ident.inertia.sigma_min)));
         end
     end
 
@@ -330,15 +321,15 @@ classdef TrackingMetrics < handle
             end
 
             metrics = struct();
-            metrics.mass = struct('rmse', NaN, 'nrmse', NaN, 'tracking_score', NaN);
+            metrics.mass = struct('rmse', NaN, 'nrmse', NaN);
             metrics.cog = struct('rmse_xyz', [NaN NaN NaN], 'rmse_total', NaN, ...
-                'nrmse_xyz', [NaN NaN NaN], 'nrmse_total', NaN, 'tracking_score', NaN);
+                'nrmse_xyz', [NaN NaN NaN], 'nrmse_total', NaN);
             metrics.inertia = struct('rmse_params', [NaN NaN NaN NaN NaN NaN], 'rmse_total', NaN, ...
-                'nrmse_params', [NaN NaN NaN NaN NaN NaN], 'nrmse_total', NaN, 'tracking_score', NaN);
-            metrics.identifiability = struct( ...
-                'mass', obj.defaultIdentifiabilityMetric(1), ...
-                'mcog', obj.defaultIdentifiabilityMetric(3), ...
-                'inertia', obj.defaultIdentifiabilityMetric(6), ...
+                'nrmse_params', [NaN NaN NaN NaN NaN NaN], 'nrmse_total', NaN);
+            metrics.regressorInfo = struct( ...
+                'mass', obj.defaultRegressorInfoMetric(1), ...
+                'mcog', obj.defaultRegressorInfoMetric(3), ...
+                'inertia', obj.defaultRegressorInfoMetric(6), ...
                 'update_count', NaN);
 
             if ~isempty(obj.EstMass) && ~isempty(obj.EstMassActual)
@@ -349,8 +340,7 @@ classdef TrackingMetrics < handle
                     range_val = 1;
                 end
                 nrmse = rmse / range_val;
-                metrics.mass = struct('rmse', rmse, 'nrmse', nrmse, ...
-                    'tracking_score', max(0, (1 - nrmse) * 100));
+                metrics.mass = struct('rmse', rmse, 'nrmse', nrmse);
             end
 
             if ~isempty(obj.EstCoG) && ~isempty(obj.EstCoGActual)
@@ -362,8 +352,7 @@ classdef TrackingMetrics < handle
                 nrmse_xyz = rmse_xyz ./ range_xyz;
                 nrmse_total = mean(nrmse_xyz);
                 metrics.cog = struct('rmse_xyz', rmse_xyz, 'rmse_total', rmse_total, ...
-                    'nrmse_xyz', nrmse_xyz, 'nrmse_total', nrmse_total, ...
-                    'tracking_score', max(0, (1 - nrmse_total) * 100));
+                    'nrmse_xyz', nrmse_xyz, 'nrmse_total', nrmse_total);
             end
 
             if ~isempty(obj.EstInertia) && ~isempty(obj.EstInertiaActual)
@@ -375,21 +364,20 @@ classdef TrackingMetrics < handle
                 nrmse_params = rmse_params ./ range_params;
                 nrmse_total = mean(nrmse_params);
                 metrics.inertia = struct('rmse_params', rmse_params, 'rmse_total', rmse_total, ...
-                    'nrmse_params', nrmse_params, 'nrmse_total', nrmse_total, ...
-                    'tracking_score', max(0, (1 - nrmse_total) * 100));
+                    'nrmse_params', nrmse_params, 'nrmse_total', nrmse_total);
             end
 
-            if isfield(obj.EstIdentifiability, 'infoMatrix') && ~isempty(obj.EstIdentifiability.infoMatrix)
-                infoMatrix = obj.EstIdentifiability.infoMatrix;
-                metrics.identifiability = obj.computeIdentifiabilityMetrics(infoMatrix);
-                metrics.identifiability.update_count = obj.readIdentifiabilityUpdateCount();
+            if isfield(obj.EstRegressorInfo, 'infoMatrix') && ~isempty(obj.EstRegressorInfo.infoMatrix)
+                infoMatrix = obj.EstRegressorInfo.infoMatrix;
+                metrics.regressorInfo = obj.computeRegressorInfo(infoMatrix);
+                metrics.regressorInfo.update_count = obj.readIdentifiabilityUpdateCount();
             end
 
             obj.ParameterMetrics = metrics;
             obj.IsParameterErrComputed = true;
         end
 
-        function metrics = computeIdentifiabilityMetrics(obj, infoMatrix)
+        function metrics = computeRegressorInfo(obj, infoMatrix)
             F = infoMatrix;
             F = (F + F.') / 2;
             diagF = diag(F);
@@ -400,12 +388,12 @@ classdef TrackingMetrics < handle
             G = (G + G.') / 2;
 
             metrics = struct();
-            metrics.mass    = obj.groupIdentifiabilityMetric(G, 1);
-            metrics.mcog    = obj.groupIdentifiabilityMetric(G, 2:4);
-            metrics.inertia = obj.groupIdentifiabilityMetric(G, 5:10);
+            metrics.mass    = obj.groupRegressorInfoMetric(G, 1);
+            metrics.mcog    = obj.groupRegressorInfoMetric(G, 2:4);
+            metrics.inertia = obj.groupRegressorInfoMetric(G, 5:10);
         end
 
-        function metric = groupIdentifiabilityMetric(~, G, groupIdx)
+        function metric = groupRegressorInfoMetric(~, G, groupIdx)
             groupIdx = groupIdx(:).';
             otherIdx = setdiff(1:size(G, 1), groupIdx);
             Ggg = G(groupIdx, groupIdx);
@@ -429,20 +417,19 @@ classdef TrackingMetrics < handle
             end
 
             metric = struct( ...
-                'score', 100 * min(max(sigmaMin, 0), 1), ...
                 'sigma_min', sigmaMin, ...
                 'rank', r, ...
                 'dimension', numel(groupIdx));
         end
 
-        function metric = defaultIdentifiabilityMetric(~, dimension)
-            metric = struct('score', NaN, 'sigma_min', NaN, 'rank', NaN, 'dimension', dimension);
+        function metric = defaultRegressorInfoMetric(~, dimension)
+            metric = struct('sigma_min', NaN, 'rank', NaN, 'dimension', dimension);
         end
 
         function count = readIdentifiabilityUpdateCount(obj)
             count = NaN;
-            if isfield(obj.EstIdentifiability, 'updateCount') && ~isempty(obj.EstIdentifiability.updateCount)
-                count = obj.EstIdentifiability.updateCount;
+            if isfield(obj.EstRegressorInfo, 'updateCount') && ~isempty(obj.EstRegressorInfo.updateCount)
+                count = obj.EstRegressorInfo.updateCount;
             end
         end
     end
