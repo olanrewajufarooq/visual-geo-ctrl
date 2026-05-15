@@ -54,10 +54,10 @@ classdef TestAdaptationInterface < matlab.unittest.TestCase
             testCase.verifyEqual(I_hat, Iparams, 'AbsTol', 1e-10);
         end
 
-        function testUpdateReturnsParamsStructWithRequiredFields(testCase)
-            %TESTUPDATERETURNSPARAMSSTRUCTWITHREQUIREDFIELDS
-            %   Verify update() returns a 10x1 pi vector, and getParams() returns
-            %   a struct with m, CoG, Iparams, I6.
+        function testUpdateReturnsPiVectorAndGetParamsReturnsStruct(testCase)
+            %TESTUPDATERETURNSPIECTORANDGETPARAMSRETURNSSTRUCT
+            %   Verify update() returns a 10x1 numeric pi vector, and getParams()
+            %   returns a struct with m, CoG, Iparams, I6.
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('euclidean');

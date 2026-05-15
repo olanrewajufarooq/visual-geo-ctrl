@@ -65,7 +65,8 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
 
             for k = 1:numel(velocities)
                 V = velocities{k};
-                X = fth.utils.RBDynamics.paramgenmomentum(V);
+                rbr = fth.ctrl.RigidBodyRegressor(0, 'basic');
+                X = rbr.getRegressor(eye(4), zeros(6,1), zeros(6,1), V);
                 err = norm(X * pi - I6 * V);
                 testCase.verifyLessThan(err, 1e-12, ...
                     sprintf('paramgenmomentum identity failed for velocity %d', k));
@@ -114,19 +115,18 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
             VR    = [0.08; -0.12; 0.18; 0.25; -0.09; 0.35];
             VRDot = [0.01; -0.02; 0.03; 0.05; -0.01; 0.02];
 
-            % Ground-truth W_model using VR in the Coriolis (basicCoriolisFactor)
-            C_VR  = -fth.se3.adV(VR)' * I6;    % basicCoriolisFactor
+            % Ground-truth W_model consistent with RigidBodyRegressor 'basic':
+            % C(V, I6) = -adV(V)' * I6  (regressor uses V, not VR, for the adjoint)
+            C_V   = -fth.se3.adV(V)' * I6;
             g_b   = R' * [0; 0; 9.81];
             f_g   = pi(1) * g_b;               % m * g_body
-            tau_g = cross(pi(2:4) / pi(1), f_g);
+            tau_g = cross(g_b, pi(2:4));        % CORRECT: cross(g_b, h)
             Wg    = [tau_g; f_g];
-            W_model = I6 * VRDot + C_VR * VR + Wg;
+            W_model = I6 * VRDot + C_V * VR + Wg;
 
-            % Regressor using adjoint(VR)^T (the CORRECT formulation)
-            Y = fth.utils.RBDynamics.paramgenmomentum(VRDot) ...
-                - fth.utils.RBDynamics.adjoint(VR)' * fth.utils.RBDynamics.paramgenmomentum(VR);
-            Y(4:6, 1)   = Y(4:6, 1)   + g_b;
-            Y(1:3, 2:4) = Y(1:3, 2:4) - fth.se3.hat3(g_b);
+            % Regressor (basic form uses adV(V)^T for Coriolis)
+            rbr = fth.ctrl.RigidBodyRegressor(9.81, 'basic');
+            Y = rbr.getRegressor(H, V, VR, VRDot);
 
             err = norm(Y * pi - W_model);
             testCase.verifyLessThan(err, 1e-11, ...
@@ -148,15 +148,13 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
 
             C_VR     = -fth.se3.adV(VR)' * I6;
             f_g      = pi(1) * g_b;
-            tau_g    = cross(pi(2:4) / pi(1), f_g);
+            tau_g    = cross(g_b, pi(2:4));     % CORRECT: cross(g_b, h)
             Wg       = [tau_g; f_g];
             W_model  = I6 * VRDot + C_VR * VR + Wg;
 
-            % Buggy regressor: uses adjoint(V)^T instead of adjoint(VR)^T
-            Y_bug = fth.utils.RBDynamics.paramgenmomentum(VRDot) ...
-                    - fth.utils.RBDynamics.adjoint(V)' * fth.utils.RBDynamics.paramgenmomentum(VR);
-            Y_bug(4:6, 1)   = Y_bug(4:6, 1)   + g_b;
-            Y_bug(1:3, 2:4) = Y_bug(1:3, 2:4) - fth.se3.hat3(g_b);
+            % Buggy regressor: uses V as VR argument (wrong Coriolis)
+            rbr_bug = fth.ctrl.RigidBodyRegressor(9.81, 'basic');
+            Y_bug = rbr_bug.getRegressor(H, V, V, VRDot);  % passing V as VR = "wrong Coriolis"
 
             err_bug = norm(Y_bug * pi - W_model);
             % The error should be nonzero when V != VR
@@ -184,17 +182,15 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
             g_b   = [0; 0; 9.81];
 
             % Compute regressor (using VR — the correct formulation)
-            Y = fth.utils.RBDynamics.paramgenmomentum(VRDot) ...
-                - fth.utils.RBDynamics.adjoint(VR)' * fth.utils.RBDynamics.paramgenmomentum(VR);
-            Y(4:6, 1)   = Y(4:6, 1)   + g_b;
-            Y(1:3, 2:4) = Y(1:3, 2:4) - fth.se3.hat3(g_b);
+            rbr = fth.ctrl.RigidBodyRegressor(9.81, 'basic');
+            Y = rbr.getRegressor(H, V, VR, VRDot);
 
             % Sliding variable from inertia error: s ≈ Y*(pi_hat - pi_true)/I6_diagonal
             % Use a simple s proportional to the wrench error
             I6_hat = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi_hat);
             I6_true = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi_true);
-            Wg_hat  = [cross(pi_hat(2:4)/pi_hat(1),  pi_hat(1)*g_b); pi_hat(1)*g_b];
-            Wg_true = [cross(pi_true(2:4)/pi_true(1), pi_true(1)*g_b); pi_true(1)*g_b];
+            Wg_hat  = [cross(g_b, pi_hat(2:4));  pi_hat(1)*g_b];   % correct: cross(g_b, h)
+            Wg_true = [cross(g_b, pi_true(2:4)); pi_true(1)*g_b];  % correct: cross(g_b, h)
             s = (I6_hat - I6_true) * VRDot + ...
                 (-fth.se3.adV(VR)' * I6_hat - (-fth.se3.adV(VR)' * I6_true)) * VR + ...
                 (Wg_hat - Wg_true);   % wrench error ≈ -Kd*s for an equilibrium
@@ -226,15 +222,13 @@ classdef TestAdaptationMath < matlab.unittest.TestCase
             VRDot = [0.02; 0; -0.01; 0; 0.05; 0];
             g_b   = [0; 0; 9.81];
 
-            Y = fth.utils.RBDynamics.paramgenmomentum(VRDot) ...
-                - fth.utils.RBDynamics.adjoint(VR)' * fth.utils.RBDynamics.paramgenmomentum(VR);
-            Y(4:6, 1)   = Y(4:6, 1)   + g_b;
-            Y(1:3, 2:4) = Y(1:3, 2:4) - fth.se3.hat3(g_b);
+            rbr = fth.ctrl.RigidBodyRegressor(9.81, 'basic');
+            Y = rbr.getRegressor(H, V, VR, VRDot);
 
             I6_hat  = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi_hat);
             I6_true = fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi_true);
-            Wg_hat  = [cross(pi_hat(2:4)/pi_hat(1),  pi_hat(1)*g_b); pi_hat(1)*g_b];
-            Wg_true = [cross(pi_true(2:4)/pi_true(1), pi_true(1)*g_b); pi_true(1)*g_b];
+            Wg_hat  = [cross(g_b, pi_hat(2:4));  pi_hat(1)*g_b];   % correct: cross(g_b, h)
+            Wg_true = [cross(g_b, pi_true(2:4)); pi_true(1)*g_b];  % correct: cross(g_b, h)
             s = (I6_hat - I6_true) * VRDot + ...
                 (-fth.se3.adV(VR)' * I6_hat - (-fth.se3.adV(VR)' * I6_true)) * VR + ...
                 (Wg_hat - Wg_true);
