@@ -16,6 +16,7 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
+simOpts.names        = {'no_adapt', 'gamma_050', 'gamma_025', 'gamma_017'};
 cfg.useSimOptions(simOpts);
 
 % Reference trajectory batch.
@@ -36,7 +37,7 @@ cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation (batch Gamma rows — one row per run).
 adaptOpts.type  = 'bregman';          % 'none','euclidean','bregman'
-adaptOpts.Gamma = [0, 1/20, 1/40, 1/60 ];  % rows: Run 1–4
+adaptOpts.Gamma = [0, 1/20, 1/40, 1/60 ];  % rows correspond to names above
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).

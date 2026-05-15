@@ -16,6 +16,7 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
+simOpts.names        = {'no_adapt', 'low_gain', 'high_inertia', 'high_cog'};
 cfg.useSimOptions(simOpts);
 
 % Reference trajectory batch.
@@ -40,7 +41,7 @@ adaptOpts.Gamma = 1e-2 * [ ...   % pi = [m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]
       0,   0,   0,   0,   0,   0,   0,   0,   0,   0; ...
      36,  12,  12,  12,   8,   8,  12, 0.4, 0.4, 0.4; ...
      72,  12,  12,  12, 360, 360, 360,  40,  40,  40; ...
-     36, 120, 120, 120,   8,   8,  12, 0.4, 0.4, 0.4];  % rows: Run 1–4
+     36, 120, 120, 120,   8,   8,  12, 0.4, 0.4, 0.4];  % rows correspond to names above
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).
