@@ -141,6 +141,9 @@ classdef SimRunnerUtils
         function pi = buildDefaultFixedHigherEstimatePi(m_nom, I_nom, cog_nom, m_true, I_true, cog_true)
             %BUILDDEFAULTFIXEDHIGHERESTIMATEPI Build the repo default fixed-higher pi.
             %   Alpha weights in pi ordering: [m, h1, h2, h3, I1, I2, I3, I4, I5, I6]
+            %   Note: unlike buildDefaultFixedEstimatePi, this formula extrapolates
+            %   *beyond* pi_true (initial estimate > true value), intentionally
+            %   testing adaptation convergence from an overestimate.
             alpha = [0.32; 0.22; 0.28; 0.25; 0.15; 0.35; 0.20; 0.30; 0.18; 0.25];
             pi_nom  = fth.sim.SimRunnerUtils.packEstimatePi(m_nom,  I_nom,  cog_nom);
             pi_true = fth.sim.SimRunnerUtils.packEstimatePi(m_true, I_true, cog_true);
