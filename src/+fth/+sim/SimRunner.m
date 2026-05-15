@@ -726,9 +726,9 @@ classdef SimRunner < handle
                 pi = spec(:);
                 return;
             end
-            m_dev   = m_base * 1.05;
-            I_dev   = I_base(:) .* [1.05; 1.04; 1.05; 1.075; 1.05; 1.025];
-            cog_dev = cog_base(:) + [0.05; 0.025; 0.075];
+            m_dev   = m_base * 1.15;
+            I_dev   = I_base(:) .* [1.05; 1.04; 1.05; 1.075; 1.05; 1.025] * 1.15;
+            cog_dev = (cog_base(:) + [0.05; 0.025; 0.075]) * 1.15;
             pi      = obj.packEstimatePi(m_dev, I_dev, cog_dev);
         end
 
