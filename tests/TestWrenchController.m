@@ -27,7 +27,12 @@ classdef TestWrenchController < matlab.unittest.TestCase
 
         function testWrenchIncreasesWithPoseError(testCase)
             %Larger pose error should produce a larger wrench magnitude.
-            cfg  = testCase.buildCfg('log');
+            %Lambda must be nonzero so s = Ve + Lambda*eH depends on pose error.
+            cfg = fth.sim.Config();
+            cfg.setTrajectory('hover');
+            cfg.setController('composite', 'log');
+            cfg.setLambda(1);
+            cfg.done();
             ctrl = fth.ctrl.ControllerFactory.create(cfg);
             Hd = eye(4); Hd(3,4) = 5;
             V  = zeros(6,1);
