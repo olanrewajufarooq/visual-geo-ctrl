@@ -19,10 +19,10 @@ classdef TestWrenchController < matlab.unittest.TestCase
             m    = cfg.vehicle.m;
             g    = cfg.vehicle.g;
             CoG  = cfg.vehicle.CoG;
-            f_g  = m * [0; 0; -g];
-            tau_g = cross(CoG, f_g);
-            Wg   = [tau_g; f_g];
-            testCase.verifyEqual(W, -Wg, 'AbsTol', 1e-10);
+            gW = [0; 0; g];
+            h  = m * CoG(:);
+            Wg = [fth.se3.hat3(gW) * h; m * gW];
+            testCase.verifyEqual(W, Wg, 'AbsTol', 1e-10);
         end
 
         function testWrenchIncreasesWithPoseError(testCase)
@@ -149,6 +149,23 @@ classdef TestWrenchController < matlab.unittest.TestCase
             testCase.verifyEmpty(m_hat);
             testCase.verifyEmpty(cog_hat);
             testCase.verifyEmpty(I_hat);
+        end
+
+        function testComputeWrenchUsesRegressor(testCase)
+            %W is finite and 6x1 for non-trivial state (smoke + size check).
+            cfg  = testCase.buildCfg('log');
+            ctrl = fth.ctrl.WrenchController(cfg);
+
+            [Q, ~] = qr(randn(3));
+            if det(Q) < 0; Q(:,1) = -Q(:,1); end
+            H  = eye(4); H(1:3,1:3) = Q; H(1:3,4) = [1; -0.5; 3];
+            Hd = eye(4); Hd(1:3,4)  = [0; 0; 5];
+            V  = [0.1; -0.05; 0.2; 0.3; -0.1; 0.5];
+            Vd = zeros(6,1);
+
+            W = ctrl.computeWrench(Hd, H, Vd, V);
+            testCase.verifySize(W, [6, 1]);
+            testCase.verifyTrue(all(isfinite(W)));
         end
 
         function testCoriolisFactorIs6x6(testCase)
