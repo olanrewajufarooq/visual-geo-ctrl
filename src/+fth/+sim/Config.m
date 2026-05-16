@@ -1186,7 +1186,7 @@ classdef Config < handle
 
     end
 
-    methods (Static, Access = private)
+    methods (Static)
         function enabled = isAdaptationEnabled(adaptMode)
             %ISADAPTATIONENABLED True when adaptation is active for at least one run.
             %   Handles both scalar string and cell array of per-run modes.
