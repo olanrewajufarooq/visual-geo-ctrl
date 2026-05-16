@@ -76,8 +76,8 @@ run_nominal_demo
 % Adaptive control demo (with payload drop)
 run_adaptive_demo
 
-% Reproduce paper results
-run_adaptive_paper
+% Batch paper results (multi-trajectory, multi-gain)
+ci_release
 ```
 
 <p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
@@ -110,10 +110,10 @@ Config  -->  SimRunner.setup()  -->  SimRunner.run()
 | `Config` | `fth.sim` | Fluent configuration builder — vehicle, sim, trajectory, controller, viz, payload |
 | `SimRunner` | `fth.sim` | Orchestrates setup, simulation loop, logging, batch execution, and results persistence |
 | `Dynamics` | `fth.core` | SE(3) rigid-body dynamics integrator with ground contact |
-| `WrenchController` | `fth.ctrl` | Computes body wrench using PD / FeedLin / Feedforward modes |
+| `ControllerWrench` | `fth.ctrl` | Computes body wrench using PD / FeedLin / Feedforward modes |
 | `AnalyticTraj` | `fth.traj` | Analytical trajectory generator (7 built-in types) |
-| `EuclideanAdaptation` | `fth.ctrl.adapt` | Online estimation of mass, CoG, and inertia (10-parameter regressor) |
-| `GeoAwareAdaptation` | `fth.ctrl.adapt` | Geometric-aware adaptation with position-dependent regressor |
+| `EuclideanAdaptation` | `fth.ctrl.adapt` | Euclidean gradient adaptation of 10-parameter inertial regressor |
+| `BregmanDivAdaptation` | `fth.ctrl.adapt` | Riemannian adaptation on the SPD pseudo-inertia manifold |
 | `Plotter` | `fth.plot` | Live updating and summary figure generation |
 | `UrdfViewer` | `fth.plot` | 3D URDF visualization with stick-model fallback |
 | `TrackingMetrics` | `fth.core` | Position, orientation, and parameter estimation error analysis |
@@ -157,8 +157,8 @@ run_adaptive_demo
 ### Paper Result Reproduction
 
 ```matlab
-% For adaptive control with parameter estimation
-run_adaptive_paper
+% Multi-trajectory, multi-gain batch run for paper results
+ci_release
 ```
 
 ## Configuration Guide
@@ -195,7 +195,7 @@ cfg = fth.sim.Config();
 cfg.setTrajectory('lissajous3d', 1.25);
 
 cfg.setController('Feedforward');
-cfg.setPotentialType('liealgebra');
+cfg.setPotentialType('inertia-gain');
 cfg.setAdaptation('euclidean');
 
 cfg.setSimParams(0.005, duration);
@@ -203,7 +203,7 @@ cfg.setAdaptationParams(0.005);
 cfg.setControlParams(0.01);
 
 cfg.setPayloadScenario(1.5, [0.115; 0.05; -0.05], 2*duration/3);
-cfg.setEstimateInitialization('random');
+cfg.setParamInit('random');
 
 cfg.done();
 ```
@@ -217,8 +217,8 @@ cfg.setTrajectory('circle', 1, false);         % name, cycles, goToHoverBeforePa
 
 % Controller
 cfg.setController('Feedforward');             % 'PD' | 'Feedforward' | 'FeedLin'
-cfg.setPotentialType('liealgebra');           % 'liealgebra' | 'separate'
-cfg.setAdaptation('none');                    % 'none' | 'euclidean' | 'geo-aware'
+cfg.setPotentialType('inertia-gain');         % 'log' | 'inertia-gain' | 'body-gain' | 'ref-gain' | 'sym-inv'
+cfg.setAdaptation('none');                    % 'none' | 'euclidean' | 'bregman'
 
 % Timing
 cfg.setSimParams(0.005, 30);                  % sim_dt, duration (s)
@@ -236,10 +236,17 @@ cfg.setPlotLayout('column-major');            % 'row-major' | 'column-major'
 cfg.setKpGains([5.5 5.5 5.5 5.5 5.5 5.5]);     % 6x1 proportional gain vector
 cfg.setKdGains([2.05 2.05 2.05 2.05 2.05 2.05]); % 6x1 derivative gain vector
 cfg.setAdaptiveGains(4e-3 * [20 20 30 1 1 1 90 30 30 60]); % Euclidean: scalar, 10x1, or Nx10; Bregman: scalar
+cfg.setLambda(1e-1 * [5, 5, 5, 2, 2, 2]);              % composite variable: s = Ve + diag(lambda)*eH
+
+% Parameter Initialization (adaptive runs)
+cfg.setParamInit('mid-vehicle-payload');
+% Modes: 'vehicle' | 'vehicle-plus-payload' | 'mid-vehicle-payload'
+%        'vehicle-plus-payload-higher' | 'vehicle-slight-dev' | 'random'
+%        or a custom 10×1 theta vector
 
 % Payload
 cfg.setPayloadScenario(1.5, [0.115; 0.05; -0.05], 20);
-cfg.setEstimateInitialization('fixed');
+cfg.setParamInit('vehicle');
 ```
 
 <p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
@@ -300,7 +307,10 @@ This produces `5 trajectories x 3 gain rows = 15 runs`, each saved in its own su
 - **PD Controller**: Proportional-Derivative control with potential-based error
 - **Feedforward Controller**: Full state feedforward with Coriolis and inertia compensation
 - **FeedLin**: Nonlinear feedback linearization with Coriolis compensation
-- **Adaptive Controllers**: Real-time parameter estimation (Euclidean and Geo-Aware adaptation)
+- **Adaptive Controllers**: Real-time parameter estimation (Euclidean and Bregman (Riemannian) adaptation)
+- **Coriolis Factorization**: Two forms selectable via `cfg.setCoriolisFactorizationForm(form)`:
+  - `'basic'` — standard Coriolis matrix (default)
+  - `'consistent'` — geometrically-consistent formulation matching the SE(3) dynamics structure
 
 ### Visualization
 
@@ -311,30 +321,52 @@ This produces `5 trajectories x 3 gain rows = 15 runs`, each saved in its own su
 
 <p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
 
+## Run Scripts
+
+All entry-point scripts live in `run/`. Run them from MATLAB after calling `startup`.
+
+| Script | Purpose |
+|--------|---------|
+| `run_nominal_demo.m` | Baseline control (no adaptation), inertia-gain potential, live visualization |
+| `run_adaptive_demo.m` | Bregman adaptive control with a mid-flight payload drop event |
+| `run_adaptive_coriolis_comparison.m` | Compare basic vs consistent Coriolis factorization (adaptive) |
+| `run_nominal_coriolis_comparison.m` | Compare basic vs consistent Coriolis factorization (nominal) |
+| `run_adaptive_gain_comparison_euclidean.m` | Batch sweep: 4 trajectories × 4 Euclidean gain configurations |
+| `run_adaptive_gain_comparison_bregman.m` | Batch sweep: 4 trajectories × 4 Bregman gamma values |
+| `ci_release.m` | Multi-trajectory, multi-gain batch — paper result reproduction |
+| `plot_trajectories.m` | Plot reference trajectories without running a simulation |
+
+<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
+
 ## Project Structure
 
 ```
 adaptive-geo-ctrl/
 ├── src/                              # Core framework source code
 │   └── +fth/                          # Main package namespace
-│       ├── +config/                  % (deprecated, moved to +sim)
 │       ├── +core/                    # Dynamics, Logging, Metrics
 │       │   ├── Dynamics.m            % SE(3) rigid-body plant
 │       │   ├── Logger.m              % Time-series data collection
 │       │   └── TrackingMetrics.m     % Error analysis
 │       ├── +ctrl/                    % Controllers
-│       │   ├── WrenchController.m    % Wrench-level controller
+│       │   ├── ControllerWrench.m    % Wrench-level controller
+│       │   ├── ControllerFactory.m   % Factory for controller creation
+│       │   ├── RigidBodyRegressor.m  % Regressor matrix Y for adaptive laws
 │       │   ├── +adapt/              % Adaptation strategies
 │       │   │   ├── AdaptationBase.m
 │       │   │   ├── AdaptationFactory.m
+│       │   │   ├── AdaptationUtils.m
 │       │   │   ├── EuclideanAdaptation.m
-│       │   │   ├── GeoAwareAdaptation.m
+│       │   │   ├── BregmanDivAdaptation.m
 │       │   │   └── NoAdaptation.m
-│       │   └── +potential/          % Potential functions
+│       │   ├── +coriolis/           % Coriolis factorization strategies
+│       │   │   ├── CoriolisFactorBase.m
+│       │   │   ├── CoriolisFactorFactory.m
+│       │   │   ├── basicCoriolisFactor.m
+│       │   │   └── consistentCoriolisFactor.m
+│       │   └── +potential/          % Potential functions (5 types)
 │       │       ├── PotentialBase.m
-│       │       ├── PotentialFactory.m
-│       │       ├── LieAlgebraPotential.m
-│       │       └── SeparatePotential.m
+│       │       └── PotentialFactory.m
 │       ├── +io/                     % Input/Output
 │       │   ├── ConsoleCapture.m
 │       │   ├── ConsoleFormatter.m
@@ -354,8 +386,11 @@ adaptive-geo-ctrl/
 │       │   └── invSE3.m             % SE(3) inverse
 │       ├── +sim/                     % Simulation
 │       │   ├── Config.m              % Fluent configuration builder
+│       │   ├── ConfigUtils.m         % Static helpers for Config
 │       │   ├── SimRunner.m           % Main simulation orchestrator
-│       │   └── BatchRunner.m         % Batch execution
+│       │   ├── SimRunnerUtils.m      % Helpers for SimRunner
+│       │   ├── BatchRunner.m         % Batch execution orchestrator
+│       │   └── BatchRunnerUtils.m    % Batch report and table helpers
 │       ├── +traj/                    % Trajectory generators
 │       │   ├── TrajectoryBase.m
 │       │   ├── TrajectoryFactory.m
@@ -369,9 +404,12 @@ adaptive-geo-ctrl/
 ├── run/                              # Demo and CI entry-point scripts
 │   ├── run_nominal_demo.m
 │   ├── run_adaptive_demo.m
-│   ├── run_adaptive_paper.m
-│   ├── plot_trajectories.m
+│   ├── run_adaptive_coriolis_comparison.m
+│   ├── run_nominal_coriolis_comparison.m
+│   ├── run_adaptive_gain_comparison_euclidean.m
+│   ├── run_adaptive_gain_comparison_bregman.m
 │   ├── ci_release.m
+│   ├── plot_trajectories.m
 │   └── startup.m
 ├── assets/                           # Robot model assets
 │   └── hexacopter_description/
@@ -498,7 +536,7 @@ The repository includes a GitHub Actions workflow (`.github/workflows/release-re
 ### Adding New Controllers
 
 1. Add a new controller type string to `src/+fth/+sim/Config.m` validation in `setController(...)`
-2. Implement the new control law in `src/+fth/+ctrl/WrenchController.m` (add a new `case`)
+2. Implement the new control law in `src/+fth/+ctrl/ControllerWrench.m` (add a new `case`)
 3. Run a demo with `sim.run('summary', false, false)`
 
 ### Custom Trajectories
