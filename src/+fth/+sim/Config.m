@@ -286,9 +286,18 @@ classdef Config < handle
                         cfgCopy.traj.batch = struct('names', {currentTrajName});
                     end
 
-                    % Extract per-trajectory period if an array was provided.
+                    % Extract per-trajectory fields if arrays were provided.
                     if isfield(obj.traj, 'period') && numel(obj.traj.period) > 1
                         cfgCopy.traj.period = obj.traj.period(trajIdx);
+                    end
+                    if isfield(obj.traj, 'scale') && numel(obj.traj.scale) > 1
+                        cfgCopy.traj.scale = obj.traj.scale(trajIdx);
+                    end
+                    if isfield(obj.traj, 'altitude') && numel(obj.traj.altitude) > 1
+                        cfgCopy.traj.altitude = obj.traj.altitude(trajIdx);
+                    end
+                    if isfield(obj.traj, 'goToHoverDuration') && numel(obj.traj.goToHoverDuration) > 1
+                        cfgCopy.traj.goToHoverDuration = obj.traj.goToHoverDuration(trajIdx);
                     end
 
                     % Select gains for this simIdx.
@@ -317,6 +326,23 @@ classdef Config < handle
                     end
                     if isfield(obj.payload, 'dropTime') && numel(obj.payload.dropTime) > 1
                         cfgCopy.payload.dropTime = obj.payload.dropTime(simIdx);
+                    end
+
+                    % Extract per-sim-run fields if arrays were provided.
+                    if isfield(obj.sim, 'duration') && numel(obj.sim.duration) > 1
+                        cfgCopy.sim.duration = obj.sim.duration(simIdx);
+                    end
+                    if isfield(obj.sim, 'dt') && numel(obj.sim.dt) > 1
+                        cfgCopy.sim.dt = obj.sim.dt(simIdx);
+                    end
+                    if isfield(obj.sim, 'control_dt') && numel(obj.sim.control_dt) > 1
+                        cfgCopy.sim.control_dt = obj.sim.control_dt(simIdx);
+                    end
+                    if isfield(obj.sim, 'adaptation_dt') && numel(obj.sim.adaptation_dt) > 1
+                        cfgCopy.sim.adaptation_dt = obj.sim.adaptation_dt(simIdx);
+                    end
+                    if isfield(obj.controller, 'lambda') && ~isempty(obj.controller.lambda)
+                        cfgCopy.controller.lambda = fth.sim.ConfigUtils.selectRow(obj.controller.lambda, simIdx);
                     end
 
                     % Build run name: from batchNames or fallback.
