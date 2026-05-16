@@ -274,6 +274,7 @@ classdef Config < handle
                 currentTrajName = trajNames(trajIdx);
                 for simIdx = 1:M
                     cfgCopy = obj.copy();
+                    cfgCopy.sim.batchNames = {};   % child is a single run; prevent re-expansion
 
                     % Apply trajectory.
                     if hasHoverOverride
