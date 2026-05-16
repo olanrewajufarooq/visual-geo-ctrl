@@ -237,7 +237,12 @@ classdef BatchRunnerUtils
                 return;
             end
             gammaValue = cfg.controller.Gamma;
-            if isvector(gammaValue) || size(gammaValue, 1) == 1
+            if iscell(gammaValue)
+                if gainIndex >= 1 && gainIndex <= numel(gammaValue)
+                    gamma = gammaValue{gainIndex};
+                    if isnumeric(gamma), gamma = gamma(:); end
+                end
+            elseif isvector(gammaValue) || size(gammaValue, 1) == 1
                 gamma = gammaValue(:);
             elseif gainIndex >= 1 && gainIndex <= size(gammaValue, 1)
                 gamma = gammaValue(gainIndex, :).';
@@ -255,7 +260,11 @@ classdef BatchRunnerUtils
 
         function tf = isZeroAdaptiveGain(gamma)
             %ISZEROADAPTIVEGAIN Return true when all adaptive gains are zero.
-            tf = ~isempty(gamma) && all(gamma == 0);
+            if isempty(gamma) || iscell(gamma)
+                tf = false;
+                return;
+            end
+            tf = all(gamma == 0);
         end
 
         function text = formatGainVector(gamma)
