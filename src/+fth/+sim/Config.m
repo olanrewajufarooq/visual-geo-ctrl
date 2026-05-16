@@ -177,46 +177,37 @@ classdef Config < handle
 
         function obj = setKpGains(obj, Kp)
             %SETKPGAINS Set proportional gains for one or more runs.
-            %   Kp: 6x1, 1x6, or Nx6 proportional gains.
+            %   Kp: 6-element vector (any orientation) for a single run, or
+            %       N×6 / 6×N matrix for N batch runs.
             %
             %   Output:
             %     obj - Config instance (for chaining).
             if nargin < 2 || isempty(Kp)
                 return;
             end
-            if isvector(Kp) && numel(Kp) == 6
-                obj.controller.Kp = Kp(:);
-            elseif ismatrix(Kp) && size(Kp,2) == 6
-                obj.controller.Kp = Kp;
-            else
-                warning('setKpGains: Invalid input, Kp must be a 6x1 vector, 1x6 vector, or Nx6 matrix.');
-            end
+            [canonical, ~] = fth.sim.ConfigUtils.normalizeBatchField(Kp, 6);
+            obj.controller.Kp = canonical;
         end
 
         function obj = setKdGains(obj, Kd)
             %SETKDGAINS Set derivative gains for one or more runs.
-            %   Kd: 6x1, 1x6, or Nx6 derivative gains.
+            %   Kd: 6-element vector (any orientation) for a single run, or
+            %       N×6 / 6×N matrix for N batch runs.
             %
             %   Output:
             %     obj - Config instance (for chaining).
             if nargin < 2 || isempty(Kd)
                 return;
             end
-            if isvector(Kd) && numel(Kd) == 6
-                obj.controller.Kd = Kd(:);
-            elseif ismatrix(Kd) && size(Kd,2) == 6
-                obj.controller.Kd = Kd;
-            else
-                warning('setKdGains: Invalid input, Kd must be a 6x1 vector, 1x6 vector, or Nx6 matrix.');
-            end
+            [canonical, ~] = fth.sim.ConfigUtils.normalizeBatchField(Kd, 6);
+            obj.controller.Kd = canonical;
         end
 
         function obj = setAdaptiveGains(obj, Gamma)
             %SETADAPTIVEGAINS Set adaptive gains for one or more runs.
-            %   Gamma: scalar, 10x1, 1x10, Nx1, or Nx10 adaptive gains.
-            %   Bregman adaptation uses scalar gamma only; Nx1 is a batch of
-            %   scalar gamma values. Euclidean adaptation accepts scalar gains
-            %   and 10-parameter gain vectors.
+            %   Bregman mode  : scalar or vector of scalars (one per batch run;
+            %                   any orientation; 0 = disabled for that run).
+            %   Euclidean mode: scalar, 10-element vector, N×10 or 10×N matrix.
             %
             %   Output:
             %     obj - Config instance (for chaining).
@@ -225,15 +216,14 @@ classdef Config < handle
             end
             if isscalar(Gamma)
                 obj.controller.Gamma = Gamma;
-            elseif isfield(obj.controller, 'adaptation') && strcmpi(obj.controller.adaptation, 'bregman')
-                obj.controller.Gamma = Gamma;
-            elseif isvector(Gamma) && numel(Gamma) == 10
-                obj.controller.Gamma = Gamma(:);
-            elseif ismatrix(Gamma) && size(Gamma,2) == 10
-                obj.controller.Gamma = Gamma;
-            else
-                warning('setAdaptiveGains: Invalid input, Gamma must be scalar, 10x1, 1x10, Nx1, or Nx10.');
+                return;
             end
+            adaptMode = 'none';
+            if isfield(obj.controller, 'adaptation'), adaptMode = obj.controller.adaptation; end
+            singleWidth = 1;
+            if ~strcmpi(adaptMode, 'bregman'), singleWidth = 10; end
+            [canonical, ~] = fth.sim.ConfigUtils.normalizeBatchField(Gamma, singleWidth);
+            obj.controller.Gamma = canonical;
         end
 
         function batchCount = getBatchCount(obj)
@@ -469,26 +459,21 @@ classdef Config < handle
 
         function obj = setPayloadScenario(obj, mass, cog, dropTime)
             %SETPAYLOADSCENARIO Configure payload mass, CoG, and drop timing.
-            %   mass: payload mass in kg.
-            %   cog: 3x1 payload center-of-gravity offset in meters.
-            %   dropTime: seconds into the run to drop payload.
+            %   mass    : scalar or M-element vector (any orientation).
+            %   cog     : 3-element vector (any orientation) for a single run,
+            %             or N×3 / 3×N matrix for N batch runs.
+            %   dropTime: scalar or M-element vector (any orientation).
             %
             %   Output:
             %     obj - Config instance (for chaining).
             if nargin > 1
-                obj.payload.mass = mass;
+                [obj.payload.mass, ~] = fth.sim.ConfigUtils.normalizeBatchField(mass, 1);
             end
             if nargin > 2
-                if isvector(cog) && numel(cog) == 3
-                    obj.payload.CoG = cog(:);        % any 3-element vector → 3×1 column
-                elseif size(cog, 1) > 1 && size(cog, 2) == 3
-                    obj.payload.CoG = cog;           % M×3 batch (M > 1)
-                else
-                    obj.payload.CoG = cog(:);        % fallback: force column
-                end
+                [obj.payload.CoG, ~] = fth.sim.ConfigUtils.normalizeBatchField(cog, 3);
             end
             if nargin > 3
-                obj.payload.dropTime = dropTime;
+                [obj.payload.dropTime, ~] = fth.sim.ConfigUtils.normalizeBatchField(dropTime, 1);
             end
         end
 
@@ -695,17 +680,15 @@ classdef Config < handle
             %
             %   Output:
             %     obj - Config instance (for chaining).
-            if isfield(opts, 'mass'),     obj.payload.mass     = opts.mass;       end
-            if isfield(opts, 'CoG')
-                if isvector(opts.CoG) && numel(opts.CoG) == 3
-                    obj.payload.CoG = opts.CoG(:);       % any 3-element vector → 3×1 column
-                elseif size(opts.CoG, 1) > 1 && size(opts.CoG, 2) == 3
-                    obj.payload.CoG = opts.CoG;          % M×3 batch (M > 1)
-                else
-                    obj.payload.CoG = opts.CoG(:);       % fallback: force column
-                end
+            if isfield(opts, 'mass')
+                [obj.payload.mass, ~] = fth.sim.ConfigUtils.normalizeBatchField(opts.mass, 1);
             end
-            if isfield(opts, 'dropTime'), obj.payload.dropTime = opts.dropTime;   end
+            if isfield(opts, 'CoG')
+                [obj.payload.CoG, ~] = fth.sim.ConfigUtils.normalizeBatchField(opts.CoG, 3);
+            end
+            if isfield(opts, 'dropTime')
+                [obj.payload.dropTime, ~] = fth.sim.ConfigUtils.normalizeBatchField(opts.dropTime, 1);
+            end
         end
 
         function obj = useSimOptions(obj, opts)

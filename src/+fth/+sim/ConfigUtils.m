@@ -30,6 +30,52 @@ classdef ConfigUtils
             end
         end
 
+        function [canonical, M] = normalizeBatchField(value, singleWidth)
+            %NORMALIZEBATCHFIELD Canonicalize a batch field to M×singleWidth form.
+            %   value      : raw input (scalar, vector, or matrix).
+            %   singleWidth: elements per single-run config.
+            %                  1  — scalar-per-run (Bregman Gamma, mass, dropTime)
+            %                  3  — vector-per-run (CoG)
+            %                  6  — vector-per-run (Kp, Kd)
+            %                 10  — vector-per-run (Euclidean Gamma)
+            %
+            %   canonical  : M×singleWidth matrix in row-major batch form.
+            %                When M=1 and singleWidth>1, returns a singleWidth×1 column.
+            %                When singleWidth=1, returns an M×1 column (scalar if M=1).
+            %   M          : number of batch runs represented by value.
+            %
+            %   Accepted layouts:
+            %     singleWidth=1 : scalar → M=1; any vector (row or col) → M=numel
+            %     singleWidth=W : W-element vector (any orientation) → M=1
+            %                     N×W matrix → M=N  (canonical)
+            %                     W×N matrix (N≠W) → transposed to N×W, M=N
+            if isempty(value)
+                canonical = value;
+                M = 1;
+                return;
+            end
+            if singleWidth == 1
+                canonical = value(:);       % always column
+                M = numel(value);
+            else
+                if isvector(value) && numel(value) == singleWidth
+                    canonical = value(:);   % single config as column
+                    M = 1;
+                elseif size(value,2) == singleWidth
+                    canonical = value;      % already N×W
+                    M = size(value, 1);
+                elseif size(value,1) == singleWidth
+                    % W×N transposed layout — flip to N×W
+                    canonical = value.';
+                    M = size(value, 2);
+                else
+                    error('ConfigUtils:InvalidBatchShape', ...
+                        'Cannot resolve batch size: value is %dx%d but singleWidth=%d.', ...
+                        size(value,1), size(value,2), singleWidth);
+                end
+            end
+        end
+
         function names = normalizeNames(name)
             %NORMALIZENAMES Normalize trajectory input into a cellstr.
             if ischar(name) || (isstring(name) && isscalar(name))
@@ -69,38 +115,47 @@ classdef ConfigUtils
 
         function validateGainShape(value, fieldName, expectedRows)
             %VALIDATEGAINSHAPE Validate the shape of a gain value.
-            %   value: the gain array to validate.
-            %   fieldName: name used in error messages.
-            %   expectedRows: expected number of elements / columns.
+            %   Accepts W-element vectors (any orientation), N×W matrices, and
+            %   W×N transposed matrices (all resolved via normalizeBatchField).
             if isempty(value), return; end
-            isValidVector = isvector(value) && numel(value) == expectedRows;
-            isValidMatrix = ismatrix(value) && size(value,2) == expectedRows;
-            if ~(isValidVector || isValidMatrix)
+            isValidVector   = isvector(value) && numel(value) == expectedRows;
+            isValidMatrix   = ismatrix(value) && size(value,2) == expectedRows;
+            isTransposed    = ismatrix(value) && size(value,1) == expectedRows;
+            if ~(isValidVector || isValidMatrix || isTransposed)
                 error('Config:InvalidGainShape', ...
-                    '%s must be a %dx1 vector, 1x%d vector, or Nx%d matrix.', ...
+                    '%s must be a %d-element vector, Nx%d matrix, or %dxN transposed matrix.', ...
                     fieldName, expectedRows, expectedRows, expectedRows);
             end
         end
 
         function validateGammaShape(gamma, adaptMode)
             %VALIDATEGAMMASHAPE Validate adaptive gain shape for the selected mode.
+            %   Accepts both row and column vector orientations (and transposed
+            %   matrices for Euclidean mode). Zero is allowed for Bregman batch
+            %   entries where it signals "no adaptation for this run."
             if isempty(gamma), return; end
             value = gamma;
             if isempty(adaptMode), adaptMode = 'none'; end
             if strcmpi(adaptMode, 'bregman')
-                isScalarBatch = isnumeric(value) && isvector(value);
-                if ~isScalarBatch || any(~isfinite(value(:))) || any(value(:) <= 0)
+                % Any numeric vector (scalar, row, or column) is valid.
+                if ~isnumeric(value) || ~isvector(value)
                     error('Config:InvalidGainShape', ...
-                        'Bregman Gamma must be a positive scalar or a vector of positive scalars (one per batch run).');
+                        'Bregman Gamma must be a positive scalar or a vector of scalars (one per batch run; 0 = disabled).');
+                end
+                if any(~isfinite(value(:))) || any(value(:) < 0)
+                    error('Config:InvalidGainShape', ...
+                        'Bregman Gamma values must be finite and non-negative (0 disables adaptation for that run).');
                 end
                 return;
             end
-            isScalar = isnumeric(value) && isscalar(value);
+            % Euclidean / none: scalar, 10-element vector, N×10 matrix, or 10×N transposed.
+            isScalar      = isnumeric(value) && isscalar(value);
             isValidVector = isnumeric(value) && isvector(value) && numel(value) == 10;
             isValidMatrix = isnumeric(value) && ismatrix(value) && size(value,2) == 10;
-            if ~(isScalar || isValidVector || isValidMatrix)
+            isTransposed  = isnumeric(value) && ismatrix(value) && size(value,1) == 10;
+            if ~(isScalar || isValidVector || isValidMatrix || isTransposed)
                 error('Config:InvalidGainShape', ...
-                    'Gamma must be scalar, a 10x1 vector, 1x10 vector, or Nx10 matrix.');
+                    'Gamma must be a scalar, 10-element vector, Nx10 matrix, or 10xN transposed matrix.');
             end
         end
 
@@ -130,27 +185,22 @@ classdef ConfigUtils
         end
 
         function count = gainBatchCount(value, fieldName, expectedRows)
-            %GAINBATCHCOUNT Return 1 or N based on matrix row count.
+            %GAINBATCHCOUNT Return number of batch rows for a gain field.
+            %   Handles all orientations via normalizeBatchField.
             count = 1;
             if isempty(value), return; end
             fth.sim.ConfigUtils.validateGainShape(value, fieldName, expectedRows);
-            if ismatrix(value) && size(value,2) == expectedRows && size(value,1) > 1
-                count = size(value,1);
-            end
+            [~, count] = fth.sim.ConfigUtils.normalizeBatchField(value, expectedRows);
         end
 
         function count = gammaBatchCount(gamma, adaptMode)
-            %GAMMABATCHCOUNT Return number of adaptive gain rows.
+            %GAMMABATCHCOUNT Return number of batch rows for an adaptive gain.
             count = 1;
             if isempty(gamma), return; end
             fth.sim.ConfigUtils.validateGammaShape(gamma, adaptMode);
-            value = gamma;
-            if strcmpi(adaptMode, 'bregman') && isvector(value) && numel(value) > 1
-                count = numel(value);
-            elseif ~strcmpi(adaptMode, 'bregman') && ...
-                    ismatrix(value) && size(value,2) == 10 && size(value,1) > 1
-                count = size(value,1);
-            end
+            singleWidth = 1;
+            if ~strcmpi(adaptMode, 'bregman'), singleWidth = 10; end
+            [~, count] = fth.sim.ConfigUtils.normalizeBatchField(gamma, singleWidth);
         end
 
         function M = resolveSimBatchCount(batchNames, fields)
