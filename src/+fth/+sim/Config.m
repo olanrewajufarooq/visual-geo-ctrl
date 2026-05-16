@@ -968,15 +968,43 @@ classdef Config < handle
             batchNames = {};
             if isfield(obj.sim, 'batchNames'), batchNames = obj.sim.batchNames; end
 
+            if ~isempty(batchNames)
+                M = numel(batchNames);
+                return;
+            end
+
             kpVal = []; if isfield(obj.controller, 'Kp'), kpVal = obj.controller.Kp; end
             kdVal = []; if isfield(obj.controller, 'Kd'), kdVal = obj.controller.Kd; end
             gVal  = []; if isfield(obj.controller, 'Gamma'), gVal = obj.controller.Gamma; end
+            adaptMode = 'none';
+            if isfield(obj.controller, 'adaptation'), adaptMode = obj.controller.adaptation; end
             cfVal = []; if isfield(obj.controller, 'coriolisFactorization'), cfVal = obj.controller.coriolisFactorization; end
             massVal = []; if isfield(obj.payload, 'mass'), massVal = obj.payload.mass; end
             cogVal  = []; if isfield(obj.payload, 'CoG'), cogVal = obj.payload.CoG; end
             dtVal   = []; if isfield(obj.payload, 'dropTime'), dtVal = obj.payload.dropTime; end
 
-            M = fth.sim.ConfigUtils.resolveSimBatchCount(batchNames, {kpVal, kdVal, gVal, cfVal, massVal, cogVal, dtVal});
+            % Domain-aware counting for gain fields (a 6×1 Kp vector = one
+            % 6-DOF config, not 6 batch rows).
+            counts = [ ...
+                fth.sim.ConfigUtils.gainBatchCount(kpVal, 'Kp', 6), ...
+                fth.sim.ConfigUtils.gainBatchCount(kdVal, 'Kd', 6), ...
+                fth.sim.ConfigUtils.gammaBatchCount(gVal, adaptMode)];
+
+            % Generic counting for non-gain batched fields.
+            if iscell(cfVal) && numel(cfVal) > 1
+                counts(end+1) = numel(cfVal);
+            end
+            if ~isempty(massVal) && numel(massVal) > 1
+                counts(end+1) = numel(massVal);
+            end
+            if ~isempty(cogVal) && size(cogVal,1) > 1 && size(cogVal,2) == 3
+                counts(end+1) = size(cogVal,1);
+            end
+            if ~isempty(dtVal) && numel(dtVal) > 1
+                counts(end+1) = numel(dtVal);
+            end
+
+            M = max(counts);
         end
 
         function count = getTrajectoryBatchCount(obj)
