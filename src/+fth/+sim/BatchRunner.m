@@ -13,7 +13,8 @@ classdef BatchRunner < handle
         resultsDir
         batchSize
         childDirs
-        console
+        console        % ConsoleCapture for sequential path
+        useParallel    % true when PCT is available and cfg.sim.parallelRuns is set
     end
 
     methods
@@ -23,18 +24,66 @@ classdef BatchRunner < handle
             %     cfg - fth.sim.Config instance.
             %     resultsDir - root results directory for this batch.
             %     batchSize - total number of runs.
-            obj.cfg = cfg;
-            obj.resultsDir = resultsDir;
-            obj.batchSize = batchSize;
-            obj.childDirs = {};
-            obj.console = fth.io.ConsoleCapture();
+            obj.cfg         = cfg;
+            obj.resultsDir  = resultsDir;
+            obj.batchSize   = batchSize;
+            obj.childDirs   = {};
+            obj.console     = fth.io.ConsoleCapture();
+            obj.useParallel = isfield(cfg.sim, 'parallelRuns') && cfg.sim.parallelRuns ...
+                              && ~isempty(ver('parallel'));
         end
 
         function runAll(obj, runArgs)
-            %RUNALL Execute all batch runs with per-run console capture.
+            %RUNALL Execute all batch runs, in parallel or sequentially.
             %   Input: runArgs - cell array of arguments for child.run().
             cfgs = obj.cfg.expandBatchConfigs(obj.resultsDir);
             obj.childDirs = cell(obj.batchSize, 1);
+
+            if obj.useParallel
+                obj.runAllParallel(cfgs, runArgs);
+            else
+                obj.runAllSequential(cfgs, runArgs);
+            end
+
+            obj.writeAggregateArtifacts();
+            fprintf('Batch results saved to: %s\n', obj.resultsDir);
+        end
+
+        function plotAll(obj, plotType, displayPlots)
+            %PLOTALL Generate plots for each saved batch run.
+            if nargin < 3 || isempty(displayPlots)
+                displayPlots = false;
+            end
+            if isempty(obj.childDirs)
+                obj.childDirs = fth.io.ResultsManager.findChildResultDirs(obj.resultsDir);
+            end
+            if isempty(obj.childDirs)
+                error('BatchRunner:NotRun', 'Batch simulation has not been run yet.');
+            end
+
+            dirs = obj.childDirs;
+            pt   = char(plotType);
+            if obj.useParallel
+                parfor i = 1:numel(dirs)
+                    fth.io.ResultsManager.plotSavedRun(dirs{i}, pt, false);
+                end
+            else
+                for i = 1:numel(dirs)
+                    fth.io.ResultsManager.plotSavedRun(dirs{i}, pt, displayPlots);
+                end
+            end
+            obj.writeAggregateArtifacts();
+        end
+
+        function dirs = getChildDirs(obj)
+            %GETCHILDDIRS Return the list of child result directories.
+            dirs = obj.childDirs;
+        end
+    end
+
+    methods (Access = private)
+        function runAllSequential(obj, cfgs, runArgs)
+            %RUNALLSEQUENTIAL Execute runs one at a time with console capture.
             failed = cell(obj.batchSize, 1);
             failedCount = 0;
             for i = 1:obj.batchSize
@@ -50,8 +99,6 @@ classdef BatchRunner < handle
                 end
                 clear child
             end
-            obj.writeAggregateArtifacts();
-            fprintf('Batch results saved to: %s\n', obj.resultsDir);
             if failedCount > 0
                 warning('fth:BatchRunner:childFailed', ...
                     '%d/%d runs failed. Check command_window.txt in:\n%s', ...
@@ -59,30 +106,45 @@ classdef BatchRunner < handle
             end
         end
 
-        function plotAll(obj, plotType, displayPlots)
-            %PLOTALL Generate plots for each saved batch run.
-            if nargin < 3 || isempty(displayPlots)
-                displayPlots = false;
+        function runAllParallel(obj, cfgs, runArgs)
+            %RUNALLPARALLEL Execute runs via parfor; errors captured via try/catch.
+            %   Console output from workers is not captured (acceptable trade-off).
+            n = obj.batchSize;
+            childDirs = cell(n, 1);
+            childLogs = cell(n, 1);
+
+            parfor i = 1:n
+                child = fth.sim.SimRunner(cfgs{i});
+                try
+                    child.setup();
+                    child.run(runArgs{:});
+                    childLogs{i} = '';
+                catch e
+                    childLogs{i} = sprintf('Error: %s\nAt: %s line %d\n', ...
+                        e.message, e.stack(1).name, e.stack(1).line);
+                end
+                childDirs{i} = child.resultsDir;
+                clear child
             end
-            if isempty(obj.childDirs)
-                obj.childDirs = fth.io.ResultsManager.findChildResultDirs(obj.resultsDir);
+
+            obj.childDirs = childDirs;
+            failedCount = 0;
+            failed = {};
+            for i = 1:n
+                logPath = fullfile(childDirs{i}, 'command_window.txt');
+                fth.io.ResultsManager.writeTextFile(logPath, childLogs{i});
+                if ~isempty(childLogs{i})
+                    failedCount = failedCount + 1;
+                    failed{end+1} = childDirs{i}; %#ok<AGROW>
+                end
             end
-            if isempty(obj.childDirs)
-                error('BatchRunner:NotRun', 'Batch simulation has not been run yet.');
+            if failedCount > 0
+                warning('fth:BatchRunner:childFailed', ...
+                    '%d/%d runs failed. Check command_window.txt in:\n%s', ...
+                    failedCount, n, strjoin(failed, '\n'));
             end
-            for i = 1:numel(obj.childDirs)
-                fth.io.ResultsManager.plotSavedRun(obj.childDirs{i}, char(plotType), displayPlots);
-            end
-            obj.writeAggregateArtifacts();
         end
 
-        function dirs = getChildDirs(obj)
-            %GETCHILDDIRS Return the list of child result directories.
-            dirs = obj.childDirs;
-        end
-    end
-
-    methods (Access = private)
         function executeChild(~, child, runArgs)
             %EXECUTECHILD Run setup and simulation for one child runner.
             child.setup();

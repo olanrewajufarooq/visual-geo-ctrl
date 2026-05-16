@@ -16,6 +16,7 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
+simOpts.parallelRuns = true;
 cfg.useSimOptions(simOpts);
 
 % Reference trajectory batch.

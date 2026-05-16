@@ -16,7 +16,8 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
-simOpts.names        = {'no_adapt', 'gamma_050', 'gamma_025', 'gamma_017'};
+simOpts.names        = {'baseline', 'low', 'mid', 'high'};
+simOpts.parallelRuns = true;
 cfg.useSimOptions(simOpts);
 
 % Reference trajectory batch.

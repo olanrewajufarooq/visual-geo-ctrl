@@ -17,6 +17,8 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
+simOpts.names        = {'basic', 'consistent'};
+simOpts.parallelRuns = true;
 cfg.useSimOptions(simOpts);
 
 % Reference trajectory.
@@ -61,7 +63,7 @@ cfg.done();
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
 
-runOpts.plotMode     = 'summary';   % 'summary', 'all', or 'none'
+runOpts.plotMode     = 'all';   % 'summary', 'all', or 'none'
 runOpts.displayPlots = false;
 runOpts.saveSimData  = false;
 sim.run(runOpts);

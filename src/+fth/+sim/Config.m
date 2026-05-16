@@ -742,6 +742,9 @@ classdef Config < handle
             if isfield(opts, 'names') && ~isempty(opts.names)
                 obj.sim.batchNames = fth.sim.ConfigUtils.normalizeNames(opts.names);
             end
+            if isfield(opts, 'parallelRuns')
+                obj.sim.parallelRuns = logical(opts.parallelRuns);
+            end
         end
 
         function obj = useVizOptions(obj, opts)
@@ -870,6 +873,7 @@ classdef Config < handle
             obj.sim.groundDamping = 200;
             obj.sim.groundFriction = 0.3;
             obj.sim.minZ = obj.sim.groundHeight - 0.2;
+            obj.sim.parallelRuns = false;
         end
 
         function initPayload(obj)

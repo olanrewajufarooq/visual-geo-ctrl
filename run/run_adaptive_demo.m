@@ -16,6 +16,7 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
+simOpts.parallelRuns = true;
 cfg.useSimOptions(simOpts);
 
 % Reference trajectory.
@@ -37,7 +38,7 @@ cfg.useControllerOptions(ctrlOpts);
 % Adaptation.
 adaptOpts.type  = 'bregman';          % 'none','euclidean','bregman'
 % adaptOpts.Gamma = 1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4];  % Gamma for Euclidean. Corr. to pi = [m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]
-adaptOpts.Gamma = 1/80 % Gamma value for Bregman
+adaptOpts.Gamma = 1/80; % Gamma value for Bregman
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).
