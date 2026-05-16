@@ -102,14 +102,16 @@ classdef SimRunner < handle
             fprintf('%s', fth.io.ConsoleFormatter.kv('Trajectory', obj.cfg.traj.name));
             fprintf('%s', fth.io.ConsoleFormatter.kv('Controller', ...
                 sprintf('%s (%s)', obj.cfg.controller.type, obj.cfg.controller.potential)));
-            if isfield(obj.cfg.controller, 'adaptation') && ~strcmpi(obj.cfg.controller.adaptation, 'none')
-                fprintf('%s', fth.io.ConsoleFormatter.kv('Adaptation', obj.cfg.controller.adaptation));
+            if isfield(obj.cfg.controller, 'adaptation') && fth.sim.Config.isAdaptationEnabled(obj.cfg.controller.adaptation)
+                adaptLabel = obj.cfg.controller.adaptation;
+                if iscell(adaptLabel), adaptLabel = strjoin(adaptLabel, ', '); end
+                fprintf('%s', fth.io.ConsoleFormatter.kv('Adaptation', adaptLabel));
             end
             fprintf('%s', fth.io.ConsoleFormatter.kv('Duration', sprintf('%.1f s', obj.duration)));
             fprintf('\n');
             fprintf('%s', fth.io.ConsoleFormatter.subsection('Timesteps'));
             fprintf('%s', fth.io.ConsoleFormatter.timing(obj.dt, obj.control_dt, obj.adaptation_dt, ...
-                isfield(obj.cfg.controller, 'adaptation') && ~strcmpi(obj.cfg.controller.adaptation, 'none')));
+                isfield(obj.cfg.controller, 'adaptation') && fth.sim.Config.isAdaptationEnabled(obj.cfg.controller.adaptation)));
 
             % Display gains if available
             if isfield(obj.cfg.controller, 'Kp')
@@ -126,12 +128,15 @@ classdef SimRunner < handle
                     fprintf('%s', fth.io.ConsoleFormatter.vector('Kd', Kd, '%.2f'));
                 end
             end
-            if isfield(obj.cfg.controller, 'Gamma') && ~strcmpi(obj.cfg.controller.adaptation, 'none')
+            if isfield(obj.cfg.controller, 'Gamma') && fth.sim.Config.isAdaptationEnabled(obj.cfg.controller.adaptation)
                 Gamma = obj.cfg.controller.Gamma;
-                if strcmpi(obj.cfg.controller.adaptation, 'bregman') && isscalar(Gamma)
-                    fprintf('  Bregman Gamma: %.4f\n', Gamma);
-                elseif isvector(Gamma) && numel(Gamma) == 10
-                    fprintf('%s', fth.io.ConsoleFormatter.vector('Adaptive Gains', Gamma, '%.4f'));
+                adaptMode = obj.cfg.controller.adaptation;
+                if ~iscell(Gamma)
+                    if strcmpi(adaptMode, 'bregman') && isscalar(Gamma)
+                        fprintf('  Bregman Gamma: %.4f\n', Gamma);
+                    elseif isvector(Gamma) && numel(Gamma) == 10
+                        fprintf('%s', fth.io.ConsoleFormatter.vector('Adaptive Gains', Gamma, '%.4f'));
+                    end
                 end
             end
 

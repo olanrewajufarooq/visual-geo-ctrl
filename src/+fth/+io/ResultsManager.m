@@ -18,7 +18,7 @@ classdef ResultsManager
             end
 
             subfolder = 'nominal';
-            if isfield(cfg.controller, 'adaptation') && ~strcmpi(cfg.controller.adaptation, 'none')
+            if isfield(cfg.controller, 'adaptation') && fth.sim.Config.isAdaptationEnabled(cfg.controller.adaptation)
                 subfolder = 'adaptive';
             end
 

@@ -265,7 +265,7 @@ classdef SimRunnerUtils
                 plotType, displayPlots, saveSimData] = parseRunInputs(cfg, payload, varargin)
             %PARSERUNINPUTS Parse run inputs plus post-run options.
             if isfield(cfg.controller, 'adaptation')
-                isAdaptive = ~strcmpi(cfg.controller.adaptation, 'none');
+                isAdaptive = fth.sim.Config.isAdaptationEnabled(cfg.controller.adaptation);
             else
                 isAdaptive = false;
             end
