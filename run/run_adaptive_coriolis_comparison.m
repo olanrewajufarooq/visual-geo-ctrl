@@ -17,7 +17,7 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
-simOpts.runNames     = {'basic', 'consistent'};
+simOpts.runNames     = {'euclid-basic', 'euclid-consistent', 'breg-basic', 'breg-consistent'};
 simOpts.scriptName   = 'adapt_coriolis_comp';
 simOpts.parallelRuns = true;
 cfg.useSimOptions(simOpts);
@@ -39,9 +39,13 @@ ctrlOpts.coriolisForm = {'basic', 'consistent'};    % cell array triggers one ba
 cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation.
-adaptOpts.type  = 'euclidean';          % 'none','euclidean','bregman'
-adaptOpts.Gamma = 1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4];  % pi = [m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]
-% adaptOpts.Gamma = 1/80 % Gamma value for Bregman
+adaptOpts.type  = {'euclidean', 'euclidean', 'bregman', 'bregman'};          % 'none','euclidean','bregman'
+adaptOpts.Gamma = { ...
+                    1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4], ...
+                    1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4], ...
+                    1/80, ...
+                    1/80 ...
+                  }; % Gamma values
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).
