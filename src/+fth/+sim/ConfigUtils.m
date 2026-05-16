@@ -23,7 +23,7 @@ classdef ConfigUtils
                 if isscalar(gammaValue)
                     out = gammaValue;
                 else
-                    out = gammaValue(index, 1);
+                    out = gammaValue(index);   % linear index — works for row or column vector
                 end
             else
                 out = fth.sim.ConfigUtils.selectRow(gammaValue, index);
@@ -88,11 +88,10 @@ classdef ConfigUtils
             value = gamma;
             if isempty(adaptMode), adaptMode = 'none'; end
             if strcmpi(adaptMode, 'bregman')
-                isScalarBatch = isnumeric(value) && ...
-                    (isscalar(value) || (ismatrix(value) && size(value,2) == 1 && numel(value) ~= 10));
+                isScalarBatch = isnumeric(value) && isvector(value);
                 if ~isScalarBatch || any(~isfinite(value(:))) || any(value(:) <= 0)
                     error('Config:InvalidGainShape', ...
-                        'Bregman Gamma must be a positive scalar or Nx1 positive scalar batch; 10-element gain vectors are not valid for Bregman.');
+                        'Bregman Gamma must be a positive scalar or a vector of positive scalars (one per batch run).');
                 end
                 return;
             end
@@ -146,9 +145,8 @@ classdef ConfigUtils
             if isempty(gamma), return; end
             fth.sim.ConfigUtils.validateGammaShape(gamma, adaptMode);
             value = gamma;
-            if strcmpi(adaptMode, 'bregman') && ...
-                    ismatrix(value) && size(value,2) == 1 && size(value,1) > 1
-                count = size(value,1);
+            if strcmpi(adaptMode, 'bregman') && isvector(value) && numel(value) > 1
+                count = numel(value);
             elseif ~strcmpi(adaptMode, 'bregman') && ...
                     ismatrix(value) && size(value,2) == 10 && size(value,1) > 1
                 count = size(value,1);
