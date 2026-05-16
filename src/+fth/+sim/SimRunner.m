@@ -320,6 +320,11 @@ classdef SimRunner < handle
             if isfield(obj.cfg.sim, 'resultsDirOverride') && ~isempty(obj.cfg.sim.resultsDirOverride)
                 obj.resultsDir = obj.cfg.sim.resultsDirOverride;
                 if ~exist(obj.resultsDir, 'dir')
+                    % Ensure the parent exists before creating the leaf.
+                    parentDir = fileparts(obj.resultsDir);
+                    if ~isempty(parentDir) && ~exist(parentDir, 'dir')
+                        mkdir(parentDir);
+                    end
                     mkdir(obj.resultsDir);
                 end
                 [~, obj.runName] = fileparts(obj.resultsDir);
