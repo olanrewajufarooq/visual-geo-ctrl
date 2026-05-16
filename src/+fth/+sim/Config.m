@@ -286,6 +286,11 @@ classdef Config < handle
                         cfgCopy.traj.batch = struct('names', {currentTrajName});
                     end
 
+                    % Extract per-trajectory period if an array was provided.
+                    if isfield(obj.traj, 'period') && numel(obj.traj.period) > 1
+                        cfgCopy.traj.period = obj.traj.period(trajIdx);
+                    end
+
                     % Select gains for this simIdx.
                     cfgCopy.controller.Kp = fth.sim.ConfigUtils.selectRow(obj.controller.Kp, simIdx);
                     cfgCopy.controller.Kd = fth.sim.ConfigUtils.selectRow(obj.controller.Kd, simIdx);
