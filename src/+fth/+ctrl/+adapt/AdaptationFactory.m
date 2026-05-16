@@ -20,13 +20,25 @@ classdef AdaptationFactory
                 adaptType = cfg.controller.adaptation;
             end
 
+            % Gamma=0 is the batch sentinel meaning "disabled for this run".
+            gammaIsZero = isfield(cfg.controller, 'Gamma') && ...
+                isscalar(cfg.controller.Gamma) && cfg.controller.Gamma == 0;
+
             switch lower(adaptType)
                 case 'none'
                     adaptation = fth.ctrl.adapt.NoAdaptation(cfg);
                 case 'euclidean'
-                    adaptation = fth.ctrl.adapt.EuclideanAdaptation(cfg);
+                    if gammaIsZero
+                        adaptation = fth.ctrl.adapt.NoAdaptation(cfg);
+                    else
+                        adaptation = fth.ctrl.adapt.EuclideanAdaptation(cfg);
+                    end
                 case 'bregman'
-                    adaptation = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
+                    if gammaIsZero
+                        adaptation = fth.ctrl.adapt.NoAdaptation(cfg);
+                    else
+                        adaptation = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
+                    end
                 otherwise
                     error('fth:AdaptationFactory:UnknownMode', ...
                         'Unrecognised adaptation mode: ''%s''.', adaptType);
