@@ -80,13 +80,18 @@ classdef BatchRunnerUtils
                 end
             end
 
-            lines = strings(nRuns + 5, 1);
+            nGroups = max(trajectoryGroups);
+            lines = strings(nRuns + 5 + (nGroups - 1), 1);
             lineIdx = 1;
             lines(lineIdx) = "Batch Run Summary"; lineIdx = lineIdx + 1;
             lines(lineIdx) = fth.sim.BatchRunnerUtils.buildSep(widths); lineIdx = lineIdx + 1;
             lines(lineIdx) = fth.sim.BatchRunnerUtils.buildRow(headers, widths); lineIdx = lineIdx + 1;
             lines(lineIdx) = fth.sim.BatchRunnerUtils.buildSep(widths); lineIdx = lineIdx + 1;
             for row = 1:nRuns
+                if row > 1 && trajectoryGroups(row) ~= trajectoryGroups(row - 1)
+                    lines(lineIdx) = fth.sim.BatchRunnerUtils.buildSep(widths);
+                    lineIdx = lineIdx + 1;
+                end
                 lines(lineIdx) = fth.sim.BatchRunnerUtils.buildRow(rawRows(row,:), widths);
                 lineIdx = lineIdx + 1;
             end
