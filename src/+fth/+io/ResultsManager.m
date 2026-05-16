@@ -240,6 +240,7 @@ classdef ResultsManager
                     plotterObj.plotStandaloneSubplotsAdaptive(logs, est);
                     plotterObj.plotStackedEstimation(est);
                     plotterObj.plotStackedInertia(est);
+                    plotterObj.plotSPDCounter(est);
                 else
                     plotterObj.plotStandaloneSubplotsNominal(logs);
                 end

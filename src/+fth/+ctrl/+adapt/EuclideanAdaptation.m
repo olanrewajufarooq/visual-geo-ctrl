@@ -40,8 +40,10 @@ methods
         validateattributes(obj.Gamma, {'numeric'}, {'size', [10, 10]}, ...
             'EuclideanAdaptation', 'Gamma');
 
-        obj.infoMatrix = zeros(10, 10);
-        obj.updateCount = 0;
+        obj.infoMatrix  = zeros(10, 10);
+        obj.updateCount    = 0;
+        obj.spdValidCount   = 0;
+        obj.spdInvalidCount = 0;
         obj.updateEstimates();
         obj.initFromCfg(cfg);
     end
@@ -58,6 +60,7 @@ methods
         obj.updateCount = obj.updateCount + 1;
         obj.pi_hat      = obj.pi_hat - obj.Gamma * (Y.' * s) * dt;
         obj.updateEstimates();
+        obj.recordSPDStatus(fth.ctrl.adapt.AdaptationUtils.is_valid_params(obj.pi_hat));
         pi = obj.pi_hat;
     end
 
@@ -78,8 +81,10 @@ methods
     function diagnostics = getDiagnostics(obj)
         %GETDIAGNOSTICS Return cumulative regressor diagnostics.
         diagnostics = struct( ...
-            'infoMatrix', obj.infoMatrix, ...
-            'updateCount', obj.updateCount);
+            'infoMatrix',      obj.infoMatrix, ...
+            'updateCount',     obj.updateCount, ...
+            'spdValidCount',   obj.spdValidCount, ...
+            'spdInvalidCount', obj.spdInvalidCount);
     end
 
     function setEstimatePi(obj, pi)

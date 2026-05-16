@@ -23,6 +23,8 @@ properties (Access = protected)
     coriolisFactor  % coriolis factorization form
     potential       % potential function object (from PotentialFactory)
     lambda          % 6×6 gain matrix for sliding variable
+    spdValidCount   % count of SPD-valid parameter states
+    spdInvalidCount % count of SPD-invalid parameter states
 end
 
 properties (Access = private)
@@ -161,6 +163,15 @@ methods (Access = protected)
         if nargin < 4 || isempty(s);      s      = zeros(6,1);  end
         if nargin < 5 || isempty(VR);     VR     = zeros(6,1);  end
         if nargin < 6 || isempty(VRDot);  VRDot  = zeros(6,1);  end
+    end
+
+    function recordSPDStatus(obj, isValid)
+        %RECORDSPDSTATUS Track SPD validity count.
+        if isValid
+            obj.spdValidCount = obj.spdValidCount + 1;
+        else
+            obj.spdInvalidCount = obj.spdInvalidCount + 1;
+        end
     end
 
     function setPayloadEstimate(obj, m_payload, CoG_payload)

@@ -49,8 +49,10 @@ methods
         obj.N = fth.ctrl.adapt.AdaptationUtils.spd2params_jacobian();
         obj.E = fth.ctrl.adapt.AdaptationUtils.eliminationspd4();
 
-        obj.infoMatrix = zeros(10, 10);
-        obj.updateCount = 0;
+        obj.infoMatrix      = zeros(10, 10);
+        obj.updateCount     = 0;
+        obj.spdValidCount   = 0;
+        obj.spdInvalidCount = 0;
         obj.updateEstimates();
         obj.initFromCfg(cfg);
     end
@@ -71,6 +73,7 @@ methods
         obj.infoMatrix  = obj.infoMatrix + dt * (Y.' * Y);
         obj.updateCount = obj.updateCount + 1;
         obj.updateEstimates();
+        obj.recordSPDStatus(fth.ctrl.adapt.AdaptationUtils.is_spd(obj.J_hat));
         pi = obj.getPi();
     end
 
@@ -92,10 +95,12 @@ methods
     function diagnostics = getDiagnostics(obj)
         %GETDIAGNOSTICS Return adaptation diagnostics.
         diagnostics = struct( ...
-            'J_hat',        obj.J_hat, ...
-            'is_spd',       fth.ctrl.adapt.AdaptationUtils.is_spd(obj.J_hat), ...
-            'infoMatrix',   obj.infoMatrix, ...
-            'updateCount',  obj.updateCount);
+            'J_hat',           obj.J_hat, ...
+            'is_spd',          fth.ctrl.adapt.AdaptationUtils.is_spd(obj.J_hat), ...
+            'infoMatrix',      obj.infoMatrix, ...
+            'updateCount',     obj.updateCount, ...
+            'spdValidCount',   obj.spdValidCount, ...
+            'spdInvalidCount', obj.spdInvalidCount);
     end
 
     function setEstimatePi(obj, pi)

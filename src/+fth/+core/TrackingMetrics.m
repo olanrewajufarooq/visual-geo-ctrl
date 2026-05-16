@@ -77,8 +77,8 @@ classdef TrackingMetrics < handle
                     obj.EstInertia = logs.est.inertia;
                     obj.EstInertiaActual = logs.est.inertiaActual;
                 end
-                if isfield(logs.est, 'identifiability') && isstruct(logs.est.identifiability)
-                    obj.EstRegressorInfo = logs.est.identifiability;
+                if isfield(logs.est, 'regressionExcitation') && isstruct(logs.est.regressionExcitation)
+                    obj.EstRegressorInfo = logs.est.regressionExcitation;
                 end
             end
             obj.PositionMetrics = struct();

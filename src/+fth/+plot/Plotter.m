@@ -375,6 +375,42 @@ classdef Plotter < handle
             obj.finalizeStackedAxes(ax, 'Time [s]');
             obj.saveFigureInternal(fig, 'stack_inertia');
         end
+
+        function plotSPDCounter(obj, est)
+            %PLOTSPDCOUNTER Bar graph of SPD validity percentages.
+            %   Input:
+            %     est - estimation struct with regressionExcitation.spdValidCount
+            %           and regressionExcitation.spdInvalidCount.
+            fig = figure('Name', 'SPD Validity Counter', ...
+                'Position', [100 100 obj.plotWidthPaper obj.plotHeightSmall]);
+            ax = axes(fig);
+
+            spdValidCount   = 0;
+            spdInvalidCount = 0;
+            if isfield(est, 'regressionExcitation') && isstruct(est.regressionExcitation)
+                if isfield(est.regressionExcitation, 'spdValidCount')
+                    spdValidCount = est.regressionExcitation.spdValidCount;
+                end
+                if isfield(est.regressionExcitation, 'spdInvalidCount')
+                    spdInvalidCount = est.regressionExcitation.spdInvalidCount;
+                end
+            end
+
+            total = spdValidCount + spdInvalidCount;
+            if total == 0
+                validPct = 0; invalidPct = 0;
+            else
+                validPct   = 100 * spdValidCount   / total;
+                invalidPct = 100 * spdInvalidCount / total;
+            end
+
+            bar(ax, {'Valid', 'Invalid'}, [validPct, invalidPct], 'BarWidth', 0.5);
+            ylim(ax, [0 100]);
+            ylabel(ax, 'Percentage [%]');
+            title(ax, 'SPD Validity During Adaptation');
+            grid(ax, 'on');
+            obj.saveFigureInternal(fig, 'spd_counter');
+        end
     end
 
     methods (Access = private)
