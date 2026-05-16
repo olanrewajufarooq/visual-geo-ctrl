@@ -19,6 +19,7 @@ properties (Access = private)
     gamma       % scalar positive gain
     N           % 10×10 constant Jacobian (spd2params_jacobian)
     E           % 10×16 constant elimination matrix (eliminationspd4)
+    infoMatrix  % 10×10 cumulative regressor information matrix (∫ Y'Y dt)
 end
 
 methods
@@ -48,6 +49,7 @@ methods
         obj.N = fth.ctrl.adapt.AdaptationUtils.spd2params_jacobian();
         obj.E = fth.ctrl.adapt.AdaptationUtils.eliminationspd4();
 
+        obj.infoMatrix = zeros(10, 10);
         obj.updateCount = 0;
         obj.updateEstimates();
         obj.initFromCfg(cfg);
@@ -66,6 +68,7 @@ methods
         G_sym = fth.se3.symOfMat(G);
         J_hatDot = -obj.gamma * obj.J_hat * G_sym * obj.J_hat;
         obj.J_hat       = obj.J_hat + dt * J_hatDot;
+        obj.infoMatrix  = obj.infoMatrix + dt * (Y.' * Y);
         obj.updateCount = obj.updateCount + 1;
         obj.updateEstimates();
         pi = obj.getPi();
@@ -80,18 +83,19 @@ methods
         %GETPARAMS Return current estimated parameters.
         pi_hat = fth.ctrl.adapt.AdaptationUtils.spd2params(obj.J_hat);
         params = struct( ...
-            'm', obj.m_hat, ...
-            'CoG', obj.cog_hat, ...
-            'Iparams', obj.Iparams_hat, ...
-            'I6', fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi_hat));
+            'm',        obj.m_hat, ...
+            'CoG',      obj.cog_hat, ...
+            'Iparams',  obj.Iparams_hat, ...
+            'I6',       fth.ctrl.adapt.AdaptationUtils.params2genInertia(pi_hat));
     end
 
     function diagnostics = getDiagnostics(obj)
         %GETDIAGNOSTICS Return adaptation diagnostics.
         diagnostics = struct( ...
-            'J_hat', obj.J_hat, ...
-            'is_spd', fth.ctrl.adapt.AdaptationUtils.is_spd(obj.J_hat), ...
-            'updateCount', obj.updateCount);
+            'J_hat',        obj.J_hat, ...
+            'is_spd',       fth.ctrl.adapt.AdaptationUtils.is_spd(obj.J_hat), ...
+            'infoMatrix',   obj.infoMatrix, ...
+            'updateCount',  obj.updateCount);
     end
 
     function setEstimatePi(obj, pi)
