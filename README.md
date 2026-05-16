@@ -203,6 +203,7 @@ cfg.setAdaptationParams(0.005);
 cfg.setControlParams(0.01);
 
 cfg.setPayloadScenario(1.5, [0.115; 0.05; -0.05], 2*duration/3);
+cfg.setPayloadDims([0.20, 0.20, 0.10]);   % optional: box [L, B, H] for rotational inertia
 cfg.setParamInit('random');
 
 cfg.done();
@@ -245,7 +246,8 @@ cfg.setParamInit('mid-vehicle-payload');
 %        or a custom 10×1 theta vector
 
 % Payload
-cfg.setPayloadScenario(1.5, [0.115; 0.05; -0.05], 20);
+cfg.setPayloadScenario(1.5, [0.115; 0.05; -0.05], 20);   % mass [kg], position [m], dropTime [s]
+cfg.setPayloadDims([0.20, 0.20, 0.10]);                    % optional: box [L, B, H] in meters
 cfg.setParamInit('vehicle');
 ```
 

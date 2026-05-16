@@ -330,10 +330,10 @@ classdef Config < handle
                     if isfield(obj.payload, 'mass') && numel(obj.payload.mass) > 1
                         cfgCopy.payload.mass = obj.payload.mass(simIdx);
                     end
-                    if isfield(obj.payload, 'CoG') && size(obj.payload.CoG,1) == 3 && size(obj.payload.CoG,2) == 1
+                    if isfield(obj.payload, 'position') && size(obj.payload.position,1) == 3 && size(obj.payload.position,2) == 1
                         % scalar 3×1 — broadcast as-is
-                    elseif isfield(obj.payload, 'CoG') && size(obj.payload.CoG,2) == 3 && size(obj.payload.CoG,1) > 1
-                        cfgCopy.payload.CoG = obj.payload.CoG(simIdx,:)';
+                    elseif isfield(obj.payload, 'position') && size(obj.payload.position,2) == 3 && size(obj.payload.position,1) > 1
+                        cfgCopy.payload.position = obj.payload.position(simIdx,:)';
                     end
                     if isfield(obj.payload, 'dropTime') && numel(obj.payload.dropTime) > 1
                         cfgCopy.payload.dropTime = obj.payload.dropTime(simIdx);
@@ -435,10 +435,10 @@ classdef Config < handle
                         'payload.mass length (%d) must match batch count M=%d.', numel(obj.payload.mass), M);
                 end
             end
-            if isfield(obj.payload, 'CoG') && size(obj.payload.CoG,1) > 1 && size(obj.payload.CoG,2) == 3
-                if size(obj.payload.CoG,1) ~= M
+            if isfield(obj.payload, 'position') && size(obj.payload.position,1) > 1 && size(obj.payload.position,2) == 3
+                if size(obj.payload.position,1) ~= M
                     error('Config:InconsistentBatchCounts', ...
-                        'payload.CoG row count (%d) must match batch count M=%d.', size(obj.payload.CoG,1), M);
+                        'payload.position row count (%d) must match batch count M=%d.', size(obj.payload.position,1), M);
                 end
             end
             if isfield(obj.payload, 'dropTime') && numel(obj.payload.dropTime) > 1
@@ -519,11 +519,11 @@ classdef Config < handle
             obj.validateBatchGains();
         end
 
-        function obj = setPayloadScenario(obj, mass, cog, dropTime)
-            %SETPAYLOADSCENARIO Configure payload mass, CoG, and drop timing.
+        function obj = setPayloadScenario(obj, mass, position, dropTime)
+            %SETPAYLOADSCENARIO Configure payload mass, position, and drop timing.
             %   mass    : scalar or M-element vector (any orientation).
-            %   cog     : 3-element vector (any orientation) for a single run,
-            %             or N×3 / 3×N matrix for N batch runs.
+            %   position: 3-element vector (any orientation) — position of payload CoM
+            %             in body frame [m], or N×3 / 3×N matrix for N batch runs.
             %   dropTime: scalar or M-element vector (any orientation).
             %
             %   Output:
@@ -532,10 +532,24 @@ classdef Config < handle
                 [obj.payload.mass, ~] = fth.sim.ConfigUtils.normalizeBatchField(mass, 1);
             end
             if nargin > 2
-                [obj.payload.CoG, ~] = fth.sim.ConfigUtils.normalizeBatchField(cog, 3);
+                [obj.payload.position, ~] = fth.sim.ConfigUtils.normalizeBatchField(position, 3);
             end
             if nargin > 3
                 [obj.payload.dropTime, ~] = fth.sim.ConfigUtils.normalizeBatchField(dropTime, 1);
+            end
+        end
+
+        function obj = setPayloadDims(obj, dims)
+            %SETPAYLOADDIMS Configure box dimensions for payload rotational inertia.
+            %   dims: 1×3 [length, breadth, height] of payload box in metres.
+            %         Pass [] to model the payload as a point mass (default).
+            %
+            %   Output:
+            %     obj - Config instance (for chaining).
+            if isempty(dims)
+                obj.payload.dims = [];
+            else
+                obj.payload.dims = dims(:).';
             end
         end
 
@@ -768,7 +782,9 @@ classdef Config < handle
             %USEPAYLOADOPTIONS Apply payload settings from a struct.
             %   Recognised fields:
             %     .mass     - payload mass [kg], scalar or M-element vector
-            %     .CoG      - 3x1 payload CoG offset [m], or M×3 batch
+            %     .position - 3×1 position of payload CoM in body frame [m],
+            %                 or M×3 batch
+            %     .dims     - [length, breadth, height] of payload box [m]
             %     .dropTime - drop time [s], scalar or M-element vector
             %
             %   Output:
@@ -776,8 +792,11 @@ classdef Config < handle
             if isfield(opts, 'mass')
                 [obj.payload.mass, ~] = fth.sim.ConfigUtils.normalizeBatchField(opts.mass, 1);
             end
-            if isfield(opts, 'CoG')
-                [obj.payload.CoG, ~] = fth.sim.ConfigUtils.normalizeBatchField(opts.CoG, 3);
+            if isfield(opts, 'position')
+                [obj.payload.position, ~] = fth.sim.ConfigUtils.normalizeBatchField(opts.position, 3);
+            end
+            if isfield(opts, 'dims') && ~isempty(opts.dims)
+                obj.payload.dims = opts.dims(:).';
             end
             if isfield(opts, 'dropTime')
                 [obj.payload.dropTime, ~] = fth.sim.ConfigUtils.normalizeBatchField(opts.dropTime, 1);
@@ -945,8 +964,9 @@ classdef Config < handle
         function initPayload(obj)
             %INITPAYLOAD Initialize payload parameters.
             %   Defaults to no payload and no drop event.
-            obj.payload.mass = 0;
-            obj.payload.CoG = [0; 0; 0];
+            obj.payload.mass     = 0;
+            obj.payload.position = [0; 0; 0];
+            obj.payload.dims     = [];
             obj.payload.dropTime = inf;
         end
 
@@ -1065,7 +1085,7 @@ classdef Config < handle
             if isfield(obj.controller, 'adaptation'), adaptMode = obj.controller.adaptation; end
             cfVal = []; if isfield(obj.controller, 'coriolisFactorization'), cfVal = obj.controller.coriolisFactorization; end
             massVal = []; if isfield(obj.payload, 'mass'), massVal = obj.payload.mass; end
-            cogVal  = []; if isfield(obj.payload, 'CoG'), cogVal = obj.payload.CoG; end
+            cogVal  = []; if isfield(obj.payload, 'position'), cogVal = obj.payload.position; end
             dtVal   = []; if isfield(obj.payload, 'dropTime'), dtVal = obj.payload.dropTime; end
 
             % Cell adaptation types count directly; nullify to avoid double-counting below.

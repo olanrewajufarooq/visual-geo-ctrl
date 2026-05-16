@@ -169,16 +169,43 @@ classdef SimRunnerUtils
         % Physics
         % ------------------------------------------------------------------
 
-        function [m_total, Iparams_total, cog_total] = addPayload(m_base, Iparams_base, cog_base, m_payload, cog_payload)
-            %ADDPAYLOAD Combine payload mass/CoG with base parameters (private).
-            m_total   = m_base + m_payload;
-            cog_total = (m_base * cog_base(:) + m_payload * cog_payload(:)) / m_total;
-            J_base    = fth.se3.rotInertiaVec2Mat(Iparams_base(:));
-            r         = cog_payload(:);
-            J_payload = m_payload * (dot(r,r) * eye(3) - r * r.');
-            J_total   = J_base + J_payload;
-            Iparams_total = [J_total(1,1), J_total(2,2), J_total(3,3), ...
-                             J_total(1,2), J_total(1,3), J_total(2,3)];
+        function [m_total, Iparams_total, cog_total] = addPayload( ...
+                m_base, Iparams_base, cog_base, m_payload, position_payload, Iparams_payload_cm)
+            %ADDPAYLOAD Combine payload with base parameters via SE(3) adjoint transform.
+            %   position_payload  : 3×1 position of payload CoM in base frame [m].
+            %   Iparams_payload_cm: 6-element inertia of payload about its own CoM
+            %                       ([Ixx,Iyy,Izz,Ixy,Ixz,Iyz]). Use zeros for
+            %                       a point-mass approximation.
+
+            % Base spatial inertia expressed in base frame.
+            I6_bb = fth.se3.getGeneralizedInertia(m_base, Iparams_base(:).', cog_base(:));
+
+            % Payload spatial inertia expressed in payload frame (origin = CoM).
+            I6_pp = fth.se3.getGeneralizedInertia(m_payload, Iparams_payload_cm(:).', [0; 0; 0]);
+
+            % Homogeneous transform H_{bp}: pure translation by position_payload.
+            t    = position_payload(:);
+            H_bp = [eye(3), t; 0, 0, 0, 1];
+
+            % Transform payload inertia to base frame: I6^{b,p} = Ad_inv^T * I6_pp * Ad_inv.
+            AdInv = fth.se3.Ad_inv(H_bp);
+            I6_bp = AdInv.' * I6_pp * AdInv;
+
+            % Sum and extract combined parameters.
+            I6_total      = I6_bb + I6_bp;
+            m_total       = I6_total(4, 4);
+            cog_total     = fth.se3.tilde2vec(I6_total(1:3, 4:6)) / m_total;
+            Iparams_total = fth.se3.rotInertiaMat2Vec(I6_total(1:3, 1:3));
+        end
+
+        function Iparams = boxPayloadInertia(m, dims)
+            %BOXPAYLOADINERTIA Inertia params of a uniform solid box about its own CoM.
+            %   dims = [length, breadth, height] with axes aligned to the body frame.
+            L = dims(1); B = dims(2); H = dims(3);
+            Ixx = m/12 * (B^2 + H^2);
+            Iyy = m/12 * (L^2 + H^2);
+            Izz = m/12 * (L^2 + B^2);
+            Iparams = [Ixx, Iyy, Izz, 0, 0, 0];
         end
 
         function out = cleanNearZero(in, tol)
@@ -261,7 +288,7 @@ classdef SimRunnerUtils
                 && any(strcmpi(string(value), ["none", "summary", "all"]));
         end
 
-        function [isAdaptive, payloadMass, payloadCoG, payloadDropTime, ...
+        function [isAdaptive, payloadMass, payloadPosition, payloadDropTime, ...
                 plotType, displayPlots, saveSimData] = parseRunInputs(cfg, payload, varargin)
             %PARSERUNINPUTS Parse run inputs plus post-run options.
             if isfield(cfg.controller, 'adaptation')
@@ -269,8 +296,8 @@ classdef SimRunnerUtils
             else
                 isAdaptive = false;
             end
-            payloadMass = fth.sim.SimRunnerUtils.getPayloadField(payload, 'mass', 0);
-            payloadCoG = fth.sim.SimRunnerUtils.getPayloadField(payload, 'CoG', [0;0;0]);
+            payloadMass     = fth.sim.SimRunnerUtils.getPayloadField(payload, 'mass', 0);
+            payloadPosition = fth.sim.SimRunnerUtils.getPayloadField(payload, 'position', [0;0;0]);
             payloadDropTime = fth.sim.SimRunnerUtils.getPayloadField(payload, 'dropTime', inf);
             plotType = 'none';
             displayPlots = false;
@@ -296,7 +323,7 @@ classdef SimRunnerUtils
                     payloadMass = args{2};
                 end
                 if positionalCount >= 3 && ~isempty(args{3})
-                    payloadCoG = args{3};
+                    payloadPosition = args{3};
                 end
                 if positionalCount >= 4 && ~isempty(args{4})
                     payloadDropTime = args{4};
@@ -322,7 +349,7 @@ classdef SimRunnerUtils
             end
             displayPlots = logical(displayPlots);
             saveSimData = logical(saveSimData);
-            payloadCoG = payloadCoG(:);
+            payloadPosition = payloadPosition(:);
         end
 
     end

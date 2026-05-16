@@ -56,7 +56,8 @@ cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).
 payloadOpts.mass     = 1.5;
-payloadOpts.CoG      = [0.115; 0.05; -0.05];
+payloadOpts.position = [0.115; 0.05; -0.05];
+payloadOpts.dims     = [0.20, 0.20, 0.10];
 payloadOpts.dropTime = 2*duration/3;
 cfg.usePayloadOptions(payloadOpts);
 

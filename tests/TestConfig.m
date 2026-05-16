@@ -262,7 +262,7 @@ classdef TestConfig < matlab.unittest.TestCase
             cfg = fth.sim.Config();
             cfg.setPayloadScenario(0.5, [0.01; 0; -0.02], 15);
             testCase.verifyEqual(cfg.payload.mass, 0.5);
-            testCase.verifyEqual(cfg.payload.CoG, [0.01; 0; -0.02]);
+            testCase.verifyEqual(cfg.payload.position, [0.01; 0; -0.02]);
             testCase.verifyEqual(cfg.payload.dropTime, 15);
         end
 

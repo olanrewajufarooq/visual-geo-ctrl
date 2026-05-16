@@ -45,7 +45,7 @@ classdef SimRunner < handle
         lastAdaptTime
         lastWrench
         payloadMass
-        payloadCoG
+        payloadPosition
         payloadDropTime
         batchRunner_
         pendingRunArgs
@@ -150,11 +150,11 @@ classdef SimRunner < handle
             obj.plant.reset(H0, V0);
         end
 
-        function setupForRun(obj, isAdaptive, payloadMass, payloadCoG)
+        function setupForRun(obj, isAdaptive, payloadMass, payloadPosition)
             %SETUPFORRUN Apply payload to plant and seed controller parameters.
             %   Called from run() before the simulation loop.
-            obj.setupAdaptivePayload(isAdaptive, payloadMass, payloadCoG);
-            obj.applyControllerParamInit(isAdaptive, payloadMass, payloadCoG);
+            obj.setupAdaptivePayload(isAdaptive, payloadMass, payloadPosition);
+            obj.applyControllerParamInit(isAdaptive, payloadMass, payloadPosition);
         end
 
         function run(obj, varargin)
@@ -162,18 +162,18 @@ classdef SimRunner < handle
             %   Inputs:
             %     Supports the legacy positional run configuration followed
             %     by optional plotType, displayPlots, and saveSimData.
-            [isAdaptive, payloadMassArg, payloadCoGArg, payloadDropTimeArg, ...
+            [isAdaptive, payloadMassArg, payloadPositionArg, payloadDropTimeArg, ...
                 plotType, displayPlots, saveSimData] = obj.parseRunInputs(varargin{:});
 
             if obj.isBatchMode()
-                obj.pendingRunArgs = {isAdaptive, payloadMassArg, payloadCoGArg, payloadDropTimeArg, ...
+                obj.pendingRunArgs = {isAdaptive, payloadMassArg, payloadPositionArg, payloadDropTimeArg, ...
                     plotType, displayPlots, saveSimData};
                 obj.runBatch();
                 return;
             end
 
             obj.payloadMass = payloadMassArg;
-            obj.payloadCoG = payloadCoGArg(:);
+            obj.payloadPosition = payloadPositionArg(:);
             obj.payloadDropTime = payloadDropTimeArg;
 
             obj.lastLogs = [];
@@ -183,7 +183,7 @@ classdef SimRunner < handle
             obj.lastIsAdaptive = isAdaptive;
 
             obj.setupVisualization();
-            obj.setupForRun(isAdaptive, payloadMassArg, payloadCoGArg);
+            obj.setupForRun(isAdaptive, payloadMassArg, payloadPositionArg);
 
             obj.tCurrent = 0;
             obj.kCurrent = 1;
@@ -414,12 +414,12 @@ classdef SimRunner < handle
             end
         end
 
-        function setupAdaptivePayload(obj, isAdaptive, payloadMass, payloadCoG)
+        function setupAdaptivePayload(obj, isAdaptive, payloadMass, payloadPosition)
             %SETUPADAPTIVEPAYLOAD Apply payload mass to the plant for adaptive runs.
             %   Inputs:
-            %     isAdaptive  - true if adaptation is enabled.
-            %     payloadMass - payload mass [kg].
-            %     payloadCoG  - 3x1 CoG offset [m].
+            %     isAdaptive      - true if adaptation is enabled.
+            %     payloadMass     - payload mass [kg].
+            %     payloadPosition - 3x1 position of payload CoM in base frame [m].
             if ~isAdaptive
                 return;
             end
@@ -427,7 +427,14 @@ classdef SimRunner < handle
             m_base   = obj.cfg.vehicle.m;
             I_base   = obj.cfg.vehicle.I_params;
             cog_base = obj.cfg.vehicle.CoG(:);
-            [m_with, I_with, cog_with] = fth.sim.SimRunnerUtils.addPayload(m_base, I_base, cog_base, payloadMass, payloadCoG);
+            dims = obj.cfg.payload.dims;
+            if ~isempty(dims)
+                Iparams_p_cm = fth.sim.SimRunnerUtils.boxPayloadInertia(payloadMass, dims);
+            else
+                Iparams_p_cm = zeros(1, 6);
+            end
+            [m_with, I_with, cog_with] = fth.sim.SimRunnerUtils.addPayload( ...
+                m_base, I_base, cog_base, payloadMass, payloadPosition, Iparams_p_cm);
 
             obj.plant.updateParameters(m_with, cog_with, I_with);
             if payloadMass > 0
@@ -437,21 +444,28 @@ classdef SimRunner < handle
             end
         end
 
-        function applyControllerParamInit(obj, isAdaptive, payloadMass, payloadCoG)
+        function applyControllerParamInit(obj, isAdaptive, payloadMass, payloadPosition)
             %APPLYCONTROLLERPARAMINIT Seed controller with initial parameter estimate.
             %   Resolves cfg.controller.paramInit and calls ctrl.setEstimatePi.
             %   Works for both nominal and adaptive runs.
             %   For adaptive runs with payload, m_true includes the payload mass.
             %   Inputs:
-            %     isAdaptive  - true if adaptation is enabled.
-            %     payloadMass - payload mass [kg] (0 for nominal runs).
-            %     payloadCoG  - 3x1 CoG offset [m].
+            %     isAdaptive      - true if adaptation is enabled.
+            %     payloadMass     - payload mass [kg] (0 for nominal runs).
+            %     payloadPosition - 3x1 position of payload CoM in base frame [m].
             initCfg = obj.getParamInit();
             m_base   = obj.cfg.vehicle.m;
             I_base   = obj.cfg.vehicle.I_params;
             cog_base = obj.cfg.vehicle.CoG(:);
             if isAdaptive && payloadMass > 0
-                [m_true, I_true, cog_true] = fth.sim.SimRunnerUtils.addPayload(m_base, I_base, cog_base, payloadMass, payloadCoG);
+                dims = obj.cfg.payload.dims;
+                if ~isempty(dims)
+                    Iparams_p_cm = fth.sim.SimRunnerUtils.boxPayloadInertia(payloadMass, dims);
+                else
+                    Iparams_p_cm = zeros(1, 6);
+                end
+                [m_true, I_true, cog_true] = fth.sim.SimRunnerUtils.addPayload( ...
+                    m_base, I_base, cog_base, payloadMass, payloadPosition, Iparams_p_cm);
             else
                 m_true   = m_base;
                 I_true   = I_base;
@@ -720,10 +734,10 @@ classdef SimRunner < handle
             fth.sim.SimRunnerUtils.plotSavedRun(resultsDir, plotType, displayPlots);
         end
 
-        function [isAdaptive, payloadMass, payloadCoG, payloadDropTime, ...
+        function [isAdaptive, payloadMass, payloadPosition, payloadDropTime, ...
                 plotType, displayPlots, saveSimData] = parseRunInputs(obj, varargin)
             %PARSERUNINPUTS Parse run inputs plus post-run options.
-            [isAdaptive, payloadMass, payloadCoG, payloadDropTime, ...
+            [isAdaptive, payloadMass, payloadPosition, payloadDropTime, ...
                 plotType, displayPlots, saveSimData] = fth.sim.SimRunnerUtils.parseRunInputs( ...
                 obj.cfg, obj.cfg.payload, varargin{:});
         end
@@ -785,8 +799,14 @@ classdef SimRunner < handle
             I_with = I_base_row;
             cog_with = cog_base_row;
             if obj.payloadMass > 0
+                dims = obj.cfg.payload.dims;
+                if ~isempty(dims)
+                    Iparams_p_cm = fth.sim.SimRunnerUtils.boxPayloadInertia(obj.payloadMass, dims);
+                else
+                    Iparams_p_cm = zeros(1, 6);
+                end
                 [m_with, I_with, cog_with] = fth.sim.SimRunnerUtils.addPayload( ...
-                    m_base_scalar, I_base_row, cog_base_col, obj.payloadMass, obj.payloadCoG);
+                    m_base_scalar, I_base_row, cog_base_col, obj.payloadMass, obj.payloadPosition, Iparams_p_cm);
                 I_with = I_with(:).';
                 cog_with = cog_with(:).';
             end
