@@ -128,19 +128,24 @@ classdef BatchRunner < handle
 
             obj.childDirs = childDirs;
             failedCount = 0;
-            failed = {};
+            failedMsgs = {};
             for i = 1:n
-                logPath = fullfile(childDirs{i}, 'command_window.txt');
-                fth.io.ResultsManager.writeTextFile(logPath, childLogs{i});
+                if ~isempty(childDirs{i}) && ~exist(childDirs{i}, 'dir')
+                    mkdir(childDirs{i});
+                end
                 if ~isempty(childLogs{i})
                     failedCount = failedCount + 1;
-                    failed{end+1} = childDirs{i}; %#ok<AGROW>
+                    failedMsgs{end+1} = sprintf('[%s]\n%s', childDirs{i}, childLogs{i}); %#ok<AGROW>
+                end
+                if ~isempty(childDirs{i})
+                    logPath = fullfile(childDirs{i}, 'command_window.txt');
+                    fth.io.ResultsManager.writeTextFile(logPath, childLogs{i});
                 end
             end
             if failedCount > 0
                 warning('fth:BatchRunner:childFailed', ...
-                    '%d/%d runs failed. Check command_window.txt in:\n%s', ...
-                    failedCount, n, strjoin(failed, '\n'));
+                    '%d/%d runs failed:\n%s', ...
+                    failedCount, n, strjoin(failedMsgs, '\n'));
             end
         end
 
@@ -157,9 +162,16 @@ classdef BatchRunner < handle
             end
             aggregateChunks = cell(numel(obj.childDirs), 1);
             for i = 1:numel(obj.childDirs)
-                metricsEntry = fth.io.ResultsManager.loadMetricsFile(obj.childDirs{i});
-                childLogPath = fullfile(obj.childDirs{i}, 'command_window.txt');
+                childDir = obj.childDirs{i};
+                metricsPath = fullfile(childDir, 'metrics.txt');
+                childLogPath = fullfile(childDir, 'command_window.txt');
                 childLog = fth.io.ResultsManager.readTextFile(childLogPath);
+                if ~exist(metricsPath, 'file')
+                    aggregateChunks{i} = sprintf('[FAILED — no metrics] %s\n%s\n', ...
+                        childDir, strtrim(childLog));
+                    continue;
+                end
+                metricsEntry = fth.io.ResultsManager.loadMetricsFile(childDir);
                 aggregateChunks{i} = sprintf('%s%s\n', ...
                     fth.io.ConsoleFormatter.runBanner( ...
                     metricsEntry.trajectory, metricsEntry.run_label, metricsEntry.is_adaptive), ...
@@ -180,6 +192,11 @@ classdef BatchRunner < handle
             tf = ~isempty(obj.childDirs);
             if ~tf, return; end
             for i = 1:numel(obj.childDirs)
+                metricsPath = fullfile(obj.childDirs{i}, 'metrics.txt');
+                if ~exist(metricsPath, 'file')
+                    tf = false;
+                    return;
+                end
                 metricsEntry = fth.io.ResultsManager.loadMetricsFile(obj.childDirs{i});
                 if ~isfield(metricsEntry, 'is_adaptive') || ~metricsEntry.is_adaptive
                     tf = false;
