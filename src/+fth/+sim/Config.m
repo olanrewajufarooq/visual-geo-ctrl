@@ -109,7 +109,7 @@ classdef Config < handle
             %   Called from done() method to ensure gains have sensible defaults.
             %   Should only be called after all configuration is complete.
             if ~isfield(obj.controller, 'Kp') || isempty(obj.controller.Kp)
-                if strcmpi(obj.controller.adaptation, 'none')
+                if ~fth.sim.Config.isAdaptationEnabled(obj.controller.adaptation)
                     obj.controller.Kp = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
                 else
                     % For adaptive controllers, we might want slightly different gains
@@ -120,7 +120,7 @@ classdef Config < handle
                 obj.controller.Kd = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
             end
             if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
-                if ~strcmpi(obj.controller.adaptation, 'none')
+                if fth.sim.Config.isAdaptationEnabled(obj.controller.adaptation)
                     obj.controller.Gamma = fth.sim.ConfigUtils.defaultGains(obj.controller.adaptation);
                 end
             end
@@ -303,9 +303,20 @@ classdef Config < handle
                     % Select gains for this simIdx.
                     cfgCopy.controller.Kp = fth.sim.ConfigUtils.selectRow(obj.controller.Kp, simIdx);
                     cfgCopy.controller.Kd = fth.sim.ConfigUtils.selectRow(obj.controller.Kd, simIdx);
+
+                    % Extract per-run adaptation type when a cell array is stored.
+                    if iscell(obj.controller.adaptation)
+                        cfgCopy.controller.adaptation = obj.controller.adaptation{simIdx};
+                    end
+
+                    % Extract per-run Gamma; cell path for mixed types, numeric path otherwise.
                     if isfield(obj.controller, 'Gamma') && ~isempty(obj.controller.Gamma)
-                        cfgCopy.controller.Gamma = fth.sim.ConfigUtils.selectGammaRow( ...
-                            obj.controller.adaptation, obj.controller.Gamma, simIdx);
+                        if iscell(obj.controller.Gamma)
+                            cfgCopy.controller.Gamma = obj.controller.Gamma{simIdx};
+                        else
+                            cfgCopy.controller.Gamma = fth.sim.ConfigUtils.selectGammaRow( ...
+                                obj.controller.adaptation, obj.controller.Gamma, simIdx);
+                        end
                     end
 
                     % Select coriolisFactorization for this simIdx.
@@ -436,6 +447,19 @@ classdef Config < handle
                         'payload.dropTime length (%d) must match batch count M=%d.', numel(obj.payload.dropTime), M);
                 end
             end
+            if iscell(adaptMode) && numel(adaptMode) > 1
+                if numel(adaptMode) ~= M
+                    error('Config:InconsistentBatchCounts', ...
+                        'adaptation type cell length (%d) must match batch count M=%d.', ...
+                        numel(adaptMode), M);
+                end
+            end
+            if iscell(gVal) && numel(gVal) > 1
+                if numel(gVal) ~= M
+                    error('Config:InconsistentBatchCounts', ...
+                        'Gamma cell length (%d) must match batch count M=%d.', numel(gVal), M);
+                end
+            end
         end
 
         function obj = setSimParams(obj, sim_dt, duration)
@@ -462,7 +486,7 @@ classdef Config < handle
             
             % Ensure gains have sensible defaults
             if ~isfield(obj.controller, 'Kp') || isempty(obj.controller.Kp)
-                if strcmpi(obj.controller.adaptation, 'none')
+                if ~fth.sim.Config.isAdaptationEnabled(obj.controller.adaptation)
                     obj.controller.Kp = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
                 else
                     % For adaptive controllers, we might want slightly different gains
@@ -473,8 +497,14 @@ classdef Config < handle
                 obj.controller.Kd = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
             end
             if ~isfield(obj.controller, 'Gamma') || isempty(obj.controller.Gamma)
-                if ~strcmpi(obj.controller.adaptation, 'none')
-                    obj.controller.Gamma = fth.sim.ConfigUtils.defaultGains(obj.controller.adaptation);
+                if fth.sim.Config.isAdaptationEnabled(obj.controller.adaptation)
+                    if iscell(obj.controller.adaptation)
+                        obj.controller.Gamma = cellfun( ...
+                            @(t) fth.sim.ConfigUtils.defaultGains(t), ...
+                            obj.controller.adaptation, 'UniformOutput', false);
+                    else
+                        obj.controller.Gamma = fth.sim.ConfigUtils.defaultGains(obj.controller.adaptation);
+                    end
                 end
             end
             if ~isfield(obj.controller, 'lambda') || isempty(obj.controller.lambda)
@@ -692,15 +722,46 @@ classdef Config < handle
         function obj = useAdaptationOptions(obj, opts)
             %USEADAPTATIONOPTIONS Apply adaptation settings from a struct.
             %   Recognised fields:
-            %     .type   - adaptation mode: 'none','euclidean','bregman'
-            %     .Gamma  - scalar or 10x1 adaptive gains
+            %     .type   - adaptation mode: 'none','euclidean','bregman', or cell
+            %               array of per-run mode strings for mixed-type batches
+            %     .Gamma  - scalar or 10x1 adaptive gains, or cell array of
+            %               per-run gains when .type is a cell array
             %     .dt     - adaptation timestep [s]
             %
             %   Output:
             %     obj - Config instance (for chaining).
-            if isfield(opts, 'type'),  obj.setAdaptation(opts.type);     end
-            if isfield(opts, 'Gamma'), obj.setAdaptiveGains(opts.Gamma); end
-            if isfield(opts, 'dt'),    obj.setAdaptationParams(opts.dt); end
+            if isfield(opts, 'type')
+                if iscell(opts.type)
+                    validModes = {'none', 'euclidean', 'bregman'};
+                    types = cellfun(@(t) lower(char(string(t))), opts.type(:)', 'UniformOutput', false);
+                    for i = 1:numel(types)
+                        if ~ismember(types{i}, validModes)
+                            error('fth:Config:InvalidAdaptationMode', ...
+                                'Unknown adaptation mode ''%s''.', types{i});
+                        end
+                    end
+                    obj.controller.adaptation = types;
+                else
+                    obj.setAdaptation(opts.type);
+                end
+            end
+            if isfield(opts, 'Gamma')
+                if iscell(opts.Gamma)
+                    types = {};
+                    if isfield(obj.controller, 'adaptation') && iscell(obj.controller.adaptation)
+                        types = obj.controller.adaptation;
+                    end
+                    for i = 1:numel(opts.Gamma)
+                        t = 'euclidean';
+                        if i <= numel(types), t = types{i}; end
+                        fth.sim.ConfigUtils.validateGammaShape(opts.Gamma{i}, t);
+                    end
+                    obj.controller.Gamma = opts.Gamma(:)';
+                else
+                    obj.setAdaptiveGains(opts.Gamma);
+                end
+            end
+            if isfield(opts, 'dt'), obj.setAdaptationParams(opts.dt); end
         end
 
         function obj = usePayloadOptions(obj, opts)
@@ -939,7 +1000,7 @@ classdef Config < handle
                 obj.sim.control_dt = obj.sim.dt;
             end
 
-            adaptationEnabled = isfield(obj.controller, 'adaptation') && ~strcmpi(obj.controller.adaptation, 'none');
+            adaptationEnabled = isfield(obj.controller, 'adaptation') && fth.sim.Config.isAdaptationEnabled(obj.controller.adaptation);
             if ~isfield(obj.sim, 'adaptation_dt_auto')
                 obj.sim.adaptation_dt_auto = true;
             end
@@ -1007,9 +1068,16 @@ classdef Config < handle
             cogVal  = []; if isfield(obj.payload, 'CoG'), cogVal = obj.payload.CoG; end
             dtVal   = []; if isfield(obj.payload, 'dropTime'), dtVal = obj.payload.dropTime; end
 
+            % Cell adaptation types count directly; nullify to avoid double-counting below.
+            counts = 1;
+            if iscell(adaptMode)
+                counts(end+1) = numel(adaptMode);
+                adaptMode = 'none';
+            end
+
             % Domain-aware counting for gain fields (a 6×1 Kp vector = one
             % 6-DOF config, not 6 batch rows).
-            counts = [ ...
+            counts = [ counts, ...
                 fth.sim.ConfigUtils.gainBatchCount(kpVal, 'Kp', 6), ...
                 fth.sim.ConfigUtils.gainBatchCount(kdVal, 'Kd', 6), ...
                 fth.sim.ConfigUtils.gammaBatchCount(gVal, adaptMode)];
@@ -1116,5 +1184,17 @@ classdef Config < handle
             end
         end
 
+    end
+
+    methods (Static, Access = private)
+        function enabled = isAdaptationEnabled(adaptMode)
+            %ISADAPTATIONENABLED True when adaptation is active for at least one run.
+            %   Handles both scalar string and cell array of per-run modes.
+            if iscell(adaptMode)
+                enabled = any(~strcmpi(adaptMode, 'none'));
+            else
+                enabled = ~isempty(adaptMode) && ~strcmpi(adaptMode, 'none');
+            end
+        end
     end
 end

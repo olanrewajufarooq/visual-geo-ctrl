@@ -133,7 +133,9 @@ classdef ConfigUtils
             %   Accepts both row and column vector orientations (and transposed
             %   matrices for Euclidean mode). Zero is allowed for Bregman batch
             %   entries where it signals "no adaptation for this run."
+            %   Cell Gamma is validated per-element by the caller; skip here.
             if isempty(gamma), return; end
+            if iscell(gamma), return; end
             value = gamma;
             if isempty(adaptMode), adaptMode = 'none'; end
             if strcmpi(adaptMode, 'bregman')
@@ -195,8 +197,10 @@ classdef ConfigUtils
 
         function count = gammaBatchCount(gamma, adaptMode)
             %GAMMABATCHCOUNT Return number of batch rows for an adaptive gain.
+            %   Cell Gamma: each element is one run, so count = numel(gamma).
             count = 1;
             if isempty(gamma), return; end
+            if iscell(gamma), count = numel(gamma); return; end
             fth.sim.ConfigUtils.validateGammaShape(gamma, adaptMode);
             singleWidth = 1;
             if ~strcmpi(adaptMode, 'bregman'), singleWidth = 10; end
