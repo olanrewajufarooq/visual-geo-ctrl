@@ -15,6 +15,7 @@ duration = 60;
 simOpts.dt            = 0.005;
 simOpts.duration      = duration;
 simOpts.controlDt     = 0.005;
+simOpts.scriptName    = 'nom_demo';
 simOpts.parallelRuns  = true;
 cfg.useSimOptions(simOpts);
 

@@ -16,7 +16,8 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
-simOpts.names        = {'baseline', 'low', 'mid', 'high'};
+simOpts.runNames     = {'baseline', 'low', 'mid', 'high'};
+simOpts.scriptName   = 'breg_gain_comp';
 simOpts.parallelRuns = true;
 cfg.useSimOptions(simOpts);
 

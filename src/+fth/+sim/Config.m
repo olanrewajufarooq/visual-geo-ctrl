@@ -260,9 +260,9 @@ classdef Config < handle
             N = numel(trajNames);
             batchCount = N * M;
 
-            % Build run name list (from sim.batchNames or fallback).
-            batchNames = {};
-            if isfield(obj.sim, 'batchNames'), batchNames = obj.sim.batchNames; end
+            % Build run name list (from sim.runNames or fallback).
+            runNames = {};
+            if isfield(obj.sim, 'runNames'), runNames = obj.sim.runNames; end
 
             % Build coriolisFactorization list (always returned as a cell array).
             forms = obj.getCoriolisFormBatchEntries();
@@ -274,7 +274,7 @@ classdef Config < handle
                 currentTrajName = trajNames(trajIdx);
                 for simIdx = 1:M
                     cfgCopy = obj.copy();
-                    cfgCopy.sim.batchNames = {};   % child is a single run; prevent re-expansion
+                    cfgCopy.sim.runNames = {};   % child is a single run; prevent re-expansion
 
                     % Apply trajectory.
                     if hasHoverOverride
@@ -345,9 +345,9 @@ classdef Config < handle
                         cfgCopy.controller.lambda = fth.sim.ConfigUtils.selectRow(obj.controller.lambda, simIdx);
                     end
 
-                    % Build run name: from batchNames or fallback.
-                    if ~isempty(batchNames) && simIdx <= numel(batchNames)
-                        runName = batchNames{simIdx};
+                    % Build run name: from runNames or fallback.
+                    if ~isempty(runNames) && simIdx <= numel(runNames)
+                        runName = runNames{simIdx};
                     else
                         runName = sprintf('run_%03d', simIdx);
                     end
@@ -730,7 +730,8 @@ classdef Config < handle
             %     .duration     - total run time [s] (required together with .dt)
             %     .controlDt    - controller update period [s]
             %     .adaptationDt - adaptation update period [s]
-            %     .names        - M-element cellstr of run names for batch labelling
+            %     .runNames     - M-element cellstr of run names for batch labelling
+            %     .scriptName   - short label used in the parent results folder name
             %
             %   Output:
             %     obj - Config instance (for chaining).
@@ -739,8 +740,11 @@ classdef Config < handle
             end
             if isfield(opts, 'controlDt'),    obj.setControlParams(opts.controlDt);       end
             if isfield(opts, 'adaptationDt'), obj.setAdaptationParams(opts.adaptationDt); end
-            if isfield(opts, 'names') && ~isempty(opts.names)
-                obj.sim.batchNames = fth.sim.ConfigUtils.normalizeNames(opts.names);
+            if isfield(opts, 'runNames') && ~isempty(opts.runNames)
+                obj.sim.runNames = fth.sim.ConfigUtils.normalizeNames(opts.runNames);
+            end
+            if isfield(opts, 'scriptName') && ~isempty(opts.scriptName)
+                obj.sim.scriptName = char(string(opts.scriptName));
             end
             if isfield(opts, 'parallelRuns')
                 obj.sim.parallelRuns = logical(opts.parallelRuns);
@@ -874,6 +878,7 @@ classdef Config < handle
             obj.sim.groundFriction = 0.3;
             obj.sim.minZ = obj.sim.groundHeight - 0.2;
             obj.sim.parallelRuns = false;
+            obj.sim.scriptName = '';
         end
 
         function initPayload(obj)
@@ -984,11 +989,11 @@ classdef Config < handle
 
         function M = resolveM(obj)
             %RESOLVEM Return the per-trajectory sim count (M).
-            batchNames = {};
-            if isfield(obj.sim, 'batchNames'), batchNames = obj.sim.batchNames; end
+            runNames = {};
+            if isfield(obj.sim, 'runNames'), runNames = obj.sim.runNames; end
 
-            if ~isempty(batchNames)
-                M = numel(batchNames);
+            if ~isempty(runNames)
+                M = numel(runNames);
                 return;
             end
 

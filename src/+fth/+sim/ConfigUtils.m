@@ -203,14 +203,14 @@ classdef ConfigUtils
             [~, count] = fth.sim.ConfigUtils.normalizeBatchField(gamma, singleWidth);
         end
 
-        function M = resolveSimBatchCount(batchNames, fields)
+        function M = resolveSimBatchCount(runNames, fields)
             %RESOLVESIMBATCHCOUNT Resolve the number of named simulation runs (M).
             %   Called in Phase 2 batch standardization by expandBatchConfigs.
-            %   batchNames: cell array from sim.batchNames, or {} if not set.
+            %   runNames: cell array from sim.runNames, or {} if not set.
             %   fields: cell array of batched option values (Kp, Kd, Gamma, etc.).
-            %   Returns M = numel(batchNames) if names are set, else max row count.
-            if ~isempty(batchNames)
-                M = numel(batchNames);
+            %   Returns M = numel(runNames) if names are set, else max row count.
+            if ~isempty(runNames)
+                M = numel(runNames);
                 return;
             end
             M = 1;

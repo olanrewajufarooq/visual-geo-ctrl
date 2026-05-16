@@ -16,7 +16,8 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
-simOpts.names        = {'baseline', 'base_gain', 'high_inertia', 'high_cog'};
+simOpts.runNames     = {'baseline', 'base_gain', 'high_inertia', 'high_cog'};
+simOpts.scriptName   = 'euclid_gain_comp';
 simOpts.parallelRuns = true;
 cfg.useSimOptions(simOpts);
 

@@ -16,7 +16,8 @@ duration = 60;
 simOpts.dt            = 0.005;
 simOpts.duration      = duration;
 simOpts.controlDt     = 0.005;
-simOpts.names         = {'basic', 'consistent'};
+simOpts.runNames      = {'basic', 'consistent'};
+simOpts.scriptName    = 'nom_coriolis_comp';
 simOpts.parallelRuns  = true;
 cfg.useSimOptions(simOpts);
 

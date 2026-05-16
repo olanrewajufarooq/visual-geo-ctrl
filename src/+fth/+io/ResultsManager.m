@@ -39,10 +39,17 @@ classdef ResultsManager
             %   Output:
             %     runName - string like '20260426_123456_inf3d_ff_lie'.
             timestamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
-            trajName = fth.io.NamingUtils.batchTrajectoryLabel(cfg);
-            if isBatch
+            scriptName = '';
+            if isfield(cfg.sim, 'scriptName') && ~isempty(cfg.sim.scriptName)
+                scriptName = cfg.sim.scriptName;
+            end
+            if ~isempty(scriptName)
+                runName = sprintf('%s_%s', timestamp, scriptName);
+            elseif isBatch
+                trajName = fth.io.NamingUtils.batchTrajectoryLabel(cfg);
                 runName = sprintf('%s_%s', timestamp, trajName);
             else
+                trajName = fth.io.NamingUtils.batchTrajectoryLabel(cfg);
                 ctrlType = fth.io.NamingUtils.controllerLabel(cfg);
                 potential = fth.io.NamingUtils.potentialLabel(cfg);
                 runName = sprintf('%s_%s_%s_%s', timestamp, trajName, ctrlType, potential);
