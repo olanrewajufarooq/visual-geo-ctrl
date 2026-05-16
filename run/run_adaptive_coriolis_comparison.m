@@ -55,10 +55,10 @@ payloadOpts.dropTime = 2*duration/3;
 cfg.usePayloadOptions(payloadOpts);
 
 % Visualization.
-vizOpts.enable      = true;
-vizOpts.liveSummary = true;
+vizOpts.enable      = false;
+vizOpts.liveSummary = false;
 vizOpts.updateRate  = 500;
-vizOpts.embedUrdf   = true;
+vizOpts.embedUrdf   = false;
 vizOpts.plotLayout  = 'column-major';
 cfg.useVizOptions(vizOpts);
 

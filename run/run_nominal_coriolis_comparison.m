@@ -37,8 +37,8 @@ ctrlOpts.paramInit    = 'vehicle-slight-dev';       % 'vehicle','vehicle-plus-pa
 cfg.useControllerOptions(ctrlOpts);
 
 % Visualization.
-vizOpts.enable      = true;
-vizOpts.liveSummary = true;
+vizOpts.enable      = false;
+vizOpts.liveSummary = false;
 vizOpts.updateRate  = 500;
 vizOpts.embedUrdf   = false;
 vizOpts.plotLayout  = 'column-major';

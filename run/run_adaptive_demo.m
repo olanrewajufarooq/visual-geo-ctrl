@@ -52,7 +52,7 @@ cfg.usePayloadOptions(payloadOpts);
 vizOpts.enable      = true;
 vizOpts.liveSummary = true;
 vizOpts.updateRate  = 500;
-vizOpts.embedUrdf   = true;
+vizOpts.embedUrdf   = false;
 vizOpts.plotLayout  = 'column-major';
 cfg.useVizOptions(vizOpts);
 

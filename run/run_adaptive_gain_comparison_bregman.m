@@ -48,6 +48,14 @@ payloadOpts.CoG      = [0.115; 0.05; -0.05];
 payloadOpts.dropTime = 2*duration/3;
 cfg.usePayloadOptions(payloadOpts);
 
+% Visualization.
+vizOpts.enable      = false;
+vizOpts.liveSummary = false;
+vizOpts.updateRate  = 500;
+vizOpts.embedUrdf   = false;
+vizOpts.plotLayout  = 'column-major';
+cfg.useVizOptions(vizOpts);
+
 cfg.done();
 
 % Run the simulation.
