@@ -124,7 +124,6 @@ classdef BatchRunner < handle
                         e.message, e.stack(1).name, e.stack(1).line);
                 end
                 childDirs{i} = child.resultsDir;
-                clear child
             end
 
             obj.childDirs = childDirs;
