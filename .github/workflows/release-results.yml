@@ -22,37 +22,10 @@ jobs:
 
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v3
-
-      - name: Decide run mode
-        id: mode
-        shell: bash
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-
-          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "run_nominal=true" >> "$GITHUB_OUTPUT"
-            echo "run_adaptive=true" >> "$GITHUB_OUTPUT"
-          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-nom$ ]]; then
-            echo "run_nominal=true" >> "$GITHUB_OUTPUT"
-            echo "run_adaptive=false" >> "$GITHUB_OUTPUT"
-          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-adapt$ ]]; then
-            echo "run_nominal=false" >> "$GITHUB_OUTPUT"
-            echo "run_adaptive=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Unsupported tag: $TAG"
-            echo "Use vX.X.X, vX.X.X-nom, or vX.X.X-adapt"
-            exit 1
-          fi
-
-      - name: Run nominal release simulation
-        if: steps.mode.outputs.run_nominal == 'true'
-        uses: matlab-actions/run-command@v3
         with:
-          startup-options: -softwareopengl
-          command: "set(0,'DefaultFigureVisible','off'); addpath('run'); ci_nominal_release;"
+          mhlm-credential: ${{ secrets.MATLAB_TOKEN }}
 
       - name: Run adaptive release simulation
-        if: steps.mode.outputs.run_adaptive == 'true'
         uses: matlab-actions/run-command@v3
         with:
           startup-options: -softwareopengl
