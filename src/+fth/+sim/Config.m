@@ -623,8 +623,8 @@ classdef Config < handle
 
         function obj = setLambda(obj, lambda)
             %SETLAMBDA Set the composite-variable coupling gain lambda.
-            %   lambda: scalar or 6x1 vector (diagonal of the 6x6 Lambda matrix).
-            %   Default is zeros(6,1) — Lambda = 0, so s = Ve.
+            %   lambda: scalar, 6-element vector, or N×6 (or 6×N) matrix for
+            %   batch runs (one row per run). Default is zeros(6,1) (s = Ve).
             %
             %   Output:
             %     obj - Config instance (for chaining).
@@ -633,8 +633,19 @@ classdef Config < handle
             end
             if isscalar(lambda)
                 obj.controller.lambda = lambda * ones(6,1);
+            elseif isvector(lambda)
+                obj.controller.lambda = lambda(:);   % normalize 1×6 or 6×1 to column
             else
-                obj.controller.lambda = lambda(:);
+                % Matrix: normalize to canonical N×6 (rows = runs, cols = lambda values).
+                [r, c] = size(lambda);
+                if c == 6
+                    obj.controller.lambda = lambda;    % already N×6
+                elseif r == 6
+                    obj.controller.lambda = lambda.';  % transpose 6×N → N×6
+                else
+                    error('Config:InvalidLambda', ...
+                        'Batch lambda must be N×6 or 6×N, got %d×%d.', r, c);
+                end
             end
         end
 
