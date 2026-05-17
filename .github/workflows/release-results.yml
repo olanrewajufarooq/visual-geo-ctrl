@@ -15,6 +15,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -22,8 +24,6 @@ jobs:
 
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v3
-        with:
-          mhlm-credential: ${{ secrets.MATLAB_TOKEN }}
 
       - name: Run adaptive release simulation
         uses: matlab-actions/run-command@v3
