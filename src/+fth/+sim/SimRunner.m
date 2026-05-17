@@ -49,6 +49,7 @@ classdef SimRunner < handle
         payloadDropTime
         batchRunner_
         pendingRunArgs
+        pendingCummPlotModes
         console_
         captureConsoleExternally
         executionStartedAt
@@ -81,6 +82,7 @@ classdef SimRunner < handle
             obj.batchSize = obj.resolveBatchSize();
             obj.batchRunner_ = [];
             obj.pendingRunArgs = {};
+            obj.pendingCummPlotModes = {};
             obj.captureConsoleExternally = isfield(cfg.sim, 'captureConsoleExternally') ...
                 && logical(cfg.sim.captureConsoleExternally);
             obj.console_ = fth.io.ConsoleCapture();
@@ -162,12 +164,18 @@ classdef SimRunner < handle
             %   Inputs:
             %     Supports the legacy positional run configuration followed
             %     by optional plotType, displayPlots, and saveSimData.
+            cummPlotModes = {};
+            if ~isempty(varargin) && isstruct(varargin{1}) && isfield(varargin{1}, 'cummPlotModes')
+                cummPlotModes = varargin{1}.cummPlotModes;
+            end
+
             [isAdaptive, payloadMassArg, payloadPositionArg, payloadDropTimeArg, ...
                 plotType, displayPlots, saveSimData] = obj.parseRunInputs(varargin{:});
 
             if obj.isBatchMode()
                 obj.pendingRunArgs = {isAdaptive, payloadMassArg, payloadPositionArg, payloadDropTimeArg, ...
                     plotType, displayPlots, saveSimData};
+                obj.pendingCummPlotModes = cummPlotModes;
                 obj.runBatch();
                 return;
             end
@@ -352,8 +360,10 @@ classdef SimRunner < handle
         function runBatch(obj)
             %RUNBATCH Execute all requested runs via BatchRunner.
             obj.batchRunner_ = fth.sim.BatchRunner(obj.cfg, obj.resultsDir, obj.batchSize);
+            obj.batchRunner_.cummPlotModes = obj.pendingCummPlotModes;
             obj.batchRunner_.runAll(obj.pendingRunArgs);
             obj.pendingRunArgs = {};
+            obj.pendingCummPlotModes = {};
         end
 
         function plotBatch(obj, plotType, displayPlots)
@@ -685,6 +695,11 @@ classdef SimRunner < handle
 
             metricsObj = fth.core.TrackingMetrics(logs, obj.cfg.traj.name);
             metrics = metricsObj.computeAll();
+            if isAdaptive && ~isempty(est) && isfield(est, 'regressionExcitation')
+                re = est.regressionExcitation;
+                metrics.spd.validCount   = re.spdValidCount;
+                metrics.spd.invalidCount = re.spdInvalidCount;
+            end
             metricsObj.printReport();
             fprintf('%s', fth.io.ConsoleFormatter.headline(metrics, isAdaptive));
 

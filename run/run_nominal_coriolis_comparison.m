@@ -50,7 +50,8 @@ cfg.done();
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
 
-runOpts.plotMode     = 'all';        % 'summary', 'all', or 'none'
-runOpts.displayPlots = false;
-runOpts.saveSimData  = false;
+runOpts.plotMode      = 'all';        % 'summary', 'all', or 'none'
+runOpts.displayPlots  = false;
+runOpts.saveSimData   = false;
+runOpts.cummPlotModes = {'tracking_rmse'};
 sim.run(runOpts);

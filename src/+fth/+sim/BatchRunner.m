@@ -8,6 +8,10 @@ classdef BatchRunner < handle
     %     br.runAll(runArgs);
     %     br.plotAll('summary');
 
+    properties
+        cummPlotModes = {}   % set by SimRunner before runAll(); controls cumulative plots
+    end
+
     properties (Access = private)
         cfg
         resultsDir
@@ -160,18 +164,24 @@ classdef BatchRunner < handle
             if isempty(obj.childDirs)
                 obj.childDirs = fth.io.ResultsManager.findChildResultDirs(obj.resultsDir);
             end
-            aggregateChunks = cell(numel(obj.childDirs), 1);
-            for i = 1:numel(obj.childDirs)
+            n = numel(obj.childDirs);
+            aggregateChunks = cell(n, 1);
+            metricsEntries  = cell(n, 1);
+            parentDirs      = cell(n, 1);
+            for i = 1:n
                 childDir = obj.childDirs{i};
                 metricsPath = fullfile(childDir, 'metrics.txt');
                 childLogPath = fullfile(childDir, 'command_window.txt');
                 childLog = fth.io.ResultsManager.readTextFile(childLogPath);
+                parentDirs{i} = fileparts(childDir);
                 if ~exist(metricsPath, 'file')
                     aggregateChunks{i} = sprintf('[FAILED — no metrics] %s\n%s\n', ...
                         childDir, strtrim(childLog));
+                    metricsEntries{i} = [];
                     continue;
                 end
                 metricsEntry = fth.io.ResultsManager.loadMetricsFile(childDir);
+                metricsEntries{i} = metricsEntry;
                 aggregateChunks{i} = sprintf('%s%s\n', ...
                     fth.io.ConsoleFormatter.runBanner( ...
                     metricsEntry.trajectory, metricsEntry.run_label, metricsEntry.is_adaptive), ...
@@ -184,6 +194,25 @@ classdef BatchRunner < handle
                 fth.io.ResultsManager.writeTextFile(summaryPath, fth.sim.BatchRunnerUtils.buildSummaryTable(obj.childDirs));
                 identPath = fullfile(obj.resultsDir, 'regressor_info_report.txt');
                 fth.io.ResultsManager.writeTextFile(identPath, fth.sim.BatchRunnerUtils.buildRegressorInfoReport(obj.childDirs, obj.cfg));
+            end
+            if ~isempty(obj.cummPlotModes)
+                obj.writeCumulativePlots(metricsEntries, parentDirs);
+            end
+        end
+
+        function writeCumulativePlots(obj, metricsEntries, parentDirs)
+            %WRITECUMULATIVEPLOTS Group runs by trajectory dir and generate cumulative plots.
+            validMask    = ~cellfun(@isempty, metricsEntries);
+            validEntries = metricsEntries(validMask);
+            validParents = parentDirs(validMask);
+            if isempty(validEntries), return; end
+            uniqueParents = unique(validParents, 'stable');
+            for p = 1:numel(uniqueParents)
+                pd   = uniqueParents{p};
+                mask = strcmp(validParents, pd);
+                grp  = validEntries(mask);
+                lbls = cellfun(@(m) m.run_label, grp, 'UniformOutput', false);
+                fth.plot.CumulativePlot.plot(pd, grp, lbls, obj.cummPlotModes);
             end
         end
 

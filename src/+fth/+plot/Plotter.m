@@ -404,7 +404,9 @@ classdef Plotter < handle
                 invalidPct = 100 * spdInvalidCount / total;
             end
 
-            bar(ax, {'Valid', 'Invalid'}, [validPct, invalidPct], 'BarWidth', 0.5);
+            b = bar(ax, {'Valid', 'Invalid'}, [validPct, invalidPct], 'BarWidth', 0.5);
+            b.FaceColor = 'flat';
+            b.CData = [0 0 1; 1 0 0];
             ylim(ax, [0 100]);
             ylabel(ax, 'Percentage [%]');
             title(ax, 'SPD Validity During Adaptation');

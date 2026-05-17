@@ -141,6 +141,10 @@ classdef ResultsManager
                 sprintf('inertia_rmse=%s', fth.io.ResultsManager.metricText(entry.inertia_rmse, 4)), ...
                 sprintf('inertia_nrmse=%s', fth.io.ResultsManager.metricText(entry.inertia_nrmse, 4)), ...
                 sprintf('inertia_regressor_info=%s', fth.io.ResultsManager.metricText(entry.inertia_regressor_info, 4))};
+            if isfield(metrics, 'spd')
+                lines{end+1} = sprintf('spd_valid_count=%d',   metrics.spd.validCount);
+                lines{end+1} = sprintf('spd_invalid_count=%d', metrics.spd.invalidCount);
+            end
             fth.io.ResultsManager.writeTextFile(fullfile(resultsDir, 'metrics.txt'), strjoin(lines, newline));
         end
 

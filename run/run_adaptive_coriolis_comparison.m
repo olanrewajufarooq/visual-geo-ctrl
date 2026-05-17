@@ -30,9 +30,24 @@ cfg.useTrajectoryOptions(trajOpts);
 
 % Controller and gains.
 ctrlOpts.potential    = 'inertia-gain';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
-ctrlOpts.Kp           = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
-ctrlOpts.Kd           = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
-ctrlOpts.lambda       = 1e-3 * [5, 5, 5, 50, 50, 50]; % composite-variable coupling: s = Ve + diag(lambda)*eH
+ctrlOpts.Kp           = [ ...
+                          5.5, 5.5, 5.5, 5.5, 5.5, 5.5; ... % euclid-basic
+                          5.5, 5.5, 5.5, 5.5, 5.5, 5.5; ... % euclid-consistent
+                          5.5, 5.5, 5.5, 5.5, 5.5, 5.5; ... % bregman-basic
+                          5.5, 5.5, 5.5, 5.5, 5.5, 5.5; ... % bregman-consistent
+                        ];
+ctrlOpts.Kd           = [ ...
+                          2.05, 2.05, 2.05, 2.05, 2.05, 2.05; ... % euclid-basic
+                          2.05, 2.05, 2.05, 2.05, 2.05, 2.05; ... % euclid-consistent
+                          2.05, 2.05, 2.05, 2.05, 2.05, 2.05; ... % bregman-basic
+                          2.05, 2.05, 2.05, 2.05, 2.05, 2.05; ... % bregman-consistent
+                        ];
+ctrlOpts.lambda       = 1e-3 * [ ...
+                          5, 5, 5, 50, 50, 50; ...      % euclid-basic
+                          5, 5, 5, 50, 50, 50; ...      % euclid-consistent
+                          50, 50, 50, 50, 50, 50; ...   % bregman-basic
+                          50, 50, 50, 50, 50, 50; ...   % bregman-consistent
+                        ]; % composite-variable coupling: s = Ve + diag(lambda)*eH
 
 ctrlOpts.paramInit    = 'mid-vehicle-payload';       % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
 ctrlOpts.coriolisForm = {'basic', 'consistent', 'basic', 'consistent'};    % cell array triggers one batch run per form
@@ -69,7 +84,8 @@ cfg.done();
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
 
-runOpts.plotMode     = 'all';   % 'summary', 'all', or 'none'
-runOpts.displayPlots = false;
-runOpts.saveSimData  = false;
+runOpts.plotMode      = 'all';   % 'summary', 'all', or 'none'
+runOpts.displayPlots  = false;
+runOpts.saveSimData   = false;
+runOpts.cummPlotModes = {'spd', 'tracking_rmse', 'estimation_nrmse'};
 sim.run(runOpts);
