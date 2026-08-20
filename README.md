@@ -6,9 +6,7 @@ MATLAB framework for simulating and analyzing fully actuated hexacopter dynamics
 
 ```matlab
 startup
-run_nominal_demo
-run_adaptive_demo
-run_adaptive_gain_comparison
+run_adaptive_reproduce
 ```
 
 ## Installation
@@ -25,33 +23,9 @@ startup
 
 The root `startup.m` adds the repository root plus `src/` and `run/` to the active MATLAB path for the current session.
 
-For automated or headless reproduction runs, use the dedicated batch entry point in `run/ci_release.m`.
-
-## Feature Highlights
-
-- SE(3) rigid-body hexacopter dynamics with optional ground-contact handling
-- Multiple built-in trajectories including hover, circle, infinity, helix, and Lissajous paths
-- PD, feedforward, and feedback-linearized wrench control workflows
-- Euclidean and Bregman adaptive estimation for payload and inertia variation
-- Batch runs across trajectories, gains, and controller configurations
-- Live plotting, URDF-backed visualization, and saved summary figures
-- CI-oriented release script and GitHub Actions automation
-
 ## Documentation
 
-Detailed architecture, configuration, workflow, and extension guidance now lives under `docs/`.
-
-- [Documentation Hub](docs/README.md)
-- [Getting Started](docs/getting-started.md)
-- [Configuration](docs/configuration.md)
-- [Batch Simulations](docs/batch-simulations.md)
-- [Features](docs/features.md)
-- [Project Structure](docs/project-structure.md)
-- [Simulation Outputs](docs/simulation-outputs.md)
-- [CI/CD](docs/cicd.md)
-- [Customization](docs/customization.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Coding Conventions](docs/coding-conventions.md)
+Full architecture, configuration, and workflow details live under [docs/](docs/README.md).
 
 ## Citations
 

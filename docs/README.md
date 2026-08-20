@@ -26,8 +26,9 @@ This directory holds the detailed project documentation that used to live in the
 ## Core Entry Points
 
 - `startup` adds `src/` and `run/` to the MATLAB path.
+- `run_adaptive_reproduce` short reproduction of the paper's adaptive result (start here).
 - `run_nominal_demo` runs a baseline controller example.
-- `run_adaptive_demo` runs an adaptive payload-drop example.
+- `run_adaptive_demo` runs a longer adaptive payload-drop example.
 - `run_adaptive_gain_comparison` runs batch Euclidean and Bregman gain sweeps.
 - `ci_release` runs the batch scenario used by the release workflow.
 
