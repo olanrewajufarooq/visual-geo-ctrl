@@ -1,137 +1,17 @@
-# Adaptive Control MATLAB Simulation Framework
+# Adaptive Geo Control
 
-A comprehensive MATLAB framework for simulating, controlling, and analyzing rigid-body hexacopter dynamics with advanced trajectory planning, multiple controller options, and geometric adaptive control capabilities.
-
-## Table of Contents
-
-- [Adaptive Control MATLAB Simulation Framework](#adaptive-control-matlab-simulation-framework)
-  - [Table of Contents](#table-of-contents)
-  - [Project Overview](#project-overview)
-  - [Quick Start](#quick-start)
-  - [Architecture](#architecture)
-  - [Architecture](#architecture-1)
-  - [Getting Started](#getting-started)
-    - [Prerequisites](#prerequisites)
-    - [Installation](#installation)
-    - [Running Demos](#running-demos)
-    - [Paper Result Reproduction](#paper-result-reproduction)
-  - [Configuration Guide](#configuration-guide)
-    - [Basic Configuration](#basic-configuration)
-    - [Adaptive Payload-Drop Example](#adaptive-payload-drop-example)
-    - [Configuration Reference](#configuration-reference)
-  - [Batch Simulations](#batch-simulations)
-  - [Features](#features)
-    - [Dynamics Engine](#dynamics-engine)
-    - [Trajectory Generation](#trajectory-generation)
-    - [Controller Options](#controller-options)
-    - [Visualization](#visualization)
-  - [Project Structure](#project-structure)
-  - [Simulation Outputs](#simulation-outputs)
-    - [Single-Run Results](#single-run-results)
-    - [Batch Results](#batch-results)
-    - [Summary Plots](#summary-plots)
-    - [Standalone Replotting](#standalone-replotting)
-  - [CI/CD: Release Automation](#cicd-release-automation)
-  - [Customization](#customization)
-    - [Adding New Controllers](#adding-new-controllers)
-    - [Custom Trajectories](#custom-trajectories)
-    - [Visualization Customization](#visualization-customization)
-  - [Troubleshooting](#troubleshooting)
-    - [Common Issues](#common-issues)
-      - [MATLAB Path Issues](#matlab-path-issues)
-      - [Visualization Problems](#visualization-problems)
-      - [Simulation Stability](#simulation-stability)
-    - [Performance Optimization](#performance-optimization)
-  - [License](#license)
-  - [Contributing](#contributing)
-    - [Development Setup](#development-setup)
-  - [Support](#support)
-  - [Citations](#citations)
-    - [Geometrically-Consistent Adaptive Control on SE(3) for Fully-Actuated Aerial Vehicles](#geometrically-consistent-adaptive-control-on-se3-for-fully-actuated-aerial-vehicles)
-  - [Coding Conventions](#coding-conventions)
-
----
-
-## Project Overview
-
-This project implements and validates adaptive geometric controllers for a fully-actuated
-fixed-tilt hexacopter. All dynamics use the Euler-Poincaré formulation on SE(3) (body-frame
-rigid-body dynamics), and adaptation uses a regressor-based law that estimates the 10-parameter
-inertial vector online.
-
-The framework is designed for controller research: rapid iteration in MATLAB, reproducible
-batch sweeps, and paper-quality result generation.
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
+MATLAB framework for simulating and analyzing fully actuated hexacopter dynamics on SE(3), with geometric controllers, online inertial adaptation, batch experiments, and result-generation utilities for research workflows.
 
 ## Quick Start
 
 ```matlab
-% Setup (run once per MATLAB session)
 startup
-
-% Nominal control demo
 run_nominal_demo
-
-% Adaptive control demo (with payload drop)
 run_adaptive_demo
-
-% Batch paper results (multi-trajectory, multi-gain)
-ci_release
+run_adaptive_gain_comparison
 ```
 
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## Architecture
-
-- **Advanced Dynamics**: SE(3) rigid-body dynamics with optional ground contact modeling
-- **Trajectory Generation**: Multiple predefined trajectories (hover, circle, infinity, Lissajous, helix, etc.)
-- **Controller Suite**: PD, feedback linearization, feedforward controllers with adaptive capabilities
-- **Parameter Adaptation**: Real-time estimation of mass, center of gravity, and inertia properties
-- **Batch Simulations**: Multi-trajectory and multi-gain sweep runs with automated reporting
-- **Visualization**: Live 3D visualization with URDF support or fallback stick model (live view has known rendering issues)
-- **Analysis Tools**: Comprehensive logging, summary plots, and tracking metrics
-- **CI/CD**: Tag-driven GitHub Actions pipeline for automated paper result reproduction
-
-> **Note**: This framework simulates a fixed-tilt hexacopter with variable allocation capabilities for fully-actuated flight.
-
-## Architecture
-
-The simulation pipeline flows through four main stages:
-
-```
-Config  -->  SimRunner.setup()  -->  SimRunner.run()
-```
-
-**Key classes and their roles:**
-
-| Class | Package | Role |
-|-------|---------|------|
-| `Config` | `fth.sim` | Fluent configuration builder — vehicle, sim, trajectory, controller, viz, payload |
-| `SimRunner` | `fth.sim` | Orchestrates setup, simulation loop, logging, batch execution, and results persistence |
-| `Dynamics` | `fth.core` | SE(3) rigid-body dynamics integrator with ground contact |
-| `ControllerWrench` | `fth.ctrl` | Computes body wrench using PD / FeedLin / Feedforward modes |
-| `AnalyticTraj` | `fth.traj` | Analytical trajectory generator (7 built-in types) |
-| `EuclideanAdaptation` | `fth.ctrl.adapt` | Euclidean gradient adaptation of 10-parameter inertial regressor |
-| `BregmanDivAdaptation` | `fth.ctrl.adapt` | Riemannian adaptation on the SPD pseudo-inertia manifold |
-| `Plotter` | `fth.plot` | Live updating and summary figure generation |
-| `UrdfViewer` | `fth.plot` | 3D URDF visualization with stick-model fallback |
-| `TrackingMetrics` | `fth.core` | Position, orientation, and parameter estimation error analysis |
-| `Logger` | `fth.core` | Structured time-series data collection |
-
-**Design patterns**: Factory pattern (trajectories, adaptation, potentials), abstract base classes, fluent builder (Config), handle semantics.
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## Getting Started
-
-### Prerequisites
-
-- **MATLAB**: R2020b or later recommended
-- **Robotics System Toolbox**: Optional, for URDF visualization
-- **System Requirements**: Standard MATLAB installation with sufficient memory for 3D visualization
-
-### Installation
+## Installation
 
 ```bash
 git clone https://github.com/kfupm-arm-lab/adaptive-geo-ctrl.git
@@ -139,512 +19,43 @@ cd adaptive-geo-ctrl
 ```
 
 ```matlab
-% From MATLAB: change into the repo folder and add paths
-cd 'path/to/adaptive-geo-ctrl'
+cd('path/to/adaptive-geo-ctrl')
 startup
 ```
 
-### Running Demos
-
-```matlab
-% Quick nominal simulation
-run_nominal_demo
-
-% Adaptive simulation with payload drop
-run_adaptive_demo
-```
-
-### Paper Result Reproduction
-
-```matlab
-% Multi-trajectory, multi-gain batch run for paper results
-ci_release
-```
-
-## Configuration Guide
-
-The main entry point is `fth.sim.Config` (a fluent configuration object). Configure what you need, then call `cfg.done()` to finalize time steps and trajectory timing.
-
-### Basic Configuration
-
-```matlab
-startup
-
-cfg = fth.sim.Config();
-
-% Trajectory
-cfg.setTrajectory('lissajous3d', 1.2);        % name, cycles
-
-% Controller
-cfg.setController('Feedforward');             % 'PD' | 'Feedforward' | 'FeedLin'
-
-% Timing
-cfg.setSimParams(0.005, 30);                  % sim_dt, duration (s)
-
-cfg.done();
-```
-
-### Adaptive Payload-Drop Example
-
-```matlab
-startup
-
-duration = 30;
-cfg = fth.sim.Config();
-
-cfg.setTrajectory('lissajous3d', 1.25);
-
-cfg.setController('Feedforward');
-cfg.setPotentialType('inertia-gain');
-cfg.setAdaptation('euclidean');
-
-cfg.setSimParams(0.005, duration);
-cfg.setAdaptationParams(0.005);
-cfg.setControlParams(0.01);
-
-cfg.setPayloadScenario(1.5, [0.115; 0.05; -0.05], 2*duration/3);
-cfg.setPayloadDims([0.20, 0.20, 0.10]);   % optional: box [L, B, H] for rotational inertia
-cfg.setParamInit('random');
-
-cfg.done();
-```
-
-### Configuration Reference
-
-```matlab
-% Trajectory
-cfg.setTrajectory('lissajous3d', 1.2);        % name, cycles
-cfg.setTrajectory('circle', 1, false);         % name, cycles, goToHoverBeforePathStarts
-
-% Controller
-cfg.setController('Feedforward');             % 'PD' | 'Feedforward' | 'FeedLin'
-cfg.setPotentialType('inertia-gain');         % 'log' | 'inertia-gain' | 'body-gain' | 'ref-gain' | 'sym-inv'
-cfg.setAdaptation('none');                    % 'none' | 'euclidean' | 'bregman'
-
-% Timing
-cfg.setSimParams(0.005, 30);                  % sim_dt, duration (s)
-cfg.setControlParams(0.005);                  % control_dt (s)
-cfg.setAdaptationParams(0.005);               % adaptation_dt (s)
-
-% Enabling Live Visualization
-cfg.enableLiveView(true);
-cfg.setLiveSummary(true);
-cfg.setLiveUpdateRate(100);                   % update every N control steps
-cfg.setLiveUrdfEmbedding(false);
-cfg.setPlotLayout('column-major');            % 'row-major' | 'column-major'
-
-% Tuning Gains
-cfg.setKpGains([5.5 5.5 5.5 5.5 5.5 5.5]);     % 6x1 proportional gain vector
-cfg.setKdGains([2.05 2.05 2.05 2.05 2.05 2.05]); % 6x1 derivative gain vector
-cfg.setAdaptiveGains(4e-3 * [20 20 30 1 1 1 90 30 30 60]); % Euclidean: scalar, 10x1, or Nx10; Bregman: scalar
-cfg.setLambda(1e-1 * [5, 5, 5, 2, 2, 2]);              % composite variable: s = Ve + diag(lambda)*eH
-
-% Parameter Initialization (adaptive runs)
-cfg.setParamInit('mid-vehicle-payload');
-% Modes: 'vehicle' | 'vehicle-plus-payload' | 'mid-vehicle-payload'
-%        'vehicle-plus-payload-higher' | 'vehicle-slight-dev' | 'random'
-%        or a custom 10×1 theta vector
-
-% Payload
-cfg.setPayloadScenario(1.5, [0.115; 0.05; -0.05], 20);   % mass [kg], position [m], dropTime [s]
-cfg.setPayloadDims([0.20, 0.20, 0.10]);                    % optional: box [L, B, H] in meters
-cfg.setParamInit('vehicle');
-```
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## Batch Simulations
-
-Batch mode runs multiple trajectories and/or multiple gain configurations in a single call. Pass a cell array of trajectory names and a matrix of Euclidean adaptive gains (one row per run). For Bregman adaptation, use a scalar gamma for a single run or an Nx1 column of scalar gamma values for gain batches:
-
-```matlab
-cfg = fth.sim.Config();
-
-% Multiple trajectories — each is run with every gain row
-cfg.setTrajectory( ...
-    {'circle', 'infinity', 'lissajous3d', 'helix3d', 'poly3d'}, ...
-    2.25, true);
-
-% Multiple gain configurations — one row per run per trajectory
-cfg.setAdaptiveGains(1e-2 * [ ...
-    0,   0,   0,   0,   0,   0,  0,   0,   0,   0; ...   % baseline (no adaptation)
-    8,   8,  12, 0.4, 0.4, 0.4, 36,  12,  12,  12; ...   % moderate gains
-    8,   8,  12, 0.4, 0.4, 0.4, 36, 120, 120, 120]);     % high CoG gains
-
-cfg.setAdaptation('euclidean');
-cfg.setController('Feedforward');
-cfg.setSimParams(0.005, 60);
-cfg.done();
-
-sim = fth.sim.SimRunner(cfg);
-sim.setup();
-sim.run('all', false, false);
-```
-
-This produces `5 trajectories x 3 gain rows = 15 runs`, each saved in its own subdirectory under `results/adaptive/<timestamp>_multi_traj/`.
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## Features
-
-### Dynamics Engine
-
-- **SE(3) Rigid-Body Dynamics**: Full 6-DOF motion on the SE(3) manifold via Euler-Poincare equations
-- **Ground Contact**: Optional spring-damper-friction ground interaction modeling
-
-### Trajectory Generation
-
-| Trajectory | Description |
-|-----------|-------------|
-| `hover` | Stationary position maintenance |
-| `circle` | Circular path following |
-
-| `lissajous3d` | Complex 3D Lissajous patterns |
-| `helix3d` | Helical spiral motion |
-| `poly3d` | Polynomial trajectory |
-| `takeoffland` | Takeoff and landing maneuver |
-
-### Controller Options
-
-- **PD Controller**: Proportional-Derivative control with potential-based error
-- **Feedforward Controller**: Full state feedforward with Coriolis and inertia compensation
-- **FeedLin**: Nonlinear feedback linearization with Coriolis compensation
-- **Adaptive Controllers**: Real-time parameter estimation (Euclidean and Bregman (Riemannian) adaptation)
-- **Coriolis Factorization**: Two forms selectable via `cfg.setCoriolisFactorizationForm(form)`:
-  - `'basic'` — standard Coriolis matrix (default)
-  - `'consistent'` — geometrically-consistent formulation matching the SE(3) dynamics structure
-
-### Visualization
-
-- **URDF Support**: Advanced 3D visualization with Robotics System Toolbox
-- **Fallback Model**: Lightweight stick model when URDF unavailable
-- **Live Updates**: Real-time state visualization during simulation (has known rendering issues)
-- **Summary Plots**: Comprehensive post-simulation analysis figures
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## Run Scripts
-
-All entry-point scripts live in `run/`. Run them from MATLAB after calling `startup`.
-
-| Script | Purpose |
-|--------|---------|
-| `run_nominal_demo.m` | Baseline control (no adaptation), inertia-gain potential, live visualization |
-| `run_adaptive_demo.m` | Bregman adaptive control with a mid-flight payload drop event |
-| `run_adaptive_coriolis_comparison.m` | Compare basic vs consistent Coriolis factorization (adaptive) |
-| `run_nominal_coriolis_comparison.m` | Compare basic vs consistent Coriolis factorization (nominal) |
-| `run_adaptive_gain_comparison_euclidean.m` | Batch sweep: 4 trajectories × 4 Euclidean gain configurations |
-| `run_adaptive_gain_comparison_bregman.m` | Batch sweep: 4 trajectories × 4 Bregman gamma values |
-| `ci_release.m` | Multi-trajectory, multi-gain batch — paper result reproduction |
-| `plot_trajectories.m` | Plot reference trajectories without running a simulation |
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## Project Structure
-
-```
-adaptive-geo-ctrl/
-├── src/                              # Core framework source code
-│   └── +fth/                          # Main package namespace
-│       ├── +core/                    # Dynamics, Logging, Metrics
-│       │   ├── Dynamics.m            % SE(3) rigid-body plant
-│       │   ├── Logger.m              % Time-series data collection
-│       │   └── TrackingMetrics.m     % Error analysis
-│       ├── +ctrl/                    % Controllers
-│       │   ├── ControllerWrench.m    % Wrench-level controller
-│       │   ├── ControllerFactory.m   % Factory for controller creation
-│       │   ├── RigidBodyRegressor.m  % Regressor matrix Y for adaptive laws
-│       │   ├── +adapt/              % Adaptation strategies
-│       │   │   ├── AdaptationBase.m
-│       │   │   ├── AdaptationFactory.m
-│       │   │   ├── AdaptationUtils.m
-│       │   │   ├── EuclideanAdaptation.m
-│       │   │   ├── BregmanDivAdaptation.m
-│       │   │   └── NoAdaptation.m
-│       │   ├── +coriolis/           % Coriolis factorization strategies
-│       │   │   ├── CoriolisFactorBase.m
-│       │   │   ├── CoriolisFactorFactory.m
-│       │   │   ├── basicCoriolisFactor.m
-│       │   │   └── consistentCoriolisFactor.m
-│       │   └── +potential/          % Potential functions (5 types)
-│       │       ├── PotentialBase.m
-│       │       └── PotentialFactory.m
-│       ├── +io/                     % Input/Output
-│       │   ├── ConsoleCapture.m
-│       │   ├── ConsoleFormatter.m
-│       │   ├── NamingUtils.m
-│       │   └── ResultsManager.m
-│       ├── +plot/                    % Visualization
-│       │   ├── Plotter.m
-│       │   ├── TrajPlotter.m
-│       │   ├── UrdfViewer.m
-│       │   └── defaultAxisLimits.m
-│       ├── +se3/                     % SE(3) Lie group utilities
-│       │   ├── Ad.m, Ad_inv.m        % Adjoint operators
-│       │   ├── adV.m                 % Lie bracket
-│       │   ├── expSE3.m, logSE3.m   % Exponential / logarithmic maps
-│       │   ├── hat3.m, vee3.m       % so(3) isomorphisms
-│       │   ├── hat6.m, vee6.m       % se(3) isomorphisms
-│       │   └── invSE3.m             % SE(3) inverse
-│       ├── +sim/                     % Simulation
-│       │   ├── Config.m              % Fluent configuration builder
-│       │   ├── ConfigUtils.m         % Static helpers for Config
-│       │   ├── SimRunner.m           % Main simulation orchestrator
-│       │   ├── SimRunnerUtils.m      % Helpers for SimRunner
-│       │   ├── BatchRunner.m         % Batch execution orchestrator
-│       │   └── BatchRunnerUtils.m    % Batch report and table helpers
-│       ├── +traj/                    % Trajectory generators
-│       │   ├── TrajectoryBase.m
-│       │   ├── TrajectoryFactory.m
-│       │   ├── AnalyticTraj.m        % Analytical trajectory generator
-│       │   └── TimeScaling.m         % Smooth motion profiles
-│       └── +utils/                   % Utility functions
-│           ├── baseParams.m, addPayload.m
-│           ├── rotm2rpy.m, rpy2rotm.m
-│           ├── getGeneralizedInertia.m, inertiaFromParams.m
-│           └── cleanNearZero.m
-├── run/                              # Demo and CI entry-point scripts
-│   ├── run_nominal_demo.m
-│   ├── run_adaptive_demo.m
-│   ├── run_adaptive_coriolis_comparison.m
-│   ├── run_nominal_coriolis_comparison.m
-│   ├── run_adaptive_gain_comparison_euclidean.m
-│   ├── run_adaptive_gain_comparison_bregman.m
-│   ├── ci_release.m
-│   ├── plot_trajectories.m
-│   └── startup.m
-├── assets/                           # Robot model assets
-│   └── hexacopter_description/
-│       └── urdf/
-│           └── variable_tilt_hexacopter.urdf
-├── results/                          # Simulation outputs (git-ignored)
-├── .github/workflows/                % CI/CD pipeline
-│   └── release-results.yml
-├── startup.m                         % Environment path initialization
-├── LICENSE                           % MIT License
-└── README.md
-```
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## Simulation Outputs
-
-### Single-Run Results
-
-Results are saved automatically under `results/`, split by nominal vs adaptive runs:
-
-```
-results/
-├── nominal/
-│   └── yyyymmdd_HHMMSS_<traj>_<ctrl>_<potential>/
-│       ├── command_window.txt
-│       ├── metrics.txt
-│       ├── summary_nominal.png
-│       └── sim_data.mat            % only if saveSimData=true
-└── adaptive/
-    └── yyyymmdd_HHMMSS_<traj>_<ctrl>_<potential>/
-        ├── command_window.txt
-        ├── metrics.txt
-        ├── summary_adaptive.png
-        ├── stack_estimation.png    % if plotType='all'
-        └── sim_data.mat            % only if saveSimData=true
-```
-
-`metrics.txt` and `command_window.txt` are always written. `sim_data.mat` is optional and only written when `saveSimData=true`; it contains `logs`, `metrics`, `runInfo`, `cfgSnapshot`, and `est` for adaptive runs.
-
-### Batch Results
-
-Batch runs produce a nested directory structure:
-
-```
-results/adaptive/
-└── yyyymmdd_HHMMSS_multi_traj/
-    ├── adaptive_report.txt           # Aggregated batch summary
-    ├── command_window.txt            # Aggregated console logs
-    ├── t01_circle/
-    │   ├── run_001/
-    │   │   ├── command_window.txt
-    │   │   ├── metrics.txt
-    │   │   ├── summary_adaptive.png  % or summary_nominal.png
-    │   │   └── sim_data.mat          % only if saveSimData=true
-    │   ├── run_002/
-    │   └── ...
-    ├── t02_infinity/
-    ├── t03_liss3d/
-    └── ...
-```
-
-### Summary Plots
-
-Passing `plotType='summary'` into `sim.run(...)` generates a single summary figure:
-
-- **3D Path**: desired vs actual
-- **XY Path**: top-down view
-- **Altitude**: z vs time
-- **Position + Orientation**: stacked time-series
-- **Linear + Angular Velocity**: stacked time-series
-- **Force + Torque (Wrench)**: stacked time-series
-
-For adaptive runs, the summary also includes:
-
-- **Mass + CoG Estimates**
-- **Principal Inertia Estimates**
-- **Off-Diagonal Inertia Estimates**
-
-Passing `plotType='all'` into `sim.run(...)` additionally saves standalone and stacked figures (PNG) into the same results folder.
-
-### Standalone Replotting
-
-If a run was executed with `saveSimData=true`, you can later regenerate plots directly from the saved data:
-
-```matlab
-fth.io.ResultsManager.plotSavedRun( ...
-    'results/adaptive/yyyymmdd_HHMMSS_circle_ff_lie', ...
-    'summary', ...
-    false);
-
-fth.io.ResultsManager.plotSavedRun( ...
-    'results/adaptive/yyyymmdd_HHMMSS_circle_ff_lie/sim_data.mat', ...
-    'all', ...
-    true);
-```
-
-This standalone plotter requires `sim_data.mat`; it will error if the original run used `saveSimData=false`.
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## CI/CD: Release Automation
-
-The repository includes a GitHub Actions workflow (`.github/workflows/release-results.yml`) that automatically runs simulations and publishes results when you push a version tag.
-
-**Tag patterns:**
-
-| Tag | Runs |
-|-----|------|
-| `vX.X.X` | Both nominal and adaptive simulations |
-| `vX.X.X-nom` | Nominal simulations only |
-| `vX.X.X-adapt` | Adaptive simulations only |
-
-**Pipeline steps:**
-1. Checks out repository and sets up MATLAB
-2. Runs `ci_nominal_release` and/or `ci_release` (headless, off-screen rendering)
-3. Aggregates command-window logs into release notes
-4. Packages results as a `.zip` and creates a GitHub Release
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## Customization
-
-### Adding New Controllers
-
-1. Add a new controller type string to `src/+fth/+sim/Config.m` validation in `setController(...)`
-2. Implement the new control law in `src/+fth/+ctrl/ControllerWrench.m` (add a new `case`)
-3. Run a demo with `sim.run('summary', false, false)`
-
-### Custom Trajectories
-
-1. Create a new trajectory class under `src/+fth/+traj/` (subclass `fth.traj.TrajectoryBase`)
-2. Register it in `src/+fth/+traj/TrajectoryFactory.m`
-3. Add the name to `src/+fth/+sim/Config.m` validation in `setTrajectory(...)`
-
-### Visualization Customization
-
-```matlab
-cfg.enableLiveView(true);
-cfg.setLiveSummary(true);
-cfg.setLiveUpdateRate(200);           % update every N control steps
-cfg.setLiveUrdfEmbedding(true);       % reserve an axes slot for URDF viewer
-cfg.setPlotLayout('row-major');       % 'row-major' | 'column-major'
-
-% Optional (advanced): tweak axis behavior directly
-cfg.viz.dynamicAxis = true;
-cfg.viz.axisPadding = 2.0;
-```
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## Troubleshooting
-
-### Common Issues
-
-#### MATLAB Path Issues
-
-```matlab
-% Ensure all paths are added
-startup
-
-% Verify package structure
-which fth.sim.SimRunner
-```
-
-#### Visualization Problems
-
-- **URDF Not Found**: Fallback to stick model automatically
-- **Graphics Performance**: Increase live update interval, disable URDF embedding, or disable live view
-- **3D Rendering Issues**: Check MATLAB graphics drivers. Live view has known rendering issues.
-
-#### Simulation Stability
-
-- **Large Time Steps**: Reduce timestep for stiff systems
-- **Numerical Issues**: Check initial conditions and parameter values
-- **Integration Errors**: Verify ODE solver settings
-
-### Performance Optimization
-
-```matlab
-% Optimize for speed
-cfg.setSimParams(0.02, 15);           % Larger timestep, shorter duration
-cfg.enableLiveView(false);            % Disable live visualization
-
-% Or keep live view but reduce update load
-cfg.setLiveUrdfEmbedding(false);
-cfg.setLiveUpdateRate(500);
-```
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## Contributing
-
-Contributions are welcome! Please follow these guidelines:
-
-1. **Fork** the repository
-2. **Create** a feature branch
-3. **Document** changes in the README
-4. **Submit** a pull request
-
-### Development Setup
-
-```matlab
-% Add repo paths
-startup
-
-% Run a demo
-run_nominal_demo
-```
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
-
-## Support
-
-For questions and support:
-
-- **Issues**: [GitHub Issues](https://github.com/kfupm-arm-lab/adaptive-geo-ctrl/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/kfupm-arm-lab/adaptive-geo-ctrl/discussions)
-- **Email**: <g202404900@kfupm.edu.sa>, <olanrewajufarooq@yahoo.com>
-
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
+The root `startup.m` adds the repository root plus `src/` and `run/` to the active MATLAB path for the current session.
+
+For automated or headless reproduction runs, use the dedicated batch entry point in `run/ci_release.m`.
+
+## Feature Highlights
+
+- SE(3) rigid-body hexacopter dynamics with optional ground-contact handling
+- Multiple built-in trajectories including hover, circle, infinity, helix, and Lissajous paths
+- PD, feedforward, and feedback-linearized wrench control workflows
+- Euclidean and Bregman adaptive estimation for payload and inertia variation
+- Batch runs across trajectories, gains, and controller configurations
+- Live plotting, URDF-backed visualization, and saved summary figures
+- CI-oriented release script and GitHub Actions automation
+
+## Documentation
+
+Detailed architecture, configuration, workflow, and extension guidance now lives under `docs/`.
+
+- [Documentation Hub](docs/README.md)
+- [Getting Started](docs/getting-started.md)
+- [Configuration](docs/configuration.md)
+- [Batch Simulations](docs/batch-simulations.md)
+- [Features](docs/features.md)
+- [Project Structure](docs/project-structure.md)
+- [Simulation Outputs](docs/simulation-outputs.md)
+- [CI/CD](docs/cicd.md)
+- [Customization](docs/customization.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Coding Conventions](docs/coding-conventions.md)
 
 ## Citations
 
-If you use this framework in your research, please cite our paper:
-
-### Geometrically-Consistent Adaptive Control on SE(3) for Fully-Actuated Aerial Vehicles
+If you use this framework in research, cite:
 
 ```bibtex
 @misc{olanrewaju_geometrically_consistent_adaptive_control,
@@ -654,9 +65,16 @@ If you use this framework in your research, please cite our paper:
 }
 ```
 
-<p align="right"><a href="#table-of-contents">Back to Table of Contents</a></p>
+## License
 
-## Coding Conventions
+Released under the MIT License. See [LICENSE](LICENSE).
 
-- **Namespace:** `fth.<package>.<Class>` (e.g. `fth.sim.SimRunner`, `fth.se3.expSE3(...)`)
-- **Commit style:** Conventional Commits (`feat`, `fix`, `refactor`, `test`, `chore`) with scope.
+## Contributing
+
+Contributions are welcome. Start from [docs/getting-started.md](docs/getting-started.md), follow the [coding conventions](docs/coding-conventions.md), and open a pull request with focused changes.
+
+## Support
+
+- Issues: <https://github.com/kfupm-arm-lab/adaptive-geo-ctrl/issues>
+- Discussions: <https://github.com/kfupm-arm-lab/adaptive-geo-ctrl/discussions>
+- Email: <g202404900@kfupm.edu.sa>, <olanrewajufarooq@yahoo.com>
