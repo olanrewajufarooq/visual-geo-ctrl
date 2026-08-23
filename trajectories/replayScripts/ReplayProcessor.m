@@ -17,7 +17,7 @@ classdef ReplayProcessor
             for i = 1:numel(ids)
                 id = ids{i};
                 entry = manifest.(id);
-                rawPath = fullfile(rootDir, char(string(entry.source_file)));
+                rawPath = ReplayProcessor.resolveSourcePath(rootDir, entry.source_file);
                 outPath = fullfile(rootDir, char(string(entry.artifact_file)));
                 fprintf('[replay %d/%d] %s\n', i, numel(ids), id);
                 fprintf('  source: %s\n', rawPath);
@@ -116,6 +116,18 @@ classdef ReplayProcessor
             end
             raw = fileread(manifestPath);
             manifest = jsondecode(raw);
+        end
+
+        function rawPath = resolveSourcePath(rootDir, sourceFile)
+            % Resolve sources relative to processed/ first, then trajectories/.
+            sourceFile = char(string(sourceFile));
+            rawPath = fullfile(rootDir, sourceFile);
+            if isfile(rawPath)
+                return;
+            end
+
+            trajectoriesRoot = fileparts(rootDir);
+            rawPath = fullfile(trajectoriesRoot, sourceFile);
         end
 
         function traj = processSingle(rawPath, replayId, entry)
