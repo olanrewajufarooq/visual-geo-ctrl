@@ -92,7 +92,7 @@ cfg.done();
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
 
-runOpts.plotMode      = 'summary';   % 'summary', 'all', or 'none'
+runOpts.plotMode      = 'all';   % 'summary', 'all', or 'none'
 runOpts.displayPlots  = false;
 runOpts.saveSimData   = false;
 runOpts.cummPlotModes = {'spd', 'tracking_rmse', 'estimation_nrmse'};

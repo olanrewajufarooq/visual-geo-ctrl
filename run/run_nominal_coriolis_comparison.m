@@ -31,7 +31,7 @@ cfg.useSimOptions(simOpts);
 
 % Replay Trajectory Options
 trajOpts.name                      = 'replay';
-trajOpts.replay.id                 = 'RATM_01_auto';
+trajOpts.replay.id                 = 'ellipse_01_auto';
 cfg.useTrajectoryOptions(trajOpts);
 
 %% Controller and gains.

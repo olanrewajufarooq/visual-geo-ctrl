@@ -29,7 +29,7 @@ cfg.useSimOptions(simOpts);
 
 % Replay Trajectory Options
 trajOpts.name                      = 'replay';
-trajOpts.replay.id                 = 'RATM_01_auto';
+trajOpts.replay.id                 = 'ellipse_01_auto';
 cfg.useTrajectoryOptions(trajOpts);
 
 %% Controller and gains.
@@ -56,7 +56,7 @@ cfg.done();
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
 
-runOpts.plotMode     = 'summary';   % 'summary', 'all', or 'none'
+runOpts.plotMode     = 'all';   % 'summary', 'all', or 'none'
 runOpts.displayPlots = false;
 runOpts.saveSimData  = false;
 sim.run(runOpts);

@@ -64,7 +64,7 @@ cfg.done();
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
 
-runOpts.plotMode     = 'summary';
+runOpts.plotMode     = 'all';
 runOpts.displayPlots = false;
 runOpts.saveSimData  = false;
 sim.run(runOpts);
