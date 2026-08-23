@@ -174,8 +174,10 @@ classdef TrajPlotter
             if ~isempty(names)
                 keep = false(size(ids));
                 for i = 1:numel(ids)
+                    [~, artifactName] = fileparts(char(string(manifest.(ids{i}).artifact_file)));
                     keep(i) = any(strcmpi(ids{i}, names)) || ...
-                        any(strcmpi(char(string(manifest.(ids{i}).label)), names));
+                        any(strcmpi(char(string(manifest.(ids{i}).label)), names)) || ...
+                        any(strcmpi(artifactName, names));
                 end
                 ids = ids(keep);
                 if isempty(ids)
