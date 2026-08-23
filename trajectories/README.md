@@ -58,6 +58,10 @@ run('trajectories/process_trajectories.m')
 ```
 
 This creates the versioned `.mat` artifacts under `trajectories/processed/`.
+When the Parallel Computing Toolbox is available, preprocessing uses independent
+workers for the manifest entries automatically. It falls back to sequential
+processing otherwise. To force sequential processing from MATLAB, pass `false`
+as the third argument to `ReplayProcessor.processAll`.
 
 ## Papers
 

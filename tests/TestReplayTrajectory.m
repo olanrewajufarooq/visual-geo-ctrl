@@ -100,7 +100,7 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
                     'artifact_file', 'demo_replay.mat', ...
                     'label', 'Demo Replay')));
 
-            summary = ReplayProcessor.processAll(tmpRoot, manifestPath);
+            summary = ReplayProcessor.processAll(tmpRoot, manifestPath, false);
             artifactPath = fullfile(tmpRoot, 'demo_replay.mat');
             data = load(artifactPath, 'traj');
 
@@ -125,7 +125,7 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
                 'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
                 'artifact_file', 'demo_replay.mat')));
 
-            ReplayProcessor.processAll(tmpRoot, manifestPath);
+            ReplayProcessor.processAll(tmpRoot, manifestPath, false);
             data = load(fullfile(tmpRoot, 'demo_replay.mat'), 'traj');
             testCase.verifyEqual(data.traj.v_b(2, :), [-1.2 1.1 1.3], 'AbsTol', 1e-12);
             testCase.verifyEqual(data.traj.omega_b(2, :), [-0.5 0.4 0.6], 'AbsTol', 1e-12);
