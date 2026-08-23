@@ -12,6 +12,17 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
             testCase.verifyEqual(cfg.traj.replay.id, 'demo-replay');
         end
 
+        function testConfigAcceptsNestedReplayOptions(testCase)
+            cfg = fth.sim.Config();
+            trajOpts.name = 'replay';
+            trajOpts.replay.id = 'demo-replay';
+            cfg.useTrajectoryOptions(trajOpts);
+            cfg.done();
+
+            testCase.verifyEqual(cfg.traj.name, 'replay');
+            testCase.verifyEqual(cfg.traj.replay.id, 'demo-replay');
+        end
+
         function testFactoryCreatesReplayTrajectory(testCase)
             tmpRoot = testCase.createTempStructure();
             cleanup = onCleanup(@() rmdir(tmpRoot, 's'));
@@ -34,6 +45,40 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
 
             traj = fth.traj.TrajectoryFactory.create(cfg);
             testCase.verifyClass(traj, 'ReplayTraj');
+        end
+
+        function testReplaySetupUsesRecordedInitialState(testCase)
+            tmpRoot = testCase.createTempStructure();
+            cleanup = onCleanup(@() rmdir(tmpRoot, 's'));
+            %#ok<NASGU>
+
+            manifestPath = testCase.writeManifest(tmpRoot, struct( ...
+                'demo_replay', struct( ...
+                    'source_mode', 'autonomous', ...
+                    'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
+                    'artifact_file', 'demo_replay.mat', ...
+                    'label', 'Demo Replay')));
+            testCase.writeProcessedArtifact(fullfile(tmpRoot, 'demo_replay.mat'));
+
+            data = load(fullfile(tmpRoot, 'demo_replay.mat'), 'traj');
+            data.traj.p(1, 3) = 3;
+            traj = data.traj; %#ok<NASGU>
+            save(fullfile(tmpRoot, 'demo_replay.mat'), 'traj');
+
+            cfg = fth.sim.Config();
+            cfg.setTrajectory('replay');
+            cfg.traj.replay = struct( ...
+                'id', 'demo_replay', ...
+                'rootDir', tmpRoot, ...
+                'manifestFile', manifestPath);
+            cfg.setSimParams(0.001, 1);
+            cfg.done();
+
+            runner = fth.sim.SimRunner(cfg);
+            runner.setup();
+            [H0, ~] = runner.plant.getState();
+
+            testCase.verifyEqual(H0(3, 4), 3, 'AbsTol', 1e-12);
         end
 
         function testProcessorBuildsProcessedReplayArtifact(testCase)

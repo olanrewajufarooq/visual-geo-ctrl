@@ -671,6 +671,7 @@ classdef Config < handle
             %   Accepts the same fields as fth.plot.TrajPlotter.run(opts).
             %   Recognised fields:
             %     .name / .names              - trajectory name or cell array of names
+            %     .replay                    - replay configuration struct
             %     .goToHoverBeforePathStarts  - logical; override hover flag
             %     .scale                      - path scale [m]
             %     .altitude                   - hover altitude [m]
@@ -701,6 +702,14 @@ classdef Config < handle
                 end
             elseif isfield(opts, 'goToHoverBeforePathStarts') && ~isempty(opts.goToHoverBeforePathStarts)
                 obj.traj.goToHoverBeforePathStarts = logical(opts.goToHoverBeforePathStarts);
+            end
+
+            if isfield(opts, 'replay') && ~isempty(opts.replay)
+                if ~isstruct(opts.replay)
+                    error('fth:Config:InvalidReplayOptions', ...
+                        'trajOpts.replay must be a struct.');
+                end
+                obj.traj.replay = opts.replay;
             end
 
             % Override individual trajectory parameters.

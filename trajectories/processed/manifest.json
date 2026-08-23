@@ -1,107 +1,107 @@
 {
-  "flight_01a_ellipse": {
+  "ellipse_01_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-01a-ellipse/flight-01a-ellipse_500hz_freq_sync.csv", 
     "artifact_file": "ellipse_01_auto.mat", 
     "label": "Ellipse 01 Autonomous"
   },
-  "flight_02a_ellipse": {
+  "ellipse_02_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-02a-ellipse/flight-02a-ellipse_500hz_freq_sync.csv", 
     "artifact_file": "ellipse_02_auto.mat", 
     "label": "Ellipse 02 Autonomous"
   },
-  "flight_03a_ellipse": {
+  "ellipse_03_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-03a-ellipse/flight-03a-ellipse_500hz_freq_sync.csv", 
     "artifact_file": "ellipse_03_auto.mat", 
     "label": "Ellipse 03 Autonomous"
   },
-  "flight_04a_ellipse": {
+  "ellipse_04_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-04a-ellipse/flight-04a-ellipse_500hz_freq_sync.csv", 
     "artifact_file": "ellipse_04_auto.mat", 
     "label": "Ellipse 04 Autonomous"
   },
-  "flight_05a_ellipse": {
+  "ellipse_05_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-05a-ellipse/flight-05a-ellipse_500hz_freq_sync.csv", 
     "artifact_file": "ellipse_05_auto.mat", 
     "label": "Ellipse 05 Autonomous"
   },
-  "flight_06a_ellipse": {
+  "ellipse_06_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-06a-ellipse/flight-06a-ellipse_500hz_freq_sync.csv", 
     "artifact_file": "ellipse_06_auto.mat", 
     "label": "Ellipse 06 Autonomous"
   },
-  "flight_07a_lemniscate": {
+  "lemniscate_01_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-07a-lemniscate/flight-07a-lemniscate_500hz_freq_sync.csv", 
     "artifact_file": "lemniscate_01_auto.mat", 
     "label": "Lemniscate 01 Autonomous"
   },
-  "flight_08a_lemniscate": {
+  "lemniscate_02_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-08a-lemniscate/flight-08a-lemniscate_500hz_freq_sync.csv", 
     "artifact_file": "lemniscate_02_auto.mat", 
     "label": "Lemniscate 02 Autonomous"
   },
-  "flight_09a_lemniscate": {
+  "lemniscate_03_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-09a-lemniscate/flight-09a-lemniscate_500hz_freq_sync.csv", 
     "artifact_file": "lemniscate_03_auto.mat", 
     "label": "Lemniscate 03 Autonomous"
   },
-  "flight_10a_lemniscate": {
+  "lemniscate_04_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-10a-lemniscate/flight-10a-lemniscate_500hz_freq_sync.csv", 
     "artifact_file": "lemniscate_04_auto.mat", 
     "label": "Lemniscate 04 Autonomous"
   },
-  "flight_11a_lemniscate": {
+  "lemniscate_05_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-11a-lemniscate/flight-11a-lemniscate_500hz_freq_sync.csv", 
     "artifact_file": "lemniscate_05_auto.mat", 
     "label": "Lemniscate 05 Autonomous"
   },
-  "flight_12a_lemniscate": {
+  "lemniscate_06_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-12a-lemniscate/flight-12a-lemniscate_500hz_freq_sync.csv", 
     "artifact_file": "lemniscate_06_auto.mat", 
     "label": "Lemniscate 06 Autonomous"
   },
-  "flight_13a_trackRATM": {
+  "RATM_01_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-13a-trackRATM/flight-13a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_01_auto.mat", 
     "label": "RATM 01 Autonomous"
   },
-  "flight_14a_trackRATM": {
+  "RATM_02_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-14a-trackRATM/flight-14a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_02_auto.mat", 
     "label": "RATM 02 Autonomous"
   },
-  "flight_15a_trackRATM": {
+  "RATM_03_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-15a-trackRATM/flight-15a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_03_auto.mat", 
     "label": "RATM 03 Autonomous"
   },
-  "flight_16a_trackRATM": {
+  "RATM_04_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-16a-trackRATM/flight-16a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_04_auto.mat", 
     "label": "RATM 04 Autonomous"
   },
-  "flight_17a_trackRATM": {
+  "RATM_05_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-17a-trackRATM/flight-17a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_05_auto.mat", 
     "label": "RATM 05 Autonomous"
   },
-  "flight_18a_trackRATM": {
+  "RATM_06_auto": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-18a-trackRATM/flight-18a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_06_auto.mat", 

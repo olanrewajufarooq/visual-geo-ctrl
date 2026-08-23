@@ -306,10 +306,12 @@ classdef SimRunner < handle
     methods (Access = private)
         function [H0, V0] = resolveInitialPlantState(obj)
             %RESOLVEINITIALPLANTSTATE Choose the plant initial condition.
-            %   If goToHoverBeforePathStarts is disabled, start from ground origin with
-            %   level attitude and zero twist instead of the trajectory's
-            %   initial desired state.
-            if isprop(obj.cfg, 'traj') && isfield(obj.cfg.traj, 'goToHoverBeforePathStarts') ...
+            %   If goToHoverBeforePathStarts is disabled, analytic trajectories start
+            %   from ground origin. Replay trajectories must instead start from their
+            %   first recorded state, which may already be airborne.
+            isReplay = isprop(obj.cfg, 'traj') && isfield(obj.cfg.traj, 'name') ...
+                && strcmpi(string(obj.cfg.traj.name), 'replay');
+            if ~isReplay && isprop(obj.cfg, 'traj') && isfield(obj.cfg.traj, 'goToHoverBeforePathStarts') ...
                     && ~logical(obj.cfg.traj.goToHoverBeforePathStarts)
                 H0 = eye(4);
                 H0(1:3,4) = [0; 0; 0];
@@ -437,6 +439,13 @@ classdef SimRunner < handle
             m_base   = obj.cfg.vehicle.m;
             I_base   = obj.cfg.vehicle.I_params;
             cog_base = obj.cfg.vehicle.CoG(:);
+
+            if isempty(payloadMass) || payloadMass <= 0
+                obj.plant.updateParameters(m_base, cog_base, I_base);
+                fprintf('%s', fth.io.ConsoleFormatter.kv('Plant mass', sprintf('%.3f kg', m_base)));
+                return;
+            end
+
             dims = obj.cfg.payload.dims;
             if ~isempty(dims)
                 Iparams_p_cm = fth.sim.SimRunnerUtils.boxPayloadInertia(payloadMass, dims);

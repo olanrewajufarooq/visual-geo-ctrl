@@ -1,17 +1,17 @@
 %RUN_ADAPTIVE_DEMO Adaptive control simulation with payload drop.
 %   Demonstrates online parameter adaptation and payload change.
 
-% Clean workspace and load project paths.
+%% Clean workspace and load project paths.
 clear; close all;
 startup;
 
-% Build a fresh configuration with defaults.
+%% Build a fresh configuration with defaults.
 cfg = fth.sim.Config();
 
-% Scenario duration in seconds.
+%% Scenario duration in seconds.
 duration = 60;
 
-% Simulation timing.
+%% Simulation timing.
 simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
@@ -20,13 +20,20 @@ simOpts.scriptName   = 'adapt_demo';
 simOpts.parallelRuns = true;
 cfg.useSimOptions(simOpts);
 
-% Reference trajectory.
-trajOpts.name                       = 'lissajous3d';
-trajOpts.goToHoverBeforePathStarts  = false;
-trajOpts.period                     = duration;
+%% Reference trajectory.
+
+% Analytic Trajectory Options
+% trajOpts.name                       = 'lissajous3d';
+% trajOpts.goToHoverBeforePathStarts  = false;
+% trajOpts.period                     = duration;
+% cfg.useTrajectoryOptions(trajOpts);
+
+% Replay Trajectory Options
+trajOpts.name      = 'replay';
+trajOpts.replay.id = 'RATM_01_auto';
 cfg.useTrajectoryOptions(trajOpts);
 
-% Controller and gains.
+%% Controller and gains.
 ctrlOpts.potential    = 'inertia-gain';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
 ctrlOpts.Kp           = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
 ctrlOpts.Kd           = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
@@ -43,13 +50,13 @@ adaptOpts.Gamma = 1/10; % Gamma value for Bregman
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).
-payloadOpts.mass     = 1.5;
-payloadOpts.position = [0.115; 0.05; -0.25];
-payloadOpts.dims     = [0.20, 0.20, 0.10];
-payloadOpts.dropTime = 2*duration/3;
-cfg.usePayloadOptions(payloadOpts);
+% payloadOpts.mass     = 1.5;
+% payloadOpts.position = [0.115; 0.05; -0.25];
+% payloadOpts.dims     = [0.20, 0.20, 0.10];
+% payloadOpts.dropTime = 2*duration/3;
+% cfg.usePayloadOptions(payloadOpts);
 
-% Visualization.
+%% Visualization.
 vizOpts.enable      = false;
 vizOpts.liveSummary = false;
 vizOpts.updateRate  = 500;
@@ -59,7 +66,7 @@ cfg.useVizOptions(vizOpts);
 
 cfg.done();
 
-% Run the simulation.
+%% Run the simulation.
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
 
