@@ -1,4 +1,4 @@
-%PLOT_TRAJECTORIES Sample and plot reference trajectories.
+%PLOT_ANALYTIC_TRAJECTORIES Sample and plot analytic reference trajectories.
 %   Saves figures to results/trajectories/<timestamp>/.
 
 clear; close all;
@@ -13,7 +13,7 @@ fth.plot.TrajPlotter.run(opts);
 % ----- Plot all with defaults ---------
 
 % Plot all trajectories with default parameters.
-% fth.plot.TrajPlotter.run();
+% fth.plot.TrajPlotter.run(struct('mode', 'analytic'));
 
 % ---- Customization (uncomment and edit as needed) --------------------
 %
