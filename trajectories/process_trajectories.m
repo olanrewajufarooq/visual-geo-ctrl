@@ -8,5 +8,6 @@ addpath(genpath(scriptDir));
 
 processedRoot = fullfile(scriptDir, 'processed');
 manifestPath = fullfile(processedRoot, 'manifest.json');
+fprintf('[replay] Starting trajectory preprocessing.\n');
 summary = ReplayProcessor.processAll(processedRoot, manifestPath);
 fprintf('Processed %d replay trajectories.\n', summary.processedCount);

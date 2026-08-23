@@ -13,20 +13,26 @@ classdef ReplayProcessor
 
             manifest = ReplayProcessor.loadManifest(manifestPath);
             ids = fieldnames(manifest);
+            fprintf('[replay] Processing %d trajectories from %s\n', numel(ids), manifestPath);
             for i = 1:numel(ids)
                 id = ids{i};
                 entry = manifest.(id);
                 rawPath = fullfile(rootDir, char(string(entry.source_file)));
                 outPath = fullfile(rootDir, char(string(entry.artifact_file)));
+                fprintf('[replay %d/%d] %s\n', i, numel(ids), id);
+                fprintf('  source: %s\n', rawPath);
+                fileTimer = tic;
                 traj = ReplayProcessor.processSingle(rawPath, id, entry);
                 outDir = fileparts(outPath);
                 if ~isempty(outDir) && ~exist(outDir, 'dir')
                     mkdir(outDir);
                 end
                 save(outPath, 'traj');
+                fprintf('  artifact: %s (%.1f s)\n', outPath, toc(fileTimer));
             end
 
             summary = struct('processedCount', numel(ids), 'manifestPath', manifestPath);
+            fprintf('[replay] Completed %d trajectories.\n', summary.processedCount);
         end
 
         function entry = loadEntry(replayCfg)
