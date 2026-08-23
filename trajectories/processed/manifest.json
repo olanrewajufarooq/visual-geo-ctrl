@@ -1,0 +1,20 @@
+{
+  "flight_01a_ellipse": {"source_mode": "autonomous", "source_file": "../autonomous/flight-01a-ellipse/flight-01a-ellipse_500hz_freq_sync.csv", "artifact_file": "flight_01a_ellipse.mat", "label": "Flight 01A ellipse"},
+  "flight_02a_ellipse": {"source_mode": "autonomous", "source_file": "../autonomous/flight-02a-ellipse/flight-02a-ellipse_500hz_freq_sync.csv", "artifact_file": "flight_02a_ellipse.mat", "label": "Flight 02A ellipse"},
+  "flight_03a_ellipse": {"source_mode": "autonomous", "source_file": "../autonomous/flight-03a-ellipse/flight-03a-ellipse_500hz_freq_sync.csv", "artifact_file": "flight_03a_ellipse.mat", "label": "Flight 03A ellipse"},
+  "flight_04a_ellipse": {"source_mode": "autonomous", "source_file": "../autonomous/flight-04a-ellipse/flight-04a-ellipse_500hz_freq_sync.csv", "artifact_file": "flight_04a_ellipse.mat", "label": "Flight 04A ellipse"},
+  "flight_05a_ellipse": {"source_mode": "autonomous", "source_file": "../autonomous/flight-05a-ellipse/flight-05a-ellipse_500hz_freq_sync.csv", "artifact_file": "flight_05a_ellipse.mat", "label": "Flight 05A ellipse"},
+  "flight_06a_ellipse": {"source_mode": "autonomous", "source_file": "../autonomous/flight-06a-ellipse/flight-06a-ellipse_500hz_freq_sync.csv", "artifact_file": "flight_06a_ellipse.mat", "label": "Flight 06A ellipse"},
+  "flight_07a_lemniscate": {"source_mode": "autonomous", "source_file": "../autonomous/flight-07a-lemniscate/flight-07a-lemniscate_500hz_freq_sync.csv", "artifact_file": "flight_07a_lemniscate.mat", "label": "Flight 07A lemniscate"},
+  "flight_08a_lemniscate": {"source_mode": "autonomous", "source_file": "../autonomous/flight-08a-lemniscate/flight-08a-lemniscate_500hz_freq_sync.csv", "artifact_file": "flight_08a_lemniscate.mat", "label": "Flight 08A lemniscate"},
+  "flight_09a_lemniscate": {"source_mode": "autonomous", "source_file": "../autonomous/flight-09a-lemniscate/flight-09a-lemniscate_500hz_freq_sync.csv", "artifact_file": "flight_09a_lemniscate.mat", "label": "Flight 09A lemniscate"},
+  "flight_10a_lemniscate": {"source_mode": "autonomous", "source_file": "../autonomous/flight-10a-lemniscate/flight-10a-lemniscate_500hz_freq_sync.csv", "artifact_file": "flight_10a_lemniscate.mat", "label": "Flight 10A lemniscate"},
+  "flight_11a_lemniscate": {"source_mode": "autonomous", "source_file": "../autonomous/flight-11a-lemniscate/flight-11a-lemniscate_500hz_freq_sync.csv", "artifact_file": "flight_11a_lemniscate.mat", "label": "Flight 11A lemniscate"},
+  "flight_12a_lemniscate": {"source_mode": "autonomous", "source_file": "../autonomous/flight-12a-lemniscate/flight-12a-lemniscate_500hz_freq_sync.csv", "artifact_file": "flight_12a_lemniscate.mat", "label": "Flight 12A lemniscate"},
+  "flight_13a_trackRATM": {"source_mode": "autonomous", "source_file": "../autonomous/flight-13a-trackRATM/flight-13a-trackRATM_500hz_freq_sync.csv", "artifact_file": "flight_13a_trackRATM.mat", "label": "Flight 13A trackRATM"},
+  "flight_14a_trackRATM": {"source_mode": "autonomous", "source_file": "../autonomous/flight-14a-trackRATM/flight-14a-trackRATM_500hz_freq_sync.csv", "artifact_file": "flight_14a_trackRATM.mat", "label": "Flight 14A trackRATM"},
+  "flight_15a_trackRATM": {"source_mode": "autonomous", "source_file": "../autonomous/flight-15a-trackRATM/flight-15a-trackRATM_500hz_freq_sync.csv", "artifact_file": "flight_15a_trackRATM.mat", "label": "Flight 15A trackRATM"},
+  "flight_16a_trackRATM": {"source_mode": "autonomous", "source_file": "../autonomous/flight-16a-trackRATM/flight-16a-trackRATM_500hz_freq_sync.csv", "artifact_file": "flight_16a_trackRATM.mat", "label": "Flight 16A trackRATM"},
+  "flight_17a_trackRATM": {"source_mode": "autonomous", "source_file": "../autonomous/flight-17a-trackRATM/flight-17a-trackRATM_500hz_freq_sync.csv", "artifact_file": "flight_17a_trackRATM.mat", "label": "Flight 17A trackRATM"},
+  "flight_18a_trackRATM": {"source_mode": "autonomous", "source_file": "../autonomous/flight-18a-trackRATM/flight-18a-trackRATM_500hz_freq_sync.csv", "artifact_file": "flight_18a_trackRATM.mat", "label": "Flight 18A trackRATM"}
+}
