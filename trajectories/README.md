@@ -49,7 +49,7 @@ The default second argument is `safe`, which reuses cached downloads but refuses
 
 ## Processing
 
-Replay implementation files are grouped under `trajectories/replay/`. The
+Replay implementation files are grouped under `trajectories/replayScripts/`. The
 repository startup adds the complete `trajectories/` tree to the MATLAB path.
 After downloading the CSV files, run this once from the repository root:
 
