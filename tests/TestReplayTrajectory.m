@@ -33,7 +33,7 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
                 'manifestFile', manifestPath);
 
             traj = fth.traj.TrajectoryFactory.create(cfg);
-            testCase.verifyClass(traj, 'fth.traj.ReplayTraj');
+            testCase.verifyClass(traj, 'ReplayTraj');
         end
 
         function testProcessorBuildsProcessedReplayArtifact(testCase)
@@ -55,7 +55,7 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
                     'artifact_file', 'demo_replay.mat', ...
                     'label', 'Demo Replay')));
 
-            summary = fth.traj.ReplayProcessor.processAll(tmpRoot, manifestPath);
+            summary = ReplayProcessor.processAll(tmpRoot, manifestPath);
             artifactPath = fullfile(tmpRoot, 'demo_replay.mat');
             data = load(artifactPath, 'traj');
 
@@ -80,7 +80,7 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
                 'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
                 'artifact_file', 'demo_replay.mat')));
 
-            fth.traj.ReplayProcessor.processAll(tmpRoot, manifestPath);
+            ReplayProcessor.processAll(tmpRoot, manifestPath);
             data = load(fullfile(tmpRoot, 'demo_replay.mat'), 'traj');
             testCase.verifyEqual(data.traj.v_b(2, :), [-1.2 1.1 1.3], 'AbsTol', 1e-12);
             testCase.verifyEqual(data.traj.omega_b(2, :), [-0.5 0.4 0.6], 'AbsTol', 1e-12);
@@ -106,7 +106,7 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
                 'rootDir', tmpRoot, ...
                 'manifestFile', manifestPath);
 
-            traj = fth.traj.ReplayTraj(cfg);
+            traj = ReplayTraj(cfg);
             [Hd, Vd, Ad] = traj.generate(0.5, eye(4), zeros(6,1), struct());
 
             testCase.verifyEqual(Hd(1:3,4), [1; 2; 3], 'AbsTol', 1e-12);

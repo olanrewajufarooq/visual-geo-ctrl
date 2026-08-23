@@ -10,7 +10,7 @@ classdef TrajectoryFactory
             %     traj - TrajectoryBase implementation.
             if isprop(cfg, 'traj') && isfield(cfg.traj, 'name') ...
                     && strcmpi(string(cfg.traj.name), "replay")
-                traj = fth.traj.ReplayTraj(cfg);
+                traj = ReplayTraj(cfg);
                 return;
             end
             traj = fth.traj.AnalyticTraj(cfg);

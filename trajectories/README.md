@@ -47,6 +47,18 @@ The downloader always writes CSVs into `.\trajectories\autonomous` and `.\trajec
 
 The default second argument is `safe`, which reuses cached downloads but refuses to overwrite non-empty target folders.
 
+## Processing
+
+Replay implementation files are grouped under `trajectories/replay/`. The
+repository startup adds the complete `trajectories/` tree to the MATLAB path.
+After downloading the CSV files, run this once from the repository root:
+
+```matlab
+run('trajectories/process_trajectories.m')
+```
+
+This creates the ignored `.mat` artifacts under `trajectories/processed/`.
+
 ## Papers
 
 If you use these trajectories, cite the dataset repository and the papers it references:

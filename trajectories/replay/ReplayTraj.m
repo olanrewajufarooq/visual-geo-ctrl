@@ -7,7 +7,7 @@ classdef ReplayTraj < fth.traj.TrajectoryBase
 
     methods
         function obj = ReplayTraj(cfg)
-            obj.data = fth.traj.ReplayProcessor.loadArtifact(cfg.traj.replay);
+            obj.data = ReplayProcessor.loadArtifact(cfg.traj.replay);
         end
 
         function [H, V, A] = generate(obj, t, ~, ~, ~)

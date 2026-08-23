@@ -16,7 +16,7 @@ function limits = defaultAxisLimits(cfg)
         pad = cfg.viz.axisPadding;
     end
     if strcmpi(cfg.traj.name, 'replay')
-        limits = fth.traj.ReplayProcessor.defaultAxisLimits(cfg, pad);
+        limits = ReplayProcessor.defaultAxisLimits(cfg, pad);
         return;
     end
 

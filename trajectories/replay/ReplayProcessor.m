@@ -5,20 +5,20 @@ classdef ReplayProcessor
         function summary = processAll(rootDir, manifestPath)
             %PROCESSALL Convert manifest-listed raw CSV files into .mat artifacts.
             if nargin < 1 || isempty(rootDir)
-                rootDir = fth.traj.ReplayProcessor.defaultRootDir();
+                rootDir = ReplayProcessor.defaultRootDir();
             end
             if nargin < 2 || isempty(manifestPath)
                 manifestPath = fullfile(rootDir, 'manifest.json');
             end
 
-            manifest = fth.traj.ReplayProcessor.loadManifest(manifestPath);
+            manifest = ReplayProcessor.loadManifest(manifestPath);
             ids = fieldnames(manifest);
             for i = 1:numel(ids)
                 id = ids{i};
                 entry = manifest.(id);
                 rawPath = fullfile(rootDir, char(string(entry.source_file)));
                 outPath = fullfile(rootDir, char(string(entry.artifact_file)));
-                traj = fth.traj.ReplayProcessor.processSingle(rawPath, id, entry);
+                traj = ReplayProcessor.processSingle(rawPath, id, entry);
                 outDir = fileparts(outPath);
                 if ~isempty(outDir) && ~exist(outDir, 'dir')
                     mkdir(outDir);
@@ -31,8 +31,8 @@ classdef ReplayProcessor
 
         function entry = loadEntry(replayCfg)
             %LOADENTRY Resolve one replay manifest entry from config.
-            [rootDir, manifestPath, replayId] = fth.traj.ReplayProcessor.resolveReplayConfig(replayCfg);
-            manifest = fth.traj.ReplayProcessor.loadManifest(manifestPath);
+            [rootDir, manifestPath, replayId] = ReplayProcessor.resolveReplayConfig(replayCfg);
+            manifest = ReplayProcessor.loadManifest(manifestPath);
             if ~isfield(manifest, replayId)
                 error('fth:Replay:UnknownId', ...
                     'Replay id ''%s'' was not found in manifest ''%s''.', replayId, manifestPath);
@@ -47,7 +47,7 @@ classdef ReplayProcessor
 
         function traj = loadArtifact(replayCfg)
             %LOADARTIFACT Load a processed replay artifact from config.
-            entry = fth.traj.ReplayProcessor.loadEntry(replayCfg);
+            entry = ReplayProcessor.loadEntry(replayCfg);
             if ~isfile(entry.artifactPath)
                 error('fth:Replay:ArtifactMissing', ...
                     'Replay artifact ''%s'' does not exist.', entry.artifactPath);
@@ -62,7 +62,7 @@ classdef ReplayProcessor
                 pad = 2.0;
             end
             try
-                traj = fth.traj.ReplayProcessor.loadArtifact(cfg.traj.replay);
+                traj = ReplayProcessor.loadArtifact(cfg.traj.replay);
                 p = traj.p;
                 mins = min(p, [], 1) - pad;
                 maxs = max(p, [], 1) + pad;
@@ -77,8 +77,8 @@ classdef ReplayProcessor
         function rootDir = defaultRootDir()
             %DEFAULTROOTDIR Return the default processed trajectory root.
             thisFile = mfilename('fullpath');
-            repoRoot = fileparts(fileparts(fileparts(fileparts(thisFile))));
-            rootDir = fullfile(repoRoot, 'trajectories', 'processed');
+            trajectoriesRoot = fileparts(fileparts(thisFile));
+            rootDir = fullfile(trajectoriesRoot, 'processed');
         end
     end
 
@@ -94,7 +94,7 @@ classdef ReplayProcessor
             if isfield(replayCfg, 'rootDir') && ~isempty(replayCfg.rootDir)
                 rootDir = char(string(replayCfg.rootDir));
             else
-                rootDir = fth.traj.ReplayProcessor.defaultRootDir();
+                rootDir = ReplayProcessor.defaultRootDir();
             end
             if isfield(replayCfg, 'manifestFile') && ~isempty(replayCfg.manifestFile)
                 manifestPath = char(string(replayCfg.manifestFile));
@@ -136,8 +136,8 @@ classdef ReplayProcessor
             end
 
             % The controller's acceleration is the time derivative of the body twist.
-            a_b = fth.traj.ReplayProcessor.deriveSignal(v_b, t);
-            alpha_b = fth.traj.ReplayProcessor.deriveSignal(omega_b, t);
+            a_b = ReplayProcessor.deriveSignal(v_b, t);
+            alpha_b = ReplayProcessor.deriveSignal(omega_b, t);
 
             traj = struct();
             traj.t = t(:);
@@ -151,7 +151,7 @@ classdef ReplayProcessor
                 'id', replayId, ...
                 'source_mode', char(string(entry.source_mode)), ...
                 'source_file', char(string(entry.source_file)), ...
-                'sampleRateHz', fth.traj.ReplayProcessor.estimateSampleRate(t), ...
+                'sampleRateHz', ReplayProcessor.estimateSampleRate(t), ...
                 'tStart', t(1), ...
                 'tEnd', t(end));
         end

@@ -4,8 +4,9 @@
 scriptDir = fileparts(mfilename('fullpath'));
 repoRoot = fileparts(scriptDir);
 addpath(genpath(fullfile(repoRoot, 'src')));
+addpath(genpath(scriptDir));
 
 processedRoot = fullfile(scriptDir, 'processed');
 manifestPath = fullfile(processedRoot, 'manifest.json');
-summary = fth.traj.ReplayProcessor.processAll(processedRoot, manifestPath);
+summary = ReplayProcessor.processAll(processedRoot, manifestPath);
 fprintf('Processed %d replay trajectories.\n', summary.processedCount);
