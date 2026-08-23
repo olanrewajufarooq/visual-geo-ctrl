@@ -9,7 +9,7 @@ startup;
 cfg = fth.sim.Config();
 
 %% Scenario duration in seconds.
-duration = 60;
+duration = 25;
 
 %% Simulation timing.
 simOpts.dt           = 0.005;
