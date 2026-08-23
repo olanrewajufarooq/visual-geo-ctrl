@@ -4,7 +4,11 @@ clear; close all;
 startup;
 
 opts.mode = 'replay';
-opts.names = {};  % {} = all replay flights
+opts.names = {
+    'ellipse_01_auto',
+    'lemniscate_01_auto',
+    'RATM_01_auto'
+};  % {} = all replay flights
 fth.plot.TrajPlotter.run(opts);
 
 % Plot one replay by manifest id or label:

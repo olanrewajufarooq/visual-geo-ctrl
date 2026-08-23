@@ -75,36 +75,36 @@
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-13a-trackRATM/flight-13a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_01_auto.mat", 
-    "label": "Lemniscate 01 Autonomous"
+    "label": "RATM 01 Autonomous"
   },
   "flight_14a_trackRATM": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-14a-trackRATM/flight-14a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_02_auto.mat", 
-    "label": "Lemniscate 02 Autonomous"
+    "label": "RATM 02 Autonomous"
   },
   "flight_15a_trackRATM": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-15a-trackRATM/flight-15a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_03_auto.mat", 
-    "label": "Lemniscate 03 Autonomous"
+    "label": "RATM 03 Autonomous"
   },
   "flight_16a_trackRATM": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-16a-trackRATM/flight-16a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_04_auto.mat", 
-    "label": "Lemniscate 04 Autonomous"
+    "label": "RATM 04 Autonomous"
   },
   "flight_17a_trackRATM": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-17a-trackRATM/flight-17a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_05_auto.mat", 
-    "label": "Lemniscate 05 Autonomous"
+    "label": "RATM 05 Autonomous"
   },
   "flight_18a_trackRATM": {
     "source_mode": "autonomous", 
     "source_file": "autonomous/flight-18a-trackRATM/flight-18a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_06_auto.mat", 
-    "label": "Lemniscate 06 Autonomous"
+    "label": "RATM 06 Autonomous"
   }
 }
