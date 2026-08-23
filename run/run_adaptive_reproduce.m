@@ -30,14 +30,15 @@ cfg.useSimOptions(simOpts);
 
 % Replay Trajectory Options
 trajOpts.name      = 'replay';
-trajOpts.replay.id = 'RATM_01_auto';
+trajOpts.replay.id = 'ellipse_01_auto';
 cfg.useTrajectoryOptions(trajOpts);
 
 %% Controller and gains.
 ctrlOpts.potential = 'inertia-gain';
 ctrlOpts.Kp        = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
 ctrlOpts.Kd        = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
-ctrlOpts.paramInit = 'mid-vehicle-payload';
+ctrlOpts.paramInit = 'vehicle';  % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
+% Use 'vehicle' when payload options are disabled; use a payload-specific mode when a payload is configured.
 cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation.
