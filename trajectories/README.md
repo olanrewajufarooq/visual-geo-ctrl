@@ -119,6 +119,30 @@ The replay trajectory also interpolates orientation along `SO(3)` using the
 relative rotation logarithm/Rodrigues formula rather than selecting the nearest
 sample.
 
+### Acceleration Post-Processing
+
+The dataset interpolation script creates linear velocity by differentiating
+MoCap position and applying a 100 Hz low-pass filter. Its angular velocity is
+computed from the rotation-matrix derivative. The CSV also contains `accel_*`
+and `gyro_*` IMU channels, but `accel_*` is specific force rather than the
+kinematic acceleration required by `TrajectoryBase`; it must not be copied
+directly into `A`.
+
+The processor computes acceleration after the complete velocity arrays have
+been assembled. It fits a centered cubic polynomial over 201 samples (402 ms
+at 500 Hz) to estimate world-frame derivatives, then applies:
+
+```text
+a_body     = R' * d(v_world)/dt - omega_body x v_body
+alpha_body = R' * d(omega_world)/dt
+```
+
+The `-omega_body x v_body` term is essential. At racing speeds, a body-frame
+linear acceleration of hundreds of `m/s^2` can be expected even when the
+world-frame acceleration is much smaller, because the body axes rotate rapidly
+while the vehicle translates. The processed artifact metadata records the
+method and window as `accelerationMethod` and `accelerationWindowSamples`.
+
 The pose remains in world coordinates as `H = [R p; 0 1]`, while the returned
 twist and acceleration are body-coordinate quantities required by the existing
 geometric controller. The input pose, velocity, and acceleration are therefore

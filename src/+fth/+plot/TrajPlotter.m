@@ -129,7 +129,7 @@ classdef TrajPlotter
                 if isnan(hover_i)
                     cfg.setTrajectory(specs{i});
                 else
-                    cfg.setTrajectory(specs{i}, 1, logical(hover_i));
+                    cfg.setTrajectory(specs{i}, logical(hover_i));
                 end
 
                 % Override period after setTrajectory to prevent syncTrajectoryPeriod clobbering.

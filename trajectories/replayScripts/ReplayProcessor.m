@@ -136,7 +136,7 @@ classdef ReplayProcessor
                     traj = ReplayProcessor.processSingle(rawPaths{i}, ids{i}, entries{i});
                     writeReplayArtifact(outPaths{i}, traj);
                 catch exception
-                    errors{i} = exception.message;
+                    errors{i} = ReplayProcessor.formatException(exception);
                 end
                 elapsed(i) = toc(fileTimer);
             end
@@ -152,7 +152,7 @@ classdef ReplayProcessor
                     traj = ReplayProcessor.processSingle(rawPaths{i}, ids{i}, entries{i});
                     writeReplayArtifact(outPaths{i}, traj);
                 catch exception
-                    errors{i} = exception.message;
+                    errors{i} = ReplayProcessor.formatException(exception);
                 end
                 elapsed(i) = toc(fileTimer);
             end
@@ -176,6 +176,15 @@ classdef ReplayProcessor
             else
                 manifestPath = fullfile(rootDir, 'manifest.json');
             end
+        end
+
+        function text = formatException(exception)
+            if isempty(exception.stack)
+                text = exception.message;
+                return;
+            end
+            frame = exception.stack(1);
+            text = sprintf('%s (at %s:%d)', exception.message, frame.name, frame.line);
         end
 
         function manifest = loadManifest(manifestPath)
@@ -229,9 +238,32 @@ classdef ReplayProcessor
                 omega_b(k, :) = (R_world_to_body * omega_world_k).';
             end
 
-            % The controller's acceleration is the time derivative of the body twist.
-            a_b = ReplayProcessor.deriveSignal(v_b, t);
-            alpha_b = ReplayProcessor.deriveSignal(omega_b, t);
+            % Estimate derivatives only after the complete velocity signals have
+            % been assembled. The local polynomial fit suppresses sample-level
+            % MoCap/interpolation noise without introducing a causal delay.
+            derivativeWindowSamples = 201;  % 402 ms at the dataset's 500 Hz rate
+            v_world_dot = ReplayProcessor.differentiateSignal( ...
+                v_world, t, derivativeWindowSamples);
+            omega_world_dot = ReplayProcessor.differentiateSignal( ...
+                omega_world, t, derivativeWindowSamples);
+
+            % The simulator uses the time derivative of the body twist. For
+            % R = body-to-world and v_b = R' * v_world:
+            %   d(v_b)/dt = R' * d(v_world)/dt - omega_b x v_b
+            % The angular transport term vanishes because omega_b x omega_b=0.
+            a_b = zeros(size(v_b));
+            alpha_b = zeros(size(omega_b));
+            for k = 1:height(T)
+                R_world_to_body = R(:, :, k).';
+                v_body_k = v_b(k, :).';
+                omega_body_k = omega_b(k, :).';
+                a_world_k = v_world_dot(k, :).';
+                omega_world_dot_k = omega_world_dot(k, :).';
+
+                a_b(k, :) = (R_world_to_body * a_world_k - ...
+                    cross(omega_body_k, v_body_k)).';
+                alpha_b(k, :) = (R_world_to_body * omega_world_dot_k).';
+            end
 
             traj = struct();
             traj.t = t(:);
@@ -246,6 +278,8 @@ classdef ReplayProcessor
                 'source_mode', char(string(entry.source_mode)), ...
                 'source_file', char(string(entry.source_file)), ...
                 'sampleRateHz', ReplayProcessor.estimateSampleRate(t), ...
+                'accelerationMethod', 'local-polynomial-world-derivative', ...
+                'accelerationWindowSamples', derivativeWindowSamples, ...
                 'tStart', t(1), ...
                 'tEnd', t(end));
         end
@@ -259,13 +293,50 @@ classdef ReplayProcessor
             rate = 1 / median(dt);
         end
 
-        function deriv = deriveSignal(values, t)
+        function deriv = differentiateSignal(values, t, windowSamples)
+            %DIFFERENTIATESIGNAL Estimate d(values)/dt with local cubic fits.
+            %   The fit is centered at every sample, so this is a smoothed
+            %   offline derivative rather than a delayed causal filter.
+            n = size(values, 1);
             deriv = zeros(size(values));
-            if size(values, 1) < 2
+            if n < 2
                 return;
             end
-            for j = 1:size(values, 2)
-                deriv(:, j) = gradient(values(:, j), t(:));
+
+            t = t(:);
+            if any(~isfinite(t)) || any(diff(t) <= 0)
+                error('fth:Replay:InvalidTime', ...
+                    'Replay elapsed_time must be finite and strictly increasing.');
+            end
+
+            windowSamples = min(n, max(5, round(windowSamples)));
+            if mod(windowSamples, 2) == 0
+                windowSamples = windowSamples - 1;
+            end
+            halfWindow = floor(windowSamples / 2);
+
+            for i = 1:n
+                first = max(1, i - halfWindow);
+                last = min(n, i + halfWindow);
+                indices = first:last;
+                offsets = t(indices) - t(i);
+                timeScale = max(abs(offsets));
+                if timeScale == 0
+                    continue;
+                end
+
+                normalizedOffsets = offsets / timeScale;
+                localDegree = min(3, numel(indices) - 1);
+                design = zeros(numel(indices), localDegree + 1);
+                for degree = 0:localDegree
+                    design(:, degree + 1) = normalizedOffsets .^ degree;
+                end
+
+                basisDerivative = zeros(localDegree + 1, 1);
+                basisDerivative(2) = 1;
+                % d/dt at the center = e_1' * pinv(design) * samples.
+                weights = (pinv(design).' * basisDerivative) / timeScale;
+                deriv(i, :) = weights.' * values(indices, :);
             end
         end
     end

@@ -107,6 +107,9 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
             testCase.verifyEqual(summary.processedCount, 1);
             testCase.verifyTrue(isfile(artifactPath));
             testCase.verifyEqual(data.traj.meta.id, 'demo_replay');
+            testCase.verifyEqual(data.traj.meta.accelerationMethod, ...
+                'local-polynomial-world-derivative');
+            testCase.verifyEqual(data.traj.meta.accelerationWindowSamples, 201);
             testCase.verifyEqual(size(data.traj.p), [3 3]);
             testCase.verifyEqual(size(data.traj.v_b), [3 3]);
             testCase.verifyEqual(size(data.traj.omega_b), [3 3]);
