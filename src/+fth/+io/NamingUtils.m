@@ -12,6 +12,7 @@ classdef NamingUtils
                 case 'helix3d',      label = 'helix3d';
                 case 'poly3d',       label = 'poly3d';
                 case 'takeoffland',  label = 'tkoffland';
+                case 'replay',       label = 'replay';
                 otherwise
                     label = regexprep(lower(char(string(name))), '[^a-z0-9]+', '');
             end

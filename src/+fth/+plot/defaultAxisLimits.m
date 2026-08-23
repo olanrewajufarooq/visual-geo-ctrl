@@ -11,12 +11,17 @@ function limits = defaultAxisLimits(cfg)
         return;
     end
 
-    scale = cfg.traj.scale;
-    alt = cfg.traj.altitude;
     pad = 2.0;
     if isfield(cfg, 'viz') && isfield(cfg.viz, 'axisPadding')
         pad = cfg.viz.axisPadding;
     end
+    if strcmpi(cfg.traj.name, 'replay')
+        limits = fth.traj.ReplayProcessor.defaultAxisLimits(cfg, pad);
+        return;
+    end
+
+    scale = cfg.traj.scale;
+    alt = cfg.traj.altitude;
 
     switch lower(cfg.traj.name)
         case 'circle'
