@@ -57,7 +57,7 @@ After downloading the CSV files, run this once from the repository root:
 run('trajectories/process_trajectories.m')
 ```
 
-This creates the ignored `.mat` artifacts under `trajectories/processed/`.
+This creates the versioned `.mat` artifacts under `trajectories/processed/`.
 
 ## Papers
 

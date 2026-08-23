@@ -1,5 +1,6 @@
 %PROCESS_TRAJECTORIES Build canonical replay artifacts for downloaded flights.
-% Run once from MATLAB after the trajectory CSVs have been downloaded.
+% Run once from MATLAB after the trajectory CSVs have been downloaded. The
+% generated MAT artifacts are committed under trajectories/processed/.
 
 scriptDir = fileparts(mfilename('fullpath'));
 repoRoot = fileparts(scriptDir);

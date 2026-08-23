@@ -5,4 +5,5 @@ tmp/
 opencode.jsonc
 .worktrees/
 trajectories/archive/
-trajectories/processed/*.mat
+trajectories/autonomous/
+trajectories/piloted/
