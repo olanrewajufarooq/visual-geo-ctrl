@@ -10,7 +10,9 @@ classdef GainOptimizationScenario
                 'adaptive-consistent-euclidean', 'Adaptive / consistent / Euclidean', 'euclidean', 'consistent';
                 'adaptive-consistent-bregman', 'Adaptive / consistent / Bregman', 'bregman', 'consistent'};
             scenarios = repmat(struct('id', '', 'label', '', 'adaptation', '', ...
-                'coriolisForm', '', 'paramInit', '', 'withPayload', false), 1, 12);
+                'coriolisForm', '', 'paramInit', '', 'withPayload', false, ...
+                'clearCache', []), 1, 12);
+            % Empty clearCache values inherit the runner-level policy.
             cursor = 0;
             for i = 1:size(base, 1)
                 for withPayload = [false true]

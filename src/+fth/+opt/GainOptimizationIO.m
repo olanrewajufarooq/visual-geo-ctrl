@@ -56,5 +56,51 @@ classdef GainOptimizationIO
                 {'iteration', 'best_cost', 'elapsed_seconds'});
             writetable(data, fullfile(folder, 'convergence.csv'));
         end
+
+        function signature = makeSignature(opts, scenario)
+            %MAKESIGNATURE Identify every setting that changes an optimization result.
+            fields = {'scenarios', 'outputRoot', 'cacheRoot', 'clearCache'};
+            options = opts;
+            for i = 1:numel(fields)
+                if isfield(options, fields{i})
+                    options = rmfield(options, fields{i});
+                end
+            end
+            scenarioForSignature = scenario;
+            if isfield(scenarioForSignature, 'clearCache')
+                scenarioForSignature.clearCache = [];
+            end
+            signature = jsonencode(struct('scenario', scenarioForSignature, ...
+                'options', options));
+        end
+
+        function [state, folder, found] = findState(cacheRoot, scenarioId, signature)
+            %FINDSTATE Find the matching state in the central scenario cache.
+            state = struct();
+            folder = fullfile(cacheRoot, scenarioId);
+            found = false;
+            stateFile = fullfile(folder, 'optimizer_state.mat');
+            if ~isfile(stateFile)
+                return;
+            end
+            try
+                candidate = load(stateFile);
+                if isfield(candidate, 'runSignature') && ...
+                        strcmp(candidate.runSignature, signature)
+                    state = candidate;
+                    found = true;
+                end
+            catch
+                % Ignore incomplete or incompatible cached state.
+            end
+        end
+
+        function clearState(cacheRoot, scenarioId)
+            %CLEARSTATE Remove only one scenario's central cache.
+            folder = fullfile(cacheRoot, scenarioId);
+            if isfolder(folder)
+                rmdir(folder, 's');
+            end
+        end
     end
 end

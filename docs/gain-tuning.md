@@ -37,3 +37,12 @@ Set `opts.scenarios` in `run/optimize_gains.m` to `'all'`, one scenario ID, or a
 cell array of scenario IDs. Results are written to
 `results/tuning/<timestamp>/<scenario-id>/`, including an executable
 `best_gains.m` containing `Kp`, `Kd`, `lambda`, and `Gamma`.
+
+The optimizer checkpoints each iteration in
+`results/tuning/cache/<scenario-id>/optimizer_state.mat`. Cache selection is
+per scenario. Set the `clearCache` field for the relevant entry in the
+`GainOptimizationScenario.catalog()` method to `true` to force fresh
+optimization; an empty field inherits `opts.clearCache`. Otherwise a matching
+incomplete scenario resumes from its last saved swarm, and a completed one
+prints its saved gains. Timestamped report folders remain separate, and are
+preserved.
