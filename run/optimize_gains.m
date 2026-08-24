@@ -7,7 +7,7 @@ startup;
 
 opts.scenarios = 'all';
 opts.duration = 25;
-opts.swarmSize = 50;
+opts.swarmSize = 100;
 opts.maxIterations = 100;
 
 opts.functionTolerance = 1e-4;
