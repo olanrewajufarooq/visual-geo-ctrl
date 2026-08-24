@@ -55,6 +55,16 @@ classdef TestGainEvaluationProblem < matlab.unittest.TestCase
             testCase.verifyEqual(fth.opt.GainOptimizationUtils.bestParticleValue(optimValues), ...
                 2.75, 'AbsTol', 1e-12);
         end
+
+        function testPayloadScenariosUseMidVehiclePayloadInitialization(testCase)
+            scenarios = fth.opt.GainOptimizationScenario.catalog();
+            payload = [scenarios.withPayload];
+
+            testCase.verifyEqual({scenarios(payload).paramInit}, ...
+                repmat({'mid-vehicle-payload'}, 1, nnz(payload)));
+            testCase.verifyEqual({scenarios(~payload).paramInit}, ...
+                repmat({'vehicle-slight-dev'}, 1, nnz(~payload)));
+        end
     end
 
     methods (Access = private)

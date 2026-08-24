@@ -17,7 +17,7 @@ classdef GainOptimizationScenario
                     cursor = cursor + 1;
                     suffix = 'no-payload';
                     paramInit = 'vehicle-slight-dev';
-                    if withPayload, suffix = 'payload-drop'; paramInit = 'vehicle-plus-payload'; end
+                    if withPayload, suffix = 'payload-drop'; paramInit = 'mid-vehicle-payload'; end
                     scenarios(cursor).id = [base{i,1} '-' suffix];
                     scenarios(cursor).label = [base{i,2} ' / ' strrep(suffix, '-', ' ')];
                     scenarios(cursor).adaptation = base{i,3};
