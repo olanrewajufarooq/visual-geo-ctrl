@@ -106,5 +106,113 @@
     "source_file": "autonomous/flight-18a-trackRATM/flight-18a-trackRATM_500hz_freq_sync.csv", 
     "artifact_file": "RATM_06_auto.mat", 
     "label": "RATM 06 Autonomous"
+  },
+  "ellipse_01_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-01p-ellipse/flight-01p-ellipse_500hz_freq_sync.csv",
+    "artifact_file": "ellipse_01_piloted.mat",
+    "label": "Ellipse 01 Piloted"
+  },
+  "ellipse_02_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-02p-ellipse/flight-02p-ellipse_500hz_freq_sync.csv",
+    "artifact_file": "ellipse_02_piloted.mat",
+    "label": "Ellipse 02 Piloted"
+  },
+  "ellipse_03_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-03p-ellipse/flight-03p-ellipse_500hz_freq_sync.csv",
+    "artifact_file": "ellipse_03_piloted.mat",
+    "label": "Ellipse 03 Piloted"
+  },
+  "ellipse_04_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-04p-ellipse/flight-04p-ellipse_500hz_freq_sync.csv",
+    "artifact_file": "ellipse_04_piloted.mat",
+    "label": "Ellipse 04 Piloted"
+  },
+  "ellipse_05_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-05p-ellipse/flight-05p-ellipse_500hz_freq_sync.csv",
+    "artifact_file": "ellipse_05_piloted.mat",
+    "label": "Ellipse 05 Piloted"
+  },
+  "ellipse_06_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-06p-ellipse/flight-06p-ellipse_500hz_freq_sync.csv",
+    "artifact_file": "ellipse_06_piloted.mat",
+    "label": "Ellipse 06 Piloted"
+  },
+  "lemniscate_01_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-07p-lemniscate/flight-07p-lemniscate_500hz_freq_sync.csv",
+    "artifact_file": "lemniscate_01_piloted.mat",
+    "label": "Lemniscate 01 Piloted"
+  },
+  "lemniscate_02_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-08p-lemniscate/flight-08p-lemniscate_500hz_freq_sync.csv",
+    "artifact_file": "lemniscate_02_piloted.mat",
+    "label": "Lemniscate 02 Piloted"
+  },
+  "lemniscate_03_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-09p-lemniscate/flight-09p-lemniscate_500hz_freq_sync.csv",
+    "artifact_file": "lemniscate_03_piloted.mat",
+    "label": "Lemniscate 03 Piloted"
+  },
+  "lemniscate_04_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-10p-lemniscate/flight-10p-lemniscate_500hz_freq_sync.csv",
+    "artifact_file": "lemniscate_04_piloted.mat",
+    "label": "Lemniscate 04 Piloted"
+  },
+  "lemniscate_05_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-11p-lemniscate/flight-11p-lemniscate_500hz_freq_sync.csv",
+    "artifact_file": "lemniscate_05_piloted.mat",
+    "label": "Lemniscate 05 Piloted"
+  },
+  "lemniscate_06_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-12p-lemniscate/flight-12p-lemniscate_500hz_freq_sync.csv",
+    "artifact_file": "lemniscate_06_piloted.mat",
+    "label": "Lemniscate 06 Piloted"
+  },
+  "RATM_01_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-13p-trackRATM/flight-13p-trackRATM_500hz_freq_sync.csv",
+    "artifact_file": "RATM_01_piloted.mat",
+    "label": "RATM 01 Piloted"
+  },
+  "RATM_02_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-14p-trackRATM/flight-14p-trackRATM_500hz_freq_sync.csv",
+    "artifact_file": "RATM_02_piloted.mat",
+    "label": "RATM 02 Piloted"
+  },
+  "RATM_03_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-15p-trackRATM/flight-15p-trackRATM_500hz_freq_sync.csv",
+    "artifact_file": "RATM_03_piloted.mat",
+    "label": "RATM 03 Piloted"
+  },
+  "RATM_04_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-16p-trackRATM/flight-16p-trackRATM_500hz_freq_sync.csv",
+    "artifact_file": "RATM_04_piloted.mat",
+    "label": "RATM 04 Piloted"
+  },
+  "RATM_05_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-17p-trackRATM/flight-17p-trackRATM_500hz_freq_sync.csv",
+    "artifact_file": "RATM_05_piloted.mat",
+    "label": "RATM 05 Piloted"
+  },
+  "RATM_06_piloted": {
+    "source_mode": "piloted",
+    "source_file": "piloted/flight-18p-trackRATM/flight-18p-trackRATM_500hz_freq_sync.csv",
+    "artifact_file": "RATM_06_piloted.mat",
+    "label": "RATM 06 Piloted"
   }
 }
