@@ -22,7 +22,7 @@ and adaptation settings. Gamma also has different shapes:
   `[m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]`.
 
 Each result optimizes one gain vector for one trajectory case. No-payload cases
-use `vehicle-slight-dev`; payload-drop cases use `vehicle-plus-payload`. The
+use `vehicle-slight-dev`; payload-drop cases use `mid-vehicle-payload`. The
 objective is a normalized weighted sum of
 position RMSE, orientation RMSE, maximum position error, and normalized wrench
 effort.
