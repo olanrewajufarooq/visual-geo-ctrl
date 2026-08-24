@@ -16,6 +16,7 @@ duration = 25;
 simOpts.dt            = 0.005;
 simOpts.duration      = duration;
 simOpts.controlDt     = 0.005;
+simOpts.enableSafety   = false;
 simOpts.runNames      = {'basic', 'consistent'};
 simOpts.scriptName    = 'nom_coriolis_comp';
 simOpts.parallelRuns  = true;

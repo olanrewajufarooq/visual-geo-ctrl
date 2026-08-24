@@ -108,6 +108,17 @@ classdef TestConfig < matlab.unittest.TestCase
             testCase.verifyEqual(cfg.sim.duration, 20);
         end
 
+        function testEnableSafetyDefaultsTrue(testCase)
+            cfg = fth.sim.Config();
+            testCase.verifyTrue(cfg.sim.enableSafety);
+        end
+
+        function testEnableSafetyCanBeConfigured(testCase)
+            cfg = fth.sim.Config();
+            cfg.useSimOptions(struct('enableSafety', false));
+            testCase.verifyFalse(cfg.sim.enableSafety);
+        end
+
         function testSetKpGainsVector(testCase)
             cfg = fth.sim.Config();
             Kp = [1; 2; 3; 4; 5; 6];
@@ -180,6 +191,28 @@ classdef TestConfig < matlab.unittest.TestCase
             cfg.setAdaptiveGains([0.1; 0.2]);
             cfg.done();
             testCase.verifyEqual(cfg.getBatchCount(), 2);
+        end
+
+        function testAdaptationBackTrackingOption(testCase)
+            cfg = fth.sim.Config();
+            testCase.verifyFalse(cfg.controller.useBackTracking);
+            cfg.useAdaptationOptions(struct('type', 'bregman', ...
+                'useBackTracking', true));
+            cfg.done();
+            testCase.verifyTrue(cfg.controller.useBackTracking);
+        end
+
+        function testAdaptationBackTrackingBatchCount(testCase)
+            cfg = fth.sim.Config();
+            cfg.useAdaptationOptions(struct( ...
+                'type', {{'bregman', 'bregman'}}, ...
+                'Gamma', {{0.001, 0.002}}, ...
+                'useBackTracking', [true; false]));
+            cfg.done();
+            testCase.verifyEqual(cfg.getBatchCount(), 2);
+            cfgs = cfg.expandBatchConfigs();
+            testCase.verifyTrue(cfgs{1}.controller.useBackTracking);
+            testCase.verifyFalse(cfgs{2}.controller.useBackTracking);
         end
 
         function testFluentChaining(testCase)

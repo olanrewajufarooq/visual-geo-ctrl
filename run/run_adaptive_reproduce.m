@@ -17,6 +17,7 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
+simOpts.enableSafety  = false;
 simOpts.scriptName   = 'reproduce';
 cfg.useSimOptions(simOpts);
 
@@ -37,13 +38,15 @@ cfg.useTrajectoryOptions(trajOpts);
 ctrlOpts.potential = 'inertia-gain';
 ctrlOpts.Kp        = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
 ctrlOpts.Kd        = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
-ctrlOpts.paramInit = 'vehicle';  % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
-% Use 'vehicle' when payload options are disabled; use a payload-specific mode when a payload is configured.
+ctrlOpts.paramInit = 'vehicle-slight-dev';  % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
+% Use 'vehicle' or 'vehicle-slight-dev' when payload options are disabled; use a payload-specific mode when a payload is configured.
 cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation.
 adaptOpts.type  = 'bregman';
-adaptOpts.Gamma = 1/10;
+% Replay accelerations require a conservative Bregman adaptation rate.
+adaptOpts.Gamma = 1e-3;
+adaptOpts.useBackTracking = false;
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).

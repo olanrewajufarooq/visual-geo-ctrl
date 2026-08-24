@@ -17,6 +17,7 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
+simOpts.enableSafety  = false;
 simOpts.runNames     = {'baseline', ...
                         'euclid-base-gain', 'euclid-high-inertia', 'euclid-high-cog', ...
                         'breg-low', 'breg-mid', 'breg-high' ...
@@ -43,8 +44,8 @@ ctrlOpts.potential    = 'inertia-gain';
 ctrlOpts.Kp           = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
 ctrlOpts.Kd           = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
 ctrlOpts.lambda       = 1e-3 * [5, 5, 5, 50, 50, 50];
-ctrlOpts.paramInit    = 'vehicle';  % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
-% Use 'vehicle' when payload options are disabled; use a payload-specific mode when a payload is configured.
+ctrlOpts.paramInit    = 'vehicle-slight-dev';  % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
+% Use 'vehicle' or 'vehicle-slight-dev' when payload options are disabled; use a payload-specific mode when a payload is configured.
 ctrlOpts.coriolisForm = 'consistent';
 cfg.useControllerOptions(ctrlOpts);
 

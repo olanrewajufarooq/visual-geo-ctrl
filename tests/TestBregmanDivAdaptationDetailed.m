@@ -33,6 +33,7 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             
             % Verify diagnostics flag
             testCase.verifyTrue(diagnostics.is_spd);
+            testCase.verifyFalse(diagnostics.useBackTracking);
         end
 
         function testBregmanUpdatePreservesSPDProperty(testCase)
@@ -187,6 +188,26 @@ classdef TestBregmanDivAdaptationDetailed < matlab.unittest.TestCase
             % All eigenvalues should remain positive
             testCase.verifyGreaterThan(max_neg_eig, -1e-8, ...
                 'Minimum eigenvalue across all trajectories should be > 0');
+        end
+
+        function testBregmanRejectsNonFiniteUpdate(testCase)
+            % A bad regressor must not corrupt the physical estimate.
+            cfg = fth.sim.Config();
+            cfg.setController('Feedforward');
+            cfg.setAdaptation('bregman');
+            cfg.setAdaptiveGains(0.1);
+            cfg.done();
+
+            adapt = fth.ctrl.adapt.BregmanDivAdaptation(cfg);
+            J_before = adapt.getDiagnostics().J_hat;
+            adapt.doUpdate(0.005, ones(6, 1), NaN(6, 10));
+            diagnostics = adapt.getDiagnostics();
+
+            testCase.verifyEqual(diagnostics.J_hat, J_before, 'AbsTol', 0);
+            testCase.verifyTrue(diagnostics.is_spd);
+            testCase.verifyEqual(diagnostics.rejectedUpdateCount, 1);
+            [m, cog, inertia] = adapt.getEstimate();
+            testCase.verifyTrue(all(isfinite([m; cog; inertia])));
         end
 
         function testBregmanParameterBoundsPreserved(testCase)
