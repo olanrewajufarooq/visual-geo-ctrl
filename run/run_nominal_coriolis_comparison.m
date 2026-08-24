@@ -2,17 +2,17 @@
 %   Runs the same nominal scenario twice via the batch system, once per
 %   Coriolis factorization form, and saves full plots and sim data.
 
-% Clean workspace and load project paths.
+%% Clean workspace and load project paths.
 clear; close all;
 startup;
 
-% Build a fresh configuration with defaults.
+%% Build a fresh configuration with defaults.
 cfg = fth.sim.Config();
 
-% Scenario duration in seconds.
-duration = 60;
+%% Scenario duration in seconds.
+duration = 25;
 
-% Simulation timing.
+%% Simulation timing.
 simOpts.dt            = 0.005;
 simOpts.duration      = duration;
 simOpts.controlDt     = 0.005;
@@ -21,13 +21,20 @@ simOpts.scriptName    = 'nom_coriolis_comp';
 simOpts.parallelRuns  = true;
 cfg.useSimOptions(simOpts);
 
-% Reference trajectory.
-trajOpts.name                      = 'lissajous3d';
-trajOpts.goToHoverBeforePathStarts = false;
-trajOpts.period                    = duration;
+%% Reference trajectory.
+
+% Analytic Trajectory Options
+% trajOpts.name                      = 'lissajous3d';
+% trajOpts.goToHoverBeforePathStarts = false;
+% trajOpts.period                    = duration;
+% cfg.useTrajectoryOptions(trajOpts);
+
+% Replay Trajectory Options
+trajOpts.name                      = 'replay';
+trajOpts.replay.id                 = 'ellipse_01_auto';
 cfg.useTrajectoryOptions(trajOpts);
 
-% Controller and gains.
+%% Controller and gains.
 ctrlOpts.potential    = 'inertia-gain';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
 ctrlOpts.coriolisForm = {'basic', 'consistent'};    % cell array triggers one batch run per form
 ctrlOpts.Kp           = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
@@ -36,7 +43,7 @@ ctrlOpts.lambda       = 1e-1 * [5, 5, 5, 2, 2, 2];        % composite-variable c
 ctrlOpts.paramInit    = 'vehicle-slight-dev';       % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
 cfg.useControllerOptions(ctrlOpts);
 
-% Visualization.
+%% Visualization.
 vizOpts.enable      = false;
 vizOpts.liveSummary = false;
 vizOpts.updateRate  = 500;
@@ -46,7 +53,7 @@ cfg.useVizOptions(vizOpts);
 
 cfg.done();
 
-% Run the simulation — batch system produces one subdirectory per form.
+%% Run the simulation — batch system produces one subdirectory per form.
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
 

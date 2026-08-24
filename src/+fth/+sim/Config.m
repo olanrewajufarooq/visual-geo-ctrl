@@ -671,6 +671,7 @@ classdef Config < handle
             %   Accepts the same fields as fth.plot.TrajPlotter.run(opts).
             %   Recognised fields:
             %     .name / .names              - trajectory name or cell array of names
+            %     .replay                    - replay configuration struct
             %     .goToHoverBeforePathStarts  - logical; override hover flag
             %     .scale                      - path scale [m]
             %     .altitude                   - hover altitude [m]
@@ -701,6 +702,14 @@ classdef Config < handle
                 end
             elseif isfield(opts, 'goToHoverBeforePathStarts') && ~isempty(opts.goToHoverBeforePathStarts)
                 obj.traj.goToHoverBeforePathStarts = logical(opts.goToHoverBeforePathStarts);
+            end
+
+            if isfield(opts, 'replay') && ~isempty(opts.replay)
+                if ~isstruct(opts.replay)
+                    error('fth:Config:InvalidReplayOptions', ...
+                        'trajOpts.replay must be a struct.');
+                end
+                obj.traj.replay = opts.replay;
             end
 
             % Override individual trajectory parameters.
@@ -1207,8 +1216,17 @@ classdef Config < handle
                     obj.traj.scale = 5;
                     obj.traj.goToHoverBeforePathStarts = false;
 
+                case 'replay'
+                    obj.traj.scale = 0;
+                    obj.traj.altitude = 0;
+                    obj.traj.goToHoverBeforePathStarts = false;
+                    obj.traj.useDuration = false;
+                    if ~isfield(obj.traj, 'replay') || ~isstruct(obj.traj.replay)
+                        obj.traj.replay = struct();
+                    end
+
                 otherwise
-                    error('Unknown trajectory: %s. Valid names: circle, hover, infinity, lissajous3d, helix3d, poly3d, takeoffland.', name);
+                    error('Unknown trajectory: %s. Valid names: circle, hover, infinity, lissajous3d, helix3d, poly3d, takeoffland, replay.', name);
             end
             if hasHoverOverride
                 obj.traj.goToHoverBeforePathStarts = logical(goToHoverBeforePathStarts);

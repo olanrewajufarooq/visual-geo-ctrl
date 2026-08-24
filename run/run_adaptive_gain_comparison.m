@@ -1,18 +1,18 @@
 %RUN_ADAPTIVE_GAIN_COMPARISON Batch gain comparison: Euclidean and Bregman adaptation.
-%   Runs 4 Euclidean gain configs followed by 4 Bregman gain configs
-%   across 4 trajectories in a single batch.
+%   Runs the Euclidean and Bregman gain configurations on one replay
+%   trajectory in a single batch.
 
-% Clean workspace and load project paths.
+%% Clean workspace and load project paths.
 clear; close all;
 startup;
 
-% Build a fresh configuration with defaults.
+%% Build a fresh configuration with defaults.
 cfg = fth.sim.Config();
 
-% Scenario duration in seconds.
-duration = 60;
+%% Scenario duration in seconds.
+duration = 25;
 
-% Simulation timing.
+%% Simulation timing.
 simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
@@ -25,18 +25,26 @@ simOpts.scriptName   = 'adapt_gain_comp';
 simOpts.parallelRuns = true;
 cfg.useSimOptions(simOpts);
 
-% Reference trajectory batch.
-trajOpts.names                     = {'circle', 'lissajous3d', 'helix3d', 'poly3d'};
-trajOpts.goToHoverBeforePathStarts = false;
-trajOpts.period                    = [duration, duration, duration/2, duration/2];
+%% Reference trajectory.
+
+% Analytic Trajectory Options
+% trajOpts.names                     = {'circle', 'lissajous3d', 'helix3d', 'poly3d'};
+% trajOpts.goToHoverBeforePathStarts = false;
+% trajOpts.period                    = [duration, duration, duration/2, duration/2];
+% cfg.useTrajectoryOptions(trajOpts);
+
+% Replay Trajectory Options
+trajOpts.name      = 'replay';
+trajOpts.replay.id = 'ellipse_01_auto';
 cfg.useTrajectoryOptions(trajOpts);
 
-% Controller and gains.
+%% Controller and gains.
 ctrlOpts.potential    = 'inertia-gain';
 ctrlOpts.Kp           = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
 ctrlOpts.Kd           = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
 ctrlOpts.lambda       = 1e-3 * [5, 5, 5, 50, 50, 50];
-ctrlOpts.paramInit    = 'mid-vehicle-payload';
+ctrlOpts.paramInit    = 'vehicle';  % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
+% Use 'vehicle' when payload options are disabled; use a payload-specific mode when a payload is configured.
 ctrlOpts.coriolisForm = 'consistent';
 cfg.useControllerOptions(ctrlOpts);
 
@@ -55,11 +63,11 @@ adaptOpts.Gamma = { ...
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).
-payloadOpts.mass     = 1.5;
-payloadOpts.position = [0.115; 0.05; -0.25];
-payloadOpts.dims     = [0.20, 0.20, 0.10];
-payloadOpts.dropTime = 2*duration/3;
-cfg.usePayloadOptions(payloadOpts);
+% payloadOpts.mass     = 1.5;
+% payloadOpts.position = [0.115; 0.05; -0.25];
+% payloadOpts.dims     = [0.20, 0.20, 0.10];
+% payloadOpts.dropTime = 2*duration/3;
+% cfg.usePayloadOptions(payloadOpts);
 
 % Visualization.
 vizOpts.enable      = false;
@@ -75,7 +83,7 @@ cfg.done();
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
 
-runOpts.plotMode      = 'all';
+runOpts.plotMode      = 'all'; % 'summary', 'all', or 'none'
 runOpts.displayPlots  = false;
 runOpts.saveSimData   = false;
 runOpts.cummPlotModes = {'tracking_rmse', 'estimation_nrmse'};

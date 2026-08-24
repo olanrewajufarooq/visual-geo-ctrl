@@ -2,17 +2,17 @@
 %   Runs the same nominal scenario twice via the batch system, once per
 %   Coriolis factorization form, and saves full plots and sim data.
 
-% Clean workspace and load project paths.
+%% Clean workspace and load project paths.
 clear; close all;
 startup;
 
-% Build a fresh configuration with defaults.
+%% Build a fresh configuration with defaults.
 cfg = fth.sim.Config();
 
-% Scenario duration in seconds.
-duration = 60;
+%% Scenario duration in seconds.
+duration = 25;
 
-% Simulation timing.
+%% Simulation timing.
 simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
@@ -22,13 +22,20 @@ simOpts.scriptName   = 'adapt_coriolis_comp';
 simOpts.parallelRuns = true;
 cfg.useSimOptions(simOpts);
 
-% Reference trajectory.
-trajOpts.name                       = 'lissajous3d';
-trajOpts.goToHoverBeforePathStarts  = false;
-trajOpts.period                     = duration;
+%% Reference trajectory.
+
+% Analytic Trajectory Options
+% trajOpts.name                       = 'lissajous3d';
+% trajOpts.goToHoverBeforePathStarts  = false;
+% trajOpts.period                     = duration;
+% cfg.useTrajectoryOptions(trajOpts);
+
+% Replay Trajectory Options
+trajOpts.name      = 'replay';
+trajOpts.replay.id = 'ellipse_01_auto';
 cfg.useTrajectoryOptions(trajOpts);
 
-% Controller and gains.
+%% Controller and gains.
 ctrlOpts.potential    = 'inertia-gain';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
 ctrlOpts.Kp           = [ ...
                           5.5, 5.5, 5.5, 5.5, 5.5, 5.5; ... % euclid-basic
@@ -49,7 +56,8 @@ ctrlOpts.lambda       = 1e-3 * [ ...
                           50, 50, 50, 50, 50, 50; ...   % bregman-consistent
                         ]; % composite-variable coupling: s = Ve + diag(lambda)*eH
 
-ctrlOpts.paramInit    = 'mid-vehicle-payload';       % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
+ctrlOpts.paramInit    = 'vehicle';                   % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
+% Use 'vehicle' when payload options are disabled; use a payload-specific mode when a payload is configured.
 ctrlOpts.coriolisForm = {'basic', 'consistent', 'basic', 'consistent'};    % cell array triggers one batch run per form
 cfg.useControllerOptions(ctrlOpts);
 
@@ -64,13 +72,13 @@ adaptOpts.Gamma = { ...
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).
-payloadOpts.mass     = 1.5;
-payloadOpts.position = [0.115; 0.05; -0.25];
-payloadOpts.dims     = [0.20, 0.20, 0.10];
-payloadOpts.dropTime = 2*duration/3;
-cfg.usePayloadOptions(payloadOpts);
+% payloadOpts.mass     = 1.5;
+% payloadOpts.position = [0.115; 0.05; -0.25];
+% payloadOpts.dims     = [0.20, 0.20, 0.10];
+% payloadOpts.dropTime = 2*duration/3;
+% cfg.usePayloadOptions(payloadOpts);
 
-% Visualization.
+%% Visualization.
 vizOpts.enable      = false;
 vizOpts.liveSummary = false;
 vizOpts.updateRate  = 500;
@@ -80,7 +88,7 @@ cfg.useVizOptions(vizOpts);
 
 cfg.done();
 
-% Run the simulation.
+%% Run the simulation.
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
 

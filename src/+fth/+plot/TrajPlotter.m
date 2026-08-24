@@ -1,5 +1,5 @@
 classdef TrajPlotter
-    %TRAJPLOTTER Static helpers to sample and plot analytic trajectories.
+    %TRAJPLOTTER Static helpers to plot analytic and replay trajectories.
     %   Visualizes reference trajectories (geometry + kinematics) without
     %   running a full simulation.
     %
@@ -11,7 +11,8 @@ classdef TrajPlotter
     %
     %   opts fields (all optional; numeric fields accept a scalar or N-vector
     %   when opts.names lists N trajectories):
-    %     .names                    - cell array of trajectory names; {} = all
+    %     .mode                     - 'analytic' (default) or 'replay'
+    %     .names                    - analytic name or replay id/label; {} = all
     %     .scale                    - path scale [m]; overrides per-trajectory default
     %     .altitude                 - hover altitude [m]; default 5
     %     .period                   - path cycle duration [s]; preferred over duration
@@ -31,7 +32,8 @@ classdef TrajPlotter
             %RUN Sample and plot trajectories, saving PNGs to results/trajectories/.
             %   Input:
             %     opts - (optional) struct with any of these fields:
-            %       .names                    - cell array of trajectory names; {} = all (default)
+            %       .mode                     - 'analytic' (default) or 'replay'
+            %       .names                    - analytic name or replay id/label; {} = all
             %       .scale                    - path scale [m]; scalar or N-vec
             %       .altitude                 - hover altitude [m]; scalar or N-vec; default 5
             %       .period                   - path cycle duration [s]; scalar or N-vec
@@ -48,6 +50,15 @@ classdef TrajPlotter
             %     fth.plot.TrajPlotter.run(struct('period', 60, 'goToHoverDuration', 30))
             if nargin < 1
                 opts = struct();
+            end
+
+            mode = lower(char(string(fth.plot.TrajPlotter.getopt(opts, 'mode', 'analytic'))));
+            if strcmp(mode, 'replay')
+                fth.plot.TrajPlotter.runReplay(opts);
+                return;
+            elseif ~strcmp(mode, 'analytic')
+                error('fth:TrajPlotter:UnknownMode', ...
+                    'opts.mode must be ''analytic'' or ''replay''.');
             end
 
             names                    = fth.plot.TrajPlotter.getopt(opts, 'names',                    {});
@@ -118,7 +129,7 @@ classdef TrajPlotter
                 if isnan(hover_i)
                     cfg.setTrajectory(specs{i});
                 else
-                    cfg.setTrajectory(specs{i}, 1, logical(hover_i));
+                    cfg.setTrajectory(specs{i}, logical(hover_i));
                 end
 
                 % Override period after setTrajectory to prevent syncTrajectoryPeriod clobbering.
@@ -147,6 +158,72 @@ classdef TrajPlotter
 
             fth.plot.TrajPlotter.plotSummary(allData, allCfg, outDir);
         end
+
+        function runReplay(opts)
+            %RUNREPLAY Plot processed replay trajectories using the same
+            % figures and selection semantics as analytic trajectories.
+            names = fth.plot.TrajPlotter.getopt(opts, 'names', {});
+            if ischar(names) || isstring(names)
+                names = cellstr(names);
+            end
+
+            rootDir = ReplayProcessor.defaultRootDir();
+            manifestPath = fullfile(rootDir, 'manifest.json');
+            manifest = jsondecode(fileread(manifestPath));
+            ids = fieldnames(manifest);
+            if ~isempty(names)
+                keep = false(size(ids));
+                for i = 1:numel(ids)
+                    [~, artifactName] = fileparts(char(string(manifest.(ids{i}).artifact_file)));
+                    keep(i) = any(strcmpi(ids{i}, names)) || ...
+                        any(strcmpi(char(string(manifest.(ids{i}).label)), names)) || ...
+                        any(strcmpi(artifactName, names));
+                end
+                ids = ids(keep);
+                if isempty(ids)
+                    error('fth:TrajPlotter:UnknownReplayName', ...
+                        'None of the requested replay names match the manifest.');
+                end
+            end
+
+            outDir = fth.plot.TrajPlotter.resolveOutDir();
+            allData = cell(numel(ids), 1);
+            allCfg = cell(numel(ids), 1);
+            for i = 1:numel(ids)
+                entry = manifest.(ids{i});
+                artifactPath = fullfile(rootDir, char(string(entry.artifact_file)));
+                if ~isfile(artifactPath)
+                    error('fth:TrajPlotter:MissingReplayArtifact', ...
+                        'Replay artifact is missing: %s', artifactPath);
+                end
+                loaded = load(artifactPath, 'traj');
+                allData{i} = fth.plot.TrajPlotter.replayData(loaded.traj);
+                allCfg{i} = struct('traj', struct('name', char(string(entry.label))));
+                fprintf('[replay plot %d/%d] %s\n', i, numel(ids), entry.label);
+                fth.plot.TrajPlotter.plotSingle(allData{i}, allCfg{i}, outDir);
+            end
+            fth.plot.TrajPlotter.plotSummary(allData, allCfg, outDir);
+            fprintf('[replay plot] Saved figures to %s\n', outDir);
+        end
+
+        function data = replayData(traj)
+            %REPLAYDATA Adapt a processed replay artifact to plotting fields.
+            N = numel(traj.t);
+            rpy = zeros(N, 3);
+            for k = 1:N
+                eul = rotm2eul(traj.R(:, :, k), 'ZYX');
+                rpy(k, :) = fliplr(eul);
+            end
+            data = struct( ...
+                't', traj.t(:), ...
+                'pos', traj.p, ...
+                'rpy', rpy, ...
+                'linVel', traj.v_b, ...
+                'angVel', traj.omega_b, ...
+                'linAcc', traj.a_b, ...
+                'angAcc', traj.alpha_b);
+        end
+
         function data = sampleTrajectory(cfg, dt)
             %SAMPLETRAJECTORY Sample a trajectory over its full time horizon.
             %   Inputs:
