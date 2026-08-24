@@ -3,6 +3,14 @@ function optimize_gains()
 %   Edit opts below to run all scenarios or a selected subset.
 
 clear; close all;
+if exist('gcp', 'file') == 2
+    pool = gcp('nocreate');
+    if ~isempty(pool)
+        delete(pool);
+    end
+end
+clear classes;
+rehash path;
 startup;
 
 opts.scenarios = 'all';
@@ -15,6 +23,7 @@ opts.maxStallIterations = 15;
 
 opts.randomSeed = 20260824;
 opts.useParallel = true;
+opts.clearCache = false;
 
 % Search bounds. Gamma bounds are specified in log10 space.
 opts.bounds.Kp = [5e-3, 15.0];

@@ -65,6 +65,7 @@ classdef TestGainEvaluationProblem < matlab.unittest.TestCase
             testCase.verifyEqual({scenarios(~payload).paramInit}, ...
                 repmat({'vehicle-slight-dev'}, 1, nnz(~payload)));
         end
+
     end
 
     methods (Access = private)
