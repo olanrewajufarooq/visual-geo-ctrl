@@ -20,6 +20,8 @@ properties (Access = private)
     N           % 10×10 constant Jacobian (spd2params_jacobian)
     E           % 10×16 constant elimination matrix (eliminationspd4)
     infoMatrix  % 10×10 cumulative regressor information matrix (∫ Y'Y dt)
+    rejectedUpdateCount % Number of updates rejected after SPD/backtracking checks
+    useBackTracking % Whether to backtrack Euler steps that leave the SPD cone
 end
 
 methods
@@ -30,6 +32,10 @@ methods
         %       cfg.controller.Gamma must be a positive scalar gamma.
         obj.g = cfg.vehicle.g;
         obj.dt = cfg.sim.adaptation_dt;
+        obj.useBackTracking = false;
+        if isfield(cfg.controller, 'useBackTracking')
+            obj.useBackTracking = logical(cfg.controller.useBackTracking);
+        end
 
         % Build initial pi from config parameters
         m = cfg.vehicle.m;
@@ -53,6 +59,7 @@ methods
         obj.updateCount     = 0;
         obj.spdValidCount   = 0;
         obj.spdInvalidCount = 0;
+        obj.rejectedUpdateCount = 0;
         obj.updateEstimates();
         obj.initFromCfg(cfg);
     end
@@ -65,15 +72,51 @@ methods
         % Y  - 6×10 regressor matrix (pre-computed by base class).
         % Output:
         % pi - 10×1 updated parameter vector.
+        if ~all(isfinite([s(:); Y(:)]))
+            obj.updateCount = obj.updateCount + 1;
+            obj.rejectedUpdateCount = obj.rejectedUpdateCount + 1;
+            obj.recordSPDStatus(false);
+            pi = obj.getPi();
+            return;
+        end
+
         g_vec = obj.E' * (obj.N' * (Y' * s));
         G     = reshape(g_vec, 4, 4);
         G_sym = fth.se3.symOfMat(G);
         J_hatDot = -obj.gamma * obj.J_hat * G_sym * obj.J_hat;
-        obj.J_hat       = obj.J_hat + dt * J_hatDot;
+        J_previous = obj.J_hat;
+        J_candidate = J_previous + dt * J_hatDot;
+        accepted = false;
+        if obj.useBackTracking
+            step = dt;
+
+            % Explicit Euler does not preserve SPD for a finite step. Reduce
+            % the step until the physical pseudo-inertia remains finite/SPD.
+            for attempt = 1:12
+                J_candidate = fth.se3.symOfMat(J_previous + step * J_hatDot);
+                if all(isfinite(J_candidate), 'all') && ...
+                        fth.ctrl.adapt.AdaptationUtils.is_spd(J_candidate)
+                    accepted = true;
+                    break;
+                end
+                step = step / 2;
+            end
+        else
+            obj.J_hat = J_candidate;
+            accepted = all(isfinite(J_candidate), 'all') && ...
+                fth.ctrl.adapt.AdaptationUtils.is_spd(J_candidate);
+        end
+
+        if accepted && obj.useBackTracking
+            obj.J_hat = J_candidate;
+        elseif ~accepted && obj.useBackTracking
+            obj.J_hat = J_previous;
+            obj.rejectedUpdateCount = obj.rejectedUpdateCount + 1;
+        end
         obj.infoMatrix  = obj.infoMatrix + dt * (Y.' * Y);
         obj.updateCount = obj.updateCount + 1;
         obj.updateEstimates();
-        obj.recordSPDStatus(fth.ctrl.adapt.AdaptationUtils.is_spd(obj.J_hat));
+        obj.recordSPDStatus(accepted);
         pi = obj.getPi();
     end
 
@@ -100,7 +143,9 @@ methods
             'infoMatrix',      obj.infoMatrix, ...
             'updateCount',     obj.updateCount, ...
             'spdValidCount',   obj.spdValidCount, ...
-            'spdInvalidCount', obj.spdInvalidCount);
+            'spdInvalidCount', obj.spdInvalidCount, ...
+            'rejectedUpdateCount', obj.rejectedUpdateCount, ...
+            'useBackTracking', obj.useBackTracking);
     end
 
     function setEstimatePi(obj, pi)

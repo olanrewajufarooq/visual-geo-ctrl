@@ -40,6 +40,7 @@ classdef Config < handle
             obj.initPayload();
             obj.initParamInit();
             obj.initVisualization();
+            obj.controller.useBackTracking = false;
             
             % Default trajectory and controller (can be overridden)
             obj.setTrajectory('hover');
@@ -232,11 +233,13 @@ classdef Config < handle
             kpVal = []; if isfield(obj.controller, 'Kp'), kpVal = obj.controller.Kp; end
             kdVal = []; if isfield(obj.controller, 'Kd'), kdVal = obj.controller.Kd; end
             gVal  = []; if isfield(obj.controller, 'Gamma'), gVal = obj.controller.Gamma; end
+            btVal = []; if isfield(obj.controller, 'useBackTracking'), btVal = obj.controller.useBackTracking; end
             adaptMode = 'none'; if isfield(obj.controller, 'adaptation'), adaptMode = obj.controller.adaptation; end
             counts = [ ...
                 fth.sim.ConfigUtils.gainBatchCount(kpVal, 'Kp', 6), ...
                 fth.sim.ConfigUtils.gainBatchCount(kdVal, 'Kd', 6), ...
-                fth.sim.ConfigUtils.gammaBatchCount(gVal, adaptMode)];
+                fth.sim.ConfigUtils.gammaBatchCount(gVal, adaptMode), ...
+                max(1, numel(btVal))];
             batched = counts(counts > 1);
             if ~isempty(batched)
                 gainBatchCount = batched(1);
@@ -317,6 +320,12 @@ classdef Config < handle
                             cfgCopy.controller.Gamma = fth.sim.ConfigUtils.selectGammaRow( ...
                                 obj.controller.adaptation, obj.controller.Gamma, simIdx);
                         end
+                    end
+
+                    if isfield(obj.controller, 'useBackTracking') && ...
+                            numel(obj.controller.useBackTracking) > 1
+                        cfgCopy.controller.useBackTracking = logical( ...
+                            obj.controller.useBackTracking(simIdx));
                     end
 
                     % Select coriolisFactorization for this simIdx.
@@ -414,7 +423,12 @@ classdef Config < handle
             % Gain rows must be 1 (broadcast) or exactly M.
             gainRows = fth.sim.ConfigUtils.gainBatchCount(kpVal, 'Kp', 6);
             gammaRows = fth.sim.ConfigUtils.gammaBatchCount(gVal, adaptMode);
-            for rowCount = [gainRows, gammaRows]
+            backTrackingRows = 1;
+            if isfield(obj.controller, 'useBackTracking') && ...
+                    numel(obj.controller.useBackTracking) > 1
+                backTrackingRows = numel(obj.controller.useBackTracking);
+            end
+            for rowCount = [gainRows, gammaRows, backTrackingRows]
                 if rowCount > 1 && rowCount ~= M
                     error('Config:InconsistentBatchCounts', ...
                         'Gain row count (%d) must match batch count M=%d.', rowCount, M);
@@ -760,6 +774,8 @@ classdef Config < handle
             %               array of per-run mode strings for mixed-type batches
             %     .Gamma  - scalar or 10x1 adaptive gains, or cell array of
             %               per-run gains when .type is a cell array
+            %     .useBackTracking - logical scalar or per-run logical vector;
+            %                       enables SPD-safe Bregman step backtracking
             %     .dt     - adaptation timestep [s]
             %
             %   Output:
@@ -794,6 +810,15 @@ classdef Config < handle
                 else
                     obj.setAdaptiveGains(opts.Gamma);
                 end
+            end
+            if isfield(opts, 'useBackTracking')
+                value = opts.useBackTracking;
+                if isempty(value) || ~(islogical(value) || isnumeric(value)) || ...
+                        any(~isfinite(value(:))) || any(value(:) ~= 0 & value(:) ~= 1)
+                    error('fth:Config:InvalidAdaptationBackTracking', ...
+                        'useBackTracking must be a logical scalar or a 0/1 batch vector.');
+                end
+                obj.controller.useBackTracking = logical(value(:));
             end
             if isfield(opts, 'dt'), obj.setAdaptationParams(opts.dt); end
         end
@@ -830,6 +855,7 @@ classdef Config < handle
             %     .duration     - total run time [s] (required together with .dt)
             %     .controlDt    - controller update period [s]
             %     .adaptationDt - adaptation update period [s]
+            %     .enableSafety - enable ground-contact stopping check
             %     .runNames     - M-element cellstr of run names for batch labelling
             %     .scriptName   - short label used in the parent results folder name
             %
@@ -848,6 +874,16 @@ classdef Config < handle
             end
             if isfield(opts, 'parallelRuns')
                 obj.sim.parallelRuns = logical(opts.parallelRuns);
+            end
+            if isfield(opts, 'enableSafety')
+                value = opts.enableSafety;
+                if isempty(value) || ~isscalar(value) || ...
+                        ~(islogical(value) || isnumeric(value)) || ...
+                        any(~isfinite(value(:))) || any(value(:) ~= 0 & value(:) ~= 1)
+                    error('fth:Config:InvalidSafetyOption', ...
+                        'enableSafety must be a logical scalar or a 0/1 value.');
+                end
+                obj.sim.enableSafety = logical(value);
             end
         end
 
@@ -1101,6 +1137,7 @@ classdef Config < handle
             kpVal = []; if isfield(obj.controller, 'Kp'), kpVal = obj.controller.Kp; end
             kdVal = []; if isfield(obj.controller, 'Kd'), kdVal = obj.controller.Kd; end
             gVal  = []; if isfield(obj.controller, 'Gamma'), gVal = obj.controller.Gamma; end
+            btVal = []; if isfield(obj.controller, 'useBackTracking'), btVal = obj.controller.useBackTracking; end
             adaptMode = 'none';
             if isfield(obj.controller, 'adaptation'), adaptMode = obj.controller.adaptation; end
             cfVal = []; if isfield(obj.controller, 'coriolisFactorization'), cfVal = obj.controller.coriolisFactorization; end
@@ -1120,7 +1157,8 @@ classdef Config < handle
             counts = [ counts, ...
                 fth.sim.ConfigUtils.gainBatchCount(kpVal, 'Kp', 6), ...
                 fth.sim.ConfigUtils.gainBatchCount(kdVal, 'Kd', 6), ...
-                fth.sim.ConfigUtils.gammaBatchCount(gVal, adaptMode)];
+                fth.sim.ConfigUtils.gammaBatchCount(gVal, adaptMode), ...
+                max(1, numel(btVal))];
 
             % Generic counting for non-gain batched fields.
             if iscell(cfVal) && numel(cfVal) > 1

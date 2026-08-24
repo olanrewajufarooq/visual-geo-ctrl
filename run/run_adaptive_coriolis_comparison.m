@@ -17,6 +17,7 @@ simOpts.dt           = 0.005;
 simOpts.duration     = duration;
 simOpts.controlDt    = 0.01;
 simOpts.adaptationDt = 0.005;
+simOpts.enableSafety  = false;
 simOpts.runNames     = {'euclid-basic', 'euclid-consistent', 'breg-basic', 'breg-consistent'};
 simOpts.scriptName   = 'adapt_coriolis_comp';
 simOpts.parallelRuns = true;
@@ -56,8 +57,8 @@ ctrlOpts.lambda       = 1e-3 * [ ...
                           50, 50, 50, 50, 50, 50; ...   % bregman-consistent
                         ]; % composite-variable coupling: s = Ve + diag(lambda)*eH
 
-ctrlOpts.paramInit    = 'vehicle';                   % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
-% Use 'vehicle' when payload options are disabled; use a payload-specific mode when a payload is configured.
+ctrlOpts.paramInit    = 'vehicle-slight-dev';                   % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
+% Use 'vehicle' or 'vehicle-slight-dev' when payload options are disabled; use a payload-specific mode when a payload is configured.
 ctrlOpts.coriolisForm = {'basic', 'consistent', 'basic', 'consistent'};    % cell array triggers one batch run per form
 cfg.useControllerOptions(ctrlOpts);
 
@@ -66,8 +67,8 @@ adaptOpts.type  = {'euclidean', 'euclidean', 'bregman', 'bregman'};          % '
 adaptOpts.Gamma = { ...
                     1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4], ...
                     1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4], ...
-                    1/10, ...
-                    1/10 ...
+                    1e-3, ...
+                    1e-3 ...
                   }; % Gamma values
 cfg.useAdaptationOptions(adaptOpts);
 

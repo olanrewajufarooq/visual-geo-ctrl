@@ -15,6 +15,7 @@ duration = 25;
 simOpts.dt            = 0.005;
 simOpts.duration      = duration;
 simOpts.controlDt     = 0.005;
+simOpts.enableSafety   = false;
 simOpts.scriptName    = 'nom_demo';
 simOpts.parallelRuns  = true;
 cfg.useSimOptions(simOpts);
@@ -56,7 +57,7 @@ cfg.done();
 sim = fth.sim.SimRunner(cfg);
 sim.setup();
 
-runOpts.plotMode     = 'all';   % 'summary', 'all', or 'none'
+runOpts.plotMode     = 'summary';   % 'summary', 'all', or 'none'
 runOpts.displayPlots = false;
 runOpts.saveSimData  = false;
 sim.run(runOpts);
