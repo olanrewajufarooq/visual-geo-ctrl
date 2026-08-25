@@ -1,14 +1,12 @@
 %PROCESS_TRAJECTORIES Build canonical replay artifacts for downloaded flights.
-% Run once from MATLAB after the trajectory CSVs have been downloaded. The
-% generated MAT artifacts are committed under trajectories/processed/.
 
-scriptDir = fileparts(mfilename('fullpath'));
-repoRoot = fileparts(scriptDir);
-addpath(genpath(fullfile(repoRoot, 'src')));
-addpath(genpath(scriptDir));
+processingMethod = 'wnoj';  % Choose 'wnoj' or 'poly'.
+clearCache = false;
 
-processedRoot = fullfile(scriptDir, 'processed');
-manifestPath = fullfile(processedRoot, 'manifest.json');
+trajIds = {'ellipse_01_auto', 'lemniscate_01_auto', 'RATM_01_auto'};
+% Set trajIds = {} to process the complete manifest.
+
 fprintf('[replay] Starting trajectory preprocessing.\n');
-summary = ReplayProcessor.processAll(processedRoot, manifestPath);
+summary = ReplayProcessor.processAll( ...
+    processingMethod, clearCache, trajIds);
 fprintf('Processed %d replay trajectories.\n', summary.processedCount);

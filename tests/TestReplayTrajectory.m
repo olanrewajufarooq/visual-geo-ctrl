@@ -108,11 +108,114 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
             testCase.verifyTrue(isfile(artifactPath));
             testCase.verifyEqual(data.traj.meta.id, 'demo_replay');
             testCase.verifyEqual(data.traj.meta.accelerationMethod, ...
-                'local-polynomial-world-derivative');
+                'poly');
             testCase.verifyEqual(data.traj.meta.accelerationWindowSamples, 201);
             testCase.verifyEqual(size(data.traj.p), [3 3]);
             testCase.verifyEqual(size(data.traj.v_b), [3 3]);
             testCase.verifyEqual(size(data.traj.omega_b), [3 3]);
+        end
+
+        function testProcessorAcceptsExplicitPolynomialMethod(testCase)
+            tmpRoot = testCase.createTempStructure();
+            cleanup = onCleanup(@() rmdir(tmpRoot, 's'));
+            %#ok<NASGU>
+
+            rawDir = fullfile(tmpRoot, 'autonomous', 'demo');
+            mkdir(rawDir);
+            testCase.writeRawTrajectoryCsv( ...
+                fullfile(rawDir, 'demo_500hz_freq_sync.csv'));
+            manifestPath = testCase.writeManifest(tmpRoot, struct( ...
+                'demo_replay', struct( ...
+                    'source_mode', 'autonomous', ...
+                    'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
+                    'artifact_file', 'demo_replay.mat')));
+
+            ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'poly');
+            data = load(fullfile(tmpRoot, 'demo_replay.mat'), 'traj');
+
+            testCase.verifyEqual(data.traj.meta.postprocessingMethod, ...
+                'poly');
+            testCase.verifyEqual(data.traj.meta.accelerationMethod, ...
+                'poly');
+        end
+
+        function testProcessorBuildsExactWnojArtifact(testCase)
+            tmpRoot = testCase.createTempStructure();
+            cleanup = onCleanup(@() rmdir(tmpRoot, 's'));
+            %#ok<NASGU>
+
+            rawDir = fullfile(tmpRoot, 'autonomous', 'demo');
+            mkdir(rawDir);
+            testCase.writeRawTrajectoryCsv( ...
+                fullfile(rawDir, 'demo_500hz_freq_sync.csv'));
+            manifestPath = testCase.writeManifest(tmpRoot, struct( ...
+                'demo_replay', struct( ...
+                    'source_mode', 'autonomous', ...
+                    'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
+                    'artifact_file', 'demo_replay.mat')));
+
+            summary = ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'wnoj');
+            data = load(fullfile(tmpRoot, 'demo_replay.mat'), 'traj');
+
+            testCase.verifyEqual(summary.processedCount, 1);
+            testCase.verifyEqual(data.traj.meta.postprocessingMethod, ...
+                'wnoj');
+            testCase.verifyEqual(size(data.traj.p), [3 3]);
+            testCase.verifyEqual(size(data.traj.v_b), [3 3]);
+            testCase.verifyEqual(size(data.traj.a_b), [3 3]);
+        end
+
+        function testProcessorReusesValidArtifactCache(testCase)
+            tmpRoot = testCase.createTempStructure();
+            cleanup = onCleanup(@() rmdir(tmpRoot, 's'));
+            %#ok<NASGU>
+
+            rawDir = fullfile(tmpRoot, 'autonomous', 'demo');
+            mkdir(rawDir);
+            rawFile = fullfile(rawDir, 'demo_500hz_freq_sync.csv');
+            testCase.writeRawTrajectoryCsv(rawFile);
+            manifestPath = testCase.writeManifest(tmpRoot, struct( ...
+                'demo_replay', struct( ...
+                    'source_mode', 'autonomous', ...
+                    'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
+                    'artifact_file', 'demo_replay.mat')));
+
+            first = ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'poly');
+            second = ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'poly', false);
+
+            testCase.verifyEqual(first.processedCount, 1);
+            testCase.verifyEqual(first.cachedCount, 0);
+            testCase.verifyEqual(second.processedCount, 0);
+            testCase.verifyEqual(second.cachedCount, 1);
+            testCase.verifyEqual(second.totalCount, 1);
+        end
+
+        function testProcessorCanSelectManifestKeys(testCase)
+            tmpRoot = testCase.createTempStructure();
+            cleanup = onCleanup(@() rmdir(tmpRoot, 's'));
+            %#ok<NASGU>
+
+            firstDir = fullfile(tmpRoot, 'autonomous', 'first');
+            secondDir = fullfile(tmpRoot, 'autonomous', 'second');
+            mkdir(firstDir);
+            mkdir(secondDir);
+            testCase.writeRawTrajectoryCsv(fullfile(firstDir, 'first.csv'));
+            testCase.writeRawTrajectoryCsv(fullfile(secondDir, 'second.csv'));
+            manifestPath = testCase.writeManifest(tmpRoot, struct( ...
+                'first_replay', struct('source_mode', 'autonomous', ...
+                'source_file', 'autonomous/first/first.csv', ...
+                'artifact_file', 'first_replay.mat'), ...
+                'second_replay', struct('source_mode', 'autonomous', ...
+                'source_file', 'autonomous/second/second.csv', ...
+                'artifact_file', 'second_replay.mat')));
+
+            summary = ReplayProcessor.processAll( ...
+                tmpRoot, manifestPath, false, 'poly', true, "second_replay");
+
+            testCase.verifyEqual(summary.trajectoryIds, {'second_replay'});
+            testCase.verifyEqual(summary.totalCount, 1);
+            testCase.verifyFalse(isfile(fullfile(tmpRoot, 'first_replay.mat')));
+            testCase.verifyTrue(isfile(fullfile(tmpRoot, 'second_replay.mat')));
         end
 
         function testProcessorConvertsWorldSignalsToBodyFrame(testCase)
