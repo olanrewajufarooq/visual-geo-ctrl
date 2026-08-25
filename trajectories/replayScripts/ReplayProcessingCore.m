@@ -2,7 +2,7 @@ classdef ReplayProcessingCore
     %REPLAYPROCESSOR Build and load canonical replay trajectory artifacts.
 
     methods (Static)
-        function summary = processAll(rootDir, manifestPath, useParallel)
+        function summary = processAll(rootDir, manifestPath, useParallel, methodOverride)
             %PROCESSALL Convert manifest-listed raw CSV files into .mat artifacts.
             if nargin < 1 || isempty(rootDir)
                 rootDir = ReplayProcessingCore.defaultRootDir();
@@ -20,6 +20,12 @@ classdef ReplayProcessingCore
                     useParallel = false;
                 end
             end
+            if nargin < 4 || isempty(methodOverride)
+                methodOverride = '';
+            else
+                methodOverride = ReplayProcessingCore.normalizePostprocessingMethod( ...
+                    methodOverride);
+            end
 
             manifest = ReplayProcessingCore.loadManifest(manifestPath);
             ids = fieldnames(manifest);
@@ -29,6 +35,9 @@ classdef ReplayProcessingCore
             entries = cell(n, 1);
             for i = 1:n
                 entries{i} = manifest.(ids{i});
+                if ~isempty(methodOverride)
+                    entries{i}.postprocessing.method = methodOverride;
+                end
                 rawPaths{i} = ReplayProcessingCore.resolveSourcePath(rootDir, entries{i}.source_file);
                 outPaths{i} = fullfile(rootDir, char(string(entries{i}.artifact_file)));
                 outDir = fileparts(outPaths{i});
@@ -126,6 +135,22 @@ classdef ReplayProcessingCore
     end
 
     methods (Static, Access = private)
+        function method = normalizePostprocessingMethod(method)
+            method = lower(char(string(method)));
+            switch method
+                case 'poly'
+                    method = 'legacy-local-polynomial-world-derivative';
+                case 'wnoj'
+                    method = 'wnoj-se3-batch-v1';
+                case {'legacy-local-polynomial-world-derivative', 'wnoj-se3-batch-v1'}
+                    % Permit the internal names for programmatic callers.
+                otherwise
+                    error('fth:Replay:UnknownProcessingMethod', ...
+                        ['Unknown replay processing method ''%s''. ' ...
+                         'Expected ''wnoj'' or ''poly''.'], method);
+            end
+        end
+
         function [elapsed, errors] = processAllSequential(ids, entries, rawPaths, outPaths)
             n = numel(ids);
             elapsed = zeros(n, 1);

@@ -11,6 +11,13 @@ classdef ReplayTraj < fth.traj.TrajectoryBase
         end
 
         function [H, V, A] = generate(obj, t, ~, ~, ~)
+            if isfield(obj.data, 'smoother') && ...
+                    isa(obj.data.smoother, 'ReplayWnojSmoother') && ...
+                    strcmp(obj.data.smoother.method, 'wnoj-se3-batch-v1')
+                [H, V, A] = obj.data.smoother.evaluate(t);
+                return;
+            end
+
             p = obj.interpolateRows(obj.data.p, t);
             v_b = obj.interpolateRows(obj.data.v_b, t);
             a_b = obj.interpolateRows(obj.data.a_b, t);

@@ -49,6 +49,9 @@ The default second argument is `safe`, which reuses cached downloads but refuses
 
 ## Processing
 
+See [POSTPROCESSING.md](POSTPROCESSING.md) for the geometrically consistent
+WNOJ replay-trajectory post-processing design and its research references.
+
 Replay implementation files are grouped under `trajectories/replayScripts/`. The
 repository startup adds the complete `trajectories/` tree to the MATLAB path.
 After downloading the CSV files, run this once from the repository root:
@@ -121,35 +124,34 @@ sample.
 
 ### Acceleration Post-Processing
 
-The dataset interpolation script creates linear velocity by differentiating
-MoCap position and applying a 100 Hz low-pass filter. Its angular velocity is
-computed from the rotation-matrix derivative. The CSV also contains `accel_*`
-and `gyro_*` IMU channels, but `accel_*` is specific force rather than the
-kinematic acceleration required by `TrajectoryBase`; it must not be copied
-directly into `A`.
+The dataset velocity channels are derived from MoCap pose data. Its `accel_*`
+IMU channels are sensor-frame specific force, not the kinematic acceleration
+required by `TrajectoryBase`, and must not be copied into `A`.
 
-The processor computes acceleration after the complete velocity arrays have
-been assembled. It fits a centered cubic polynomial over 201 samples (402 ms
-at 500 Hz) to estimate world-frame derivatives, then applies:
+The controller uses world pose and body-coordinate twist and acceleration:
 
-```text
-a_body     = R' * d(v_world)/dt - omega_body x v_body
-alpha_body = R' * d(omega_world)/dt
-```
+$$
+H = \begin{bmatrix}R & p\\0 & 1\end{bmatrix},
+\qquad
+V = \begin{bmatrix}\omega_b\\v_b\end{bmatrix},
+\qquad
+A = \dot{V}.
+$$
 
-The `-omega_body x v_body` term is essential. At racing speeds, a body-frame
-linear acceleration of hundreds of `m/s^2` can be expected even when the
-world-frame acceleration is much smaller, because the body axes rotate rapidly
-while the vehicle translates. The processed artifact metadata records the
-method and window as `accelerationMethod` and `accelerationWindowSamples`.
+The current legacy processor estimates acceleration by differentiating the
+converted velocity signals. Its translational body-frame identity is
 
-The pose remains in world coordinates as `H = [R p; 0 1]`, while the returned
-twist and acceleration are body-coordinate quantities required by the existing
-geometric controller. The input pose, velocity, and acceleration are therefore
-not treated as six unrelated Euclidean values.
+$$
+\frac{d}{dt}\left(R^\mathsf{T}v_w\right)
+= R^\mathsf{T}\dot{v}_w - \omega_b \times v_b.
+$$
 
-IMU `accel_[x/y/z]` is not substituted for `A`; it has sensor-frame and
-specific-force/gravity conventions that require separate calibration.
+The WNOJ post-processor smooths pose and the world-frame velocity channels
+jointly, then converts the result to body-frame $V$ and $A$ with the required
+transport term. The current implementation is a local-coordinate
+Kalman/RTS approximation rather than the paper's full nonlinear $SE(3)$ batch
+solver. See [POSTPROCESSING.md](POSTPROCESSING.md) for the details and
+references.
 
 Sources: [dataset repository](https://github.com/tii-racing/drone-racing-dataset),
 [dataset interpolation script](https://raw.githubusercontent.com/tii-racing/drone-racing-dataset/main/scripts/data_interpolation.py),

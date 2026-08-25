@@ -22,17 +22,27 @@ classdef ReplayKinematics
             [R, v_b, omega_b] = ReplayKinematics.convertToBodyFrame( ...
                 T, rotCols, v_world, omega_world);
 
-            % Estimate derivatives only after the complete velocity signals have
-            % been assembled. The local polynomial fit suppresses sample-level
-            % MoCap/interpolation noise without introducing a causal delay.
-            derivativeWindowSamples = 201;  % 402 ms at the dataset's 500 Hz rate
-            v_world_dot = ReplayKinematics.differentiateSignal( ...
-                v_world, t, derivativeWindowSamples);
-            omega_world_dot = ReplayKinematics.differentiateSignal( ...
-                omega_world, t, derivativeWindowSamples);
+            postprocessingMethod = ReplayKinematics.postprocessingMethod(entry);
+            smoother = [];
+            if strcmp(postprocessingMethod, 'wnoj-se3-batch-v1')
+                options = ReplayKinematics.postprocessingOptions(entry);
+                smoother = ReplayWnojSmoother(options);
+                smoother = smoother.fit(t, R, p, [omega_b, v_b]);
+                [R, p, omega_b, v_b, alpha_b, a_b] = ...
+                    ReplayKinematics.sampleSmoother(smoother);
+                derivativeWindowSamples = NaN;
+            else
+                % Legacy derivative path. Keep this available for existing
+                % artifacts and manifests while WNOJ is being validated.
+                derivativeWindowSamples = 201;  % 402 ms at 500 Hz
+                v_world_dot = ReplayKinematics.differentiateSignal( ...
+                    v_world, t, derivativeWindowSamples);
+                omega_world_dot = ReplayKinematics.differentiateSignal( ...
+                    omega_world, t, derivativeWindowSamples);
 
-            [a_b, alpha_b] = ReplayKinematics.computeBodyAccelerations( ...
-                R, v_b, omega_b, v_world_dot, omega_world_dot);
+                [a_b, alpha_b] = ReplayKinematics.computeBodyAccelerations( ...
+                    R, v_b, omega_b, v_world_dot, omega_world_dot);
+            end
 
             traj = struct();
             traj.t = t(:);
@@ -47,14 +57,75 @@ classdef ReplayKinematics
                 'source_mode', char(string(entry.source_mode)), ...
                 'source_file', char(string(entry.source_file)), ...
                 'sampleRateHz', ReplayKinematics.estimateSampleRate(t), ...
-                'accelerationMethod', 'local-polynomial-world-derivative', ...
+                'accelerationMethod', ReplayKinematics.legacyAccelerationMethod( ...
+                    postprocessingMethod), ...
                 'accelerationWindowSamples', derivativeWindowSamples, ...
                 'tStart', t(1), ...
                 'tEnd', t(end));
+            if ~isempty(smoother)
+                traj.smoother = smoother;
+                traj.meta.postprocessingMethod = smoother.method;
+                traj.meta.postprocessingDiagnostics = smoother.diagnostics;
+            else
+                traj.meta.postprocessingMethod = postprocessingMethod;
+            end
         end
     end
 
     methods (Static, Access = private)
+        function method = postprocessingMethod(entry)
+            method = 'legacy-local-polynomial-world-derivative';
+            if ~isfield(entry, 'postprocessing') || ...
+                    ~isstruct(entry.postprocessing) || ...
+                    ~isfield(entry.postprocessing, 'method') || ...
+                    isempty(entry.postprocessing.method)
+                return;
+            end
+            method = char(string(entry.postprocessing.method));
+            if ~ismember(method, {'legacy-local-polynomial-world-derivative', 'wnoj-se3-batch-v1'})
+                error('fth:Replay:UnknownPostprocessing', ...
+                    'Unknown replay postprocessing method ''%s''.', method);
+            end
+        end
+
+        function method = legacyAccelerationMethod(postprocessingMethod)
+            if strcmp(postprocessingMethod, 'legacy-local-polynomial-world-derivative')
+                method = 'local-polynomial-world-derivative';
+            else
+                method = postprocessingMethod;
+            end
+        end
+
+        function options = postprocessingOptions(entry)
+            options = struct();
+            if isfield(entry, 'postprocessing') && ...
+                    isstruct(entry.postprocessing) && ...
+                    isfield(entry.postprocessing, 'wnoj') && ...
+                    isstruct(entry.postprocessing.wnoj)
+                options = entry.postprocessing.wnoj;
+            end
+        end
+
+        function [R, p, omega_b, v_b, alpha_b, a_b] = sampleSmoother(smoother)
+            outputTimes = smoother.outputTimes;
+            n = numel(outputTimes);
+            R = zeros(3, 3, n);
+            p = zeros(n, 3);
+            omega_b = zeros(n, 3);
+            v_b = zeros(n, 3);
+            alpha_b = zeros(n, 3);
+            a_b = zeros(n, 3);
+            for k = 1:n
+                [H, V, A] = smoother.evaluate(outputTimes(k));
+                R(:, :, k) = H(1:3, 1:3);
+                p(k, :) = H(1:3, 4).';
+                omega_b(k, :) = V(1:3).';
+                v_b(k, :) = V(4:6).';
+                alpha_b(k, :) = A(1:3).';
+                a_b(k, :) = A(4:6).';
+            end
+        end
+
         function [R, v_b, omega_b] = convertToBodyFrame(T, rotCols, v_world, omega_world)
             R = zeros(3, 3, height(T));
             v_b = zeros(size(v_world));

@@ -115,6 +115,56 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
             testCase.verifyEqual(size(data.traj.omega_b), [3 3]);
         end
 
+        function testProcessorAcceptsExplicitPolynomialMethod(testCase)
+            tmpRoot = testCase.createTempStructure();
+            cleanup = onCleanup(@() rmdir(tmpRoot, 's'));
+            %#ok<NASGU>
+
+            rawDir = fullfile(tmpRoot, 'autonomous', 'demo');
+            mkdir(rawDir);
+            testCase.writeRawTrajectoryCsv( ...
+                fullfile(rawDir, 'demo_500hz_freq_sync.csv'));
+            manifestPath = testCase.writeManifest(tmpRoot, struct( ...
+                'demo_replay', struct( ...
+                    'source_mode', 'autonomous', ...
+                    'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
+                    'artifact_file', 'demo_replay.mat')));
+
+            ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'poly');
+            data = load(fullfile(tmpRoot, 'demo_replay.mat'), 'traj');
+
+            testCase.verifyEqual(data.traj.meta.postprocessingMethod, ...
+                'legacy-local-polynomial-world-derivative');
+            testCase.verifyEqual(data.traj.meta.accelerationMethod, ...
+                'local-polynomial-world-derivative');
+        end
+
+        function testProcessorBuildsExactWnojArtifact(testCase)
+            tmpRoot = testCase.createTempStructure();
+            cleanup = onCleanup(@() rmdir(tmpRoot, 's'));
+            %#ok<NASGU>
+
+            rawDir = fullfile(tmpRoot, 'autonomous', 'demo');
+            mkdir(rawDir);
+            testCase.writeRawTrajectoryCsv( ...
+                fullfile(rawDir, 'demo_500hz_freq_sync.csv'));
+            manifestPath = testCase.writeManifest(tmpRoot, struct( ...
+                'demo_replay', struct( ...
+                    'source_mode', 'autonomous', ...
+                    'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
+                    'artifact_file', 'demo_replay.mat')));
+
+            summary = ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'wnoj');
+            data = load(fullfile(tmpRoot, 'demo_replay.mat'), 'traj');
+
+            testCase.verifyEqual(summary.processedCount, 1);
+            testCase.verifyEqual(data.traj.meta.postprocessingMethod, ...
+                'wnoj-se3-batch-v1');
+            testCase.verifyEqual(size(data.traj.p), [3 3]);
+            testCase.verifyEqual(size(data.traj.v_b), [3 3]);
+            testCase.verifyEqual(size(data.traj.a_b), [3 3]);
+        end
+
         function testProcessorConvertsWorldSignalsToBodyFrame(testCase)
             tmpRoot = testCase.createTempStructure();
             cleanup = onCleanup(@() rmdir(tmpRoot, 's'));
