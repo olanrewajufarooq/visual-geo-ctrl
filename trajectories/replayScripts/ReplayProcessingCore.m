@@ -2,7 +2,8 @@ classdef ReplayProcessingCore
     %REPLAYPROCESSOR Build and load canonical replay trajectory artifacts.
 
     methods (Static)
-        function summary = processAll(rootDir, manifestPath, useParallel, methodOverride, clearCache)
+        function summary = processAll(rootDir, manifestPath, useParallel, ...
+                methodOverride, clearCache, trajectoryIds)
             %PROCESSALL Convert manifest-listed raw CSV files into .mat artifacts.
             if nargin < 1 || isempty(rootDir)
                 rootDir = ReplayProcessingCore.defaultRootDir();
@@ -33,9 +34,13 @@ classdef ReplayProcessingCore
                     mfilename, 'clearCache');
                 clearCache = logical(clearCache);
             end
+            if nargin < 6
+                trajectoryIds = [];
+            end
 
             manifest = ReplayProcessingCore.loadManifest(manifestPath);
-            ids = fieldnames(manifest);
+            ids = ReplayProcessingCore.selectManifestIds( ...
+                fieldnames(manifest), trajectoryIds);
             n = numel(ids);
             rawPaths = cell(n, 1);
             outPaths = cell(n, 1);
@@ -103,6 +108,7 @@ classdef ReplayProcessingCore
 
             summary = struct('processedCount', sum(~cached), ...
                 'cachedCount', sum(cached), 'totalCount', n, ...
+                'trajectoryIds', {ids}, ...
                 'manifestPath', manifestPath, ...
                 'parallel', useParallel && numel(pending) > 1, ...
                 'clearCache', clearCache);
@@ -166,18 +172,37 @@ classdef ReplayProcessingCore
     methods (Static, Access = private)
         function method = normalizePostprocessingMethod(method)
             method = lower(char(string(method)));
-            switch method
-                case 'poly'
-                    method = 'legacy-local-polynomial-world-derivative';
-                case 'wnoj'
-                    method = 'wnoj-se3-batch-v1';
-                case {'legacy-local-polynomial-world-derivative', 'wnoj-se3-batch-v1'}
-                    % Permit the internal names for programmatic callers.
-                otherwise
-                    error('fth:Replay:UnknownProcessingMethod', ...
-                        ['Unknown replay processing method ''%s''. ' ...
-                         'Expected ''wnoj'' or ''poly''.'], method);
+            if ~ismember(method, {'wnoj', 'poly'})
+                error('fth:Replay:UnknownProcessingMethod', ...
+                    ['Unknown replay processing method ''%s''. ' ...
+                     'Expected ''wnoj'' or ''poly''.'], method);
             end
+        end
+
+        function ids = selectManifestIds(allIds, requestedIds)
+            if isempty(requestedIds)
+                ids = allIds;
+                return;
+            end
+            if ischar(requestedIds)
+                requestedIds = {requestedIds};
+            elseif isstring(requestedIds)
+                requestedIds = cellstr(requestedIds(:));
+            elseif iscell(requestedIds)
+                requestedIds = cellfun(@(value) char(string(value)), ...
+                    requestedIds(:), 'UniformOutput', false);
+            else
+                error('fth:Replay:InvalidTrajectoryIds', ...
+                    'Trajectory IDs must be text or a list of text values.');
+            end
+            requestedIds = unique(requestedIds, 'stable');
+            unknownIds = setdiff(requestedIds, allIds, 'stable');
+            if ~isempty(unknownIds)
+                error('fth:Replay:UnknownTrajectoryId', ...
+                    'Unknown replay trajectory IDs: %s', ...
+                    strjoin(unknownIds, ', '));
+            end
+            ids = allIds(ismember(allIds, requestedIds));
         end
 
         function [elapsed, errors] = processAllSequential(ids, entries, rawPaths, outPaths)
@@ -294,7 +319,7 @@ classdef ReplayProcessingCore
         end
 
         function key = postprocessingCacheKey(entry)
-            method = 'legacy-local-polynomial-world-derivative';
+            method = 'poly';
             if isfield(entry, 'postprocessing') && ...
                     isstruct(entry.postprocessing) && ...
                     isfield(entry.postprocessing, 'method') && ...
@@ -302,7 +327,7 @@ classdef ReplayProcessingCore
                 method = ReplayProcessingCore.normalizePostprocessingMethod( ...
                     entry.postprocessing.method);
             end
-            payload = struct('method', method);
+            payload = struct('method', method, 'cacheRevision', 4);
             if isfield(entry, 'postprocessing') && ...
                     isstruct(entry.postprocessing) && ...
                     isfield(entry.postprocessing, 'wnoj')

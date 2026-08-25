@@ -49,22 +49,23 @@ The default second argument is `safe`, which reuses cached downloads but refuses
 
 ## Processing
 
-See [POSTPROCESSING.md](POSTPROCESSING.md) for the geometrically consistent
-WNOJ replay-trajectory post-processing design and its research references.
+See [POSTPROCESSING.md](POSTPROCESSING.md) for the geometrically consistent WNOJ replay-trajectory post-processing design and its research references.
 
-Replay implementation files are grouped under `trajectories/replayScripts/`. The
-repository startup adds the complete `trajectories/` tree to the MATLAB path.
-After downloading the CSV files, run this once from the repository root:
+Replay implementation files are grouped under `trajectories/replayScripts/`. The repository startup adds the complete `trajectories/` tree to the MATLAB path. After downloading the CSV files, run this once from the repository root:
 
 ```matlab
 run('trajectories/process_trajectories.m')
 ```
 
-This creates the versioned `.mat` artifacts under `trajectories/processed/`.
-When the Parallel Computing Toolbox is available, preprocessing uses independent
-workers for the manifest entries automatically. It falls back to sequential
-processing otherwise. To force sequential processing from MATLAB, pass `false`
-as the third argument to `ReplayProcessor.processAll`.
+This creates `.mat` artifacts under `trajectories/processed/`. Configure the
+script with `processingMethod = 'wnoj'` or `'poly'`. Set `trajIds = {}` to
+process the complete manifest, or provide selected manifest keys, for example:
+
+```matlab
+trajIds = {'ellipse_01_auto', 'lemniscate_01_auto', 'RATM_01_auto'};
+```
+
+When the Parallel Computing Toolbox is available, preprocessing uses independent workers for the selected manifest entries automatically. It falls back to sequential processing otherwise. To force sequential processing from MATLAB, pass `false` as the third argument to the full `ReplayProcessor.processAll` API.
 
 ## Papers
 
@@ -75,24 +76,15 @@ If you use these trajectories, cite the dataset repository and the papers it ref
 
 ## Geometric Replay Findings
 
-The downloaded files come from the TII Racing `drone-racing-dataset`. The
-`*_500hz_freq_sync.csv` files are the appropriate source for simulation because
-they are uniformly sampled at 500 Hz. The dataset's own preprocessing reports
-that:
+The downloaded files come from the TII Racing `drone-racing-dataset`. The `*_500hz_freq_sync.csv` files are the appropriate source for simulation because they are uniformly sampled at 500 Hz. The dataset's own preprocessing reports that:
 
 - `drone_[x/y/z]` is MoCap position in meters in the world frame.
-- `drone_rot[0-8]` is a 3x3 MoCap rotation stored in column-major order. The
-  rotation maps body-frame coordinates to world-frame coordinates.
-- `drone_velocity_linear_[x/y/z]` is obtained by differentiating world position,
-  so it is a world-frame velocity of the body origin.
-- `drone_velocity_angular_[x/y/z]` is obtained from `dR/dt * R'`, so it is a
-  world-frame angular velocity.
-- The dataset interpolates rotations with spherical linear interpolation, not
-  component-wise linear interpolation.
+- `drone_rot[0-8]` is a 3x3 MoCap rotation stored in column-major order. The rotation maps body-frame coordinates to world-frame coordinates.
+- `drone_velocity_linear_[x/y/z]` is obtained by differentiating world position, so it is a world-frame velocity of the body origin.
+- `drone_velocity_angular_[x/y/z]` is obtained from `dR/dt * R'`, so it is a world-frame angular velocity.
+- The dataset interpolates rotations with spherical linear interpolation, not component-wise linear interpolation.
 
-These conventions are consistent with the dataset README, its interpolation
-script, and the companion paper (Bosello et al., IEEE RA-L 2024,
-DOI: 10.1109/LRA.2024.3371288).
+These conventions are consistent with the dataset README, its interpolation script, and the companion paper (Bosello et al., IEEE RA-L 2024, DOI: 10.1109/LRA.2024.3371288).
 
 `fth.traj.TrajectoryBase` and the controller expect
 
@@ -110,23 +102,17 @@ a_body     = d(v_body)/dt
 alpha_body = d(omega_body)/dt
 ```
 
-Differentiating the converted body signals is important. It includes the frame
-transport terms caused by the changing attitude. In particular,
+Differentiating the converted body signals is important. It includes the frame transport terms caused by the changing attitude. In particular,
 
 ```text
 d(R' v_world)/dt = R' * (dv_world/dt - omega_world x v_world)
 ```
 
-The replay processor now performs this conversion before deriving acceleration.
-The replay trajectory also interpolates orientation along `SO(3)` using the
-relative rotation logarithm/Rodrigues formula rather than selecting the nearest
-sample.
+The replay processor now performs this conversion before deriving acceleration. The replay trajectory also interpolates orientation along `SO(3)` using the relative rotation logarithm/Rodrigues formula rather than selecting the nearest sample.
 
 ### Acceleration Post-Processing
 
-The dataset velocity channels are derived from MoCap pose data. Its `accel_*`
-IMU channels are sensor-frame specific force, not the kinematic acceleration
-required by `TrajectoryBase`, and must not be copied into `A`.
+The dataset velocity channels are derived from MoCap pose data. Its `accel_*` IMU channels are sensor-frame specific force, not the kinematic acceleration required by `TrajectoryBase`, and must not be copied into `A`.
 
 The controller uses world pose and body-coordinate twist and acceleration:
 
@@ -138,21 +124,13 @@ V = \begin{bmatrix}\omega_b\\v_b\end{bmatrix},
 A = \dot{V}.
 $$
 
-The current legacy processor estimates acceleration by differentiating the
-converted velocity signals. Its translational body-frame identity is
+The `poly` baseline estimates acceleration by differentiating the converted velocity signals. Its translational body-frame identity is
 
 $$
 \frac{d}{dt}\left(R^\mathsf{T}v_w\right)
 = R^\mathsf{T}\dot{v}_w - \omega_b \times v_b.
 $$
 
-The WNOJ post-processor smooths pose and the world-frame velocity channels
-jointly, then converts the result to body-frame $V$ and $A$ with the required
-transport term. The current implementation is a local-coordinate
-Kalman/RTS approximation rather than the paper's full nonlinear $SE(3)$ batch
-solver. See [POSTPROCESSING.md](POSTPROCESSING.md) for the details and
-references.
+The `wnoj` processor first converts the measured world-frame velocity channels to body twist. It then runs the nonlinear sparse $SE(3)$ batch smoother using the exact convention transformation $T=H^{-1}$, $\varpi=-V$, and $\dot{\varpi}=-A$. Gaussian-process interpolation returns mutually consistent $H$, $V$, and $A$ on the original sample grid. See [POSTPROCESSING.md](POSTPROCESSING.md) for the equations and reference.
 
-Sources: [dataset repository](https://github.com/tii-racing/drone-racing-dataset),
-[dataset interpolation script](https://raw.githubusercontent.com/tii-racing/drone-racing-dataset/main/scripts/data_interpolation.py),
-and [companion paper](https://doi.org/10.1109/LRA.2024.3371288).
+Sources: [dataset repository](https://github.com/tii-racing/drone-racing-dataset), [dataset interpolation script](https://raw.githubusercontent.com/tii-racing/drone-racing-dataset/main/scripts/data_interpolation.py), and [companion paper](https://doi.org/10.1109/LRA.2024.3371288).

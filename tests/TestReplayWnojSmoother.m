@@ -21,7 +21,8 @@ classdef TestReplayWnojSmoother < matlab.unittest.TestCase
         function testWnojTransitionMatchesClosedForm(testCase)
             dt = 0.02;
             Qc = diag([1; 2; 3; 4; 5; 6]);
-            [Phi, Q] = ReplayWnojSmoother.transition(dt, Qc);
+            smoother = ReplayWnojSmoother();
+            [Phi, Q] = smoother.transition(dt, Qc);
 
             I = eye(6);
             expectedPhi = [I, dt * I, 0.5 * dt^2 * I; ...
@@ -32,6 +33,13 @@ classdef TestReplayWnojSmoother < matlab.unittest.TestCase
 
             testCase.verifyEqual(Phi, expectedPhi, 'AbsTol', 1e-14);
             testCase.verifyEqual(Q, expectedQ, 'AbsTol', 1e-14);
+        end
+
+        function testRejectsFractionalIterationCounts(testCase)
+            testCase.verifyError(@() ReplayWnojSmoother(struct( ...
+                'maxIterations', 1.5)), 'fth:ReplayWnoj:InvalidOptions');
+            testCase.verifyError(@() ReplayWnojSmoother(struct( ...
+                'maxDampingTrials', 2.5)), 'fth:ReplayWnoj:InvalidOptions');
         end
 
         function testWnojPriorResidualUsesBodyStateAndAcceleration(testCase)
@@ -50,6 +58,29 @@ classdef TestReplayWnojSmoother < matlab.unittest.TestCase
 
             testCase.verifyEqual(size(e), [18 1]);
             testCase.verifyLessThan(norm(e), 0.1);
+        end
+
+        function testPriorResidualRespectsProjectBodyTwistConvention(testCase)
+            dt = 0.05;
+            R0 = [0 -1 0; 1 0 0; 0 0 1];
+            T0 = [R0, [1; -2; 0.5]; 0 0 0 1];
+            paperVelocity = [0; 0; 0; 0.8; -0.3; 0.2];
+            paperAcceleration = [0; 0; 0; 0.2; 0.1; -0.05];
+            eta = dt * paperVelocity + 0.5 * dt^2 * paperAcceleration;
+            T1 = fth.se3.expSE3(fth.se3.vec2tilde(eta)) * T0;
+            paperVelocity1 = paperVelocity + dt * paperAcceleration;
+
+            H0 = testCase.inversePose(T0);
+            H1 = testCase.inversePose(T1);
+            V0 = -paperVelocity;
+            V1 = -paperVelocity1;
+            A0 = -paperAcceleration;
+            A1 = -paperAcceleration;
+
+            smoother = ReplayWnojSmoother();
+            residual = smoother.priorResidual(H0, V0, A0, H1, V1, A1, dt);
+
+            testCase.verifyLessThan(norm(residual), 1e-10);
         end
 
         function testFitsAcceleratedSE3Trajectory(testCase)
@@ -89,6 +120,10 @@ classdef TestReplayWnojSmoother < matlab.unittest.TestCase
                 'AbsTol', 5e-2);
             testCase.verifyEqual(Ad(4:6), acceleration, 'AbsTol', 0.2);
             testCase.verifyEqual(smoother.outputTimes, t, 'AbsTol', 1e-12);
+            testCase.verifyTrue(all(diff( ...
+                smoother.diagnostics.costHistory) <= 1e-12));
+            testCase.verifyLessThan(smoother.diagnostics.normalNnz, ...
+                700 * smoother.diagnostics.knotCount);
         end
 
         function testPreservesOriginalOutputGridWhenUsingKnots(testCase)
@@ -132,6 +167,52 @@ classdef TestReplayWnojSmoother < matlab.unittest.TestCase
 
             testCase.verifyEqual(Vd(1:3), [0; 0; 0], 'AbsTol', 1e-3);
             testCase.verifyEqual(Vd(4:6), [0; -1; 0], 'AbsTol', 5e-2);
+        end
+
+        function testAccelerationIsDerivativeOfTwistForCoupledMotion(testCase)
+            t = (0:0.01:0.20).';
+            V0 = [2.0; -1.5; 1.0; 4.0; 1.5; -1.0];
+            A0 = [1.0; 0.6; -0.8; 1.2; -1.0; 0.8];
+            H = zeros(4, 4, numel(t));
+            H(:, :, 1) = eye(4);
+            for k = 1:numel(t) - 1
+                dt = t(k + 1) - t(k);
+                midpointTwist = V0 + 0.5 * (t(k) + t(k + 1)) * A0;
+                H(:, :, k + 1) = H(:, :, k) * ...
+                    fth.se3.expSE3(fth.se3.vec2tilde(dt * midpointTwist));
+            end
+            R = H(1:3, 1:3, :);
+            p = squeeze(H(1:3, 4, :)).';
+            V = (V0 + t.' .* A0).';
+
+            smoother = ReplayWnojSmoother(struct( ...
+                'knotIntervalSeconds', 0.05, ...
+                'sigmaPositionMeters', 1e-4, ...
+                'sigmaOrientationRadians', 1e-4, ...
+                'sigmaLinearVelocityMps', 1e-4, ...
+                'sigmaAngularVelocityRadps', 1e-4, ...
+                'jerkSpectralDensityAngular', 1e-3, ...
+                'jerkSpectralDensityLinear', 1e-3));
+            smoother = smoother.fit(t, R, p, V);
+
+            derivativeStep = 1e-6;
+            for queryTime = [0.075, 0.10]
+                [~, VMinus, ~] = smoother.evaluate(queryTime - derivativeStep);
+                [~, VPlus, ~] = smoother.evaluate(queryTime + derivativeStep);
+                [~, ~, AQuery] = smoother.evaluate(queryTime);
+                numericalDerivative = (VPlus - VMinus) / (2 * derivativeStep);
+                testCase.verifyLessThan( ...
+                    norm(numericalDerivative - AQuery), 1e-7);
+            end
+        end
+    end
+
+
+    methods (Static, Access = private)
+        function H = inversePose(T)
+            R = T(1:3, 1:3);
+            p = T(1:3, 4);
+            H = [R.', -R.' * p; 0 0 0 1];
         end
     end
 end

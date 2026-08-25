@@ -2,69 +2,19 @@
 
 ## Goal
 
-Generate a smooth replay reference whose pose, body twist, and body
-acceleration describe the same rigid-body motion:
+The replay reference must describe one rigid-body motion:
 
 $$
-\dot{H}(t) = H(t)\widehat{V}(t),
+\dot{H}(t)=H(t)\widehat{V}(t),
 \qquad
-A(t) = \dot{V}(t).
+A(t)=\dot{V}(t),
 $$
 
-The post-processor supports an offline **white-noise-on-jerk (WNOJ) batch
-smoother on $SE(3)$**. It estimates one continuous trajectory
+where $H$ maps body coordinates to world coordinates and $V,A\in\mathbb{R}^6$
+are body-coordinate twist and twist derivative.
 
-$$
-x(t) = \{H(t), V(t), A(t)\},
-$$
-
-where
-
-$$
-H = \begin{bmatrix} R & p \\ 0 & 1 \end{bmatrix},
-\qquad
-V = \begin{bmatrix} \omega_b \\ v_b \end{bmatrix},
-\qquad
-A = \begin{bmatrix} \alpha_b \\ a_b \end{bmatrix}.
-$$
-
-## WNOJ formulation
-
-The prior models jerk as white Gaussian noise in local coordinates:
-
-$$
-\frac{d^3\xi(t)}{dt^3} = w(t),
-\qquad
-w(t) \sim \mathcal{GP}\!\left(0,Q_c\delta(t-t')\right).
-$$
-
-Its mean behavior is constant acceleration. Given measured MoCap poses
-$H_k^{\mathrm{meas}}$ and the dataset's world-frame twists
-$V_{w,k}^{\mathrm{meas}}$, estimate
-the knot states by minimizing
-
-$$
-\begin{aligned}
-\min_{\{H_k,V_k,A_k\}} \sum_k &\left\|
-\log\!\left(H_k^{-1}H_k^{\mathrm{meas}}\right)^\vee
-\right\|^2_{\Sigma_H^{-1}}
-+ \left\|V_{w,k}-V_{w,k}^{\mathrm{meas}}\right\|^2_{\Sigma_V^{-1}} \\
-&+ \sum_k
-\left\|r_{\mathrm{WNOJ}}(x_k,x_{k+1})\right\|^2_{Q_k^{-1}}.
-\end{aligned}
-$$
-
-The final term couples neighboring pose, twist, and acceleration states while
-penalizing implausible jerk. The current replay implementation is a practical
-fixed-interval local-coordinate Kalman/RTS approximation to this objective. It
-uses world-frame derivatives internally, unwraps incremental rotations, and
-converts the result to body coordinates at output; it is not yet the paper's
-full nonlinear batch solver with all $SE(3)$ Jacobians.
-
-## Replay conventions
-
-The CSV world-frame velocity channels are retained during WNOJ smoothing and
-converted only at output:
+The CSV stores linear and angular velocity in the world frame. Before fitting,
+the processor converts them using
 
 $$
 v_b=R^\mathsf{T}v_w,
@@ -72,22 +22,115 @@ v_b=R^\mathsf{T}v_w,
 \omega_b=R^\mathsf{T}\omega_w.
 $$
 
-The smoother exports $H_d$, $V_d$, and $A_d$ in the controller's body-twist
-convention. The translational transport term is applied analytically when
-converting world acceleration to body acceleration.
+The IMU `accel_*` channels are specific force and are not used as kinematic
+acceleration.
 
-Tune the pose covariance $\Sigma_H$, twist covariance $\Sigma_V$, and separate
-rotational/translational jerk covariance $Q_c$ against pose deviation,
-geometric consistency, acceleration spikes, and closed-loop tracking.
+## Nonlinear WNOJ batch smoother
 
-## References and baseline
+The implementation follows Tang, Yoon, and Barfoot's white-noise-on-jerk
+motion prior. Their pose convention is obtained exactly from the project state:
 
-The primary reference is Tang, Yoon, and Barfoot, “A White-Noise-on-Jerk Motion
-Prior for Continuous-Time Trajectory Estimation on SE(3),” *IEEE Robotics and
-Automation Letters*, 4(2):594–601, 2019, DOI
-[10.1109/LRA.2019.2891492](https://doi.org/10.1109/LRA.2019.2891492).
+$$
+T=H^{-1},
+\qquad
+\varpi=-V,
+\qquad
+\dot{\varpi}=-A,
+$$
 
-Download the open-access author version from
-[arXiv:1809.06518](https://arxiv.org/abs/1809.06518) using **Download PDF**, or
-directly from <https://arxiv.org/pdf/1809.06518>. The publisher version is
-available through the DOI when IEEE Xplore access is available.
+so that
+
+$$
+\dot{T}=\widehat{\varpi}T.
+$$
+
+For adjacent knots $i$ and $j$, define
+
+$$
+\eta_{ij}=\log\!\left(T_jT_i^{-1}\right)^\vee,
+\qquad
+J_{ij}^{-1}=J_\ell(\eta_{ij})^{-1}.
+$$
+
+The local state at the right knot is
+
+$$
+\gamma_j=
+\begin{bmatrix}
+\eta_{ij}\\
+\dot{\xi}_j\\
+\ddot{\xi}_j
+\end{bmatrix},
+$$
+
+where the implementation evaluates the complete left-Jacobian derivative:
+
+$$
+\dot{\xi}_j=J_\ell(\eta_{ij})^{-1}\varpi_j,
+\qquad
+\ddot{\xi}_j=J_\ell(\eta_{ij})^{-1}
+\left(\dot{\varpi}_j-\dot{J}_\ell(\eta_{ij})\dot{\xi}_j\right).
+$$
+
+This replaces the paper's first-order approximation of $\dot{J}_\ell$ so that
+the exported acceleration is the derivative of the exported twist during
+interpolation, including at knot boundaries.
+
+and the left-knot state is
+
+$$
+\gamma_i=
+\begin{bmatrix}
+0\\ \varpi_i\\ \dot{\varpi}_i
+\end{bmatrix}.
+$$
+
+The WNOJ prior residual is
+
+$$
+r_{ij}=\gamma_j-\Phi(\Delta t_{ij})\gamma_i,
+$$
+
+with
+
+$$
+\Phi(\Delta t)=
+\begin{bmatrix}
+I & \Delta t I & \tfrac{1}{2}\Delta t^2 I\\
+0 & I & \Delta t I\\
+0 & 0 & I
+\end{bmatrix}.
+$$
+
+Pose and twist measurements are combined with these neighboring-knot priors in
+a nonlinear least-squares problem. Each factor touches at most two 18-variable
+knot states, so the implementation assembles and solves sparse normal equations.
+Levenberg--Marquardt trial steps are accepted only when they reduce total cost.
+
+The default knot spacing is 0.01 s. The controller's original 500 Hz output grid
+is recovered with the paper's Gaussian-process interpolation equations, then
+converted back to $(H,V,A)$. Optimization status, cost history, sparse-system
+size, final step and cost decrease, and termination reason are stored in each
+artifact's diagnostics. Reaching a fixed iteration limit emits a warning and is
+recorded as `converged = false`; it is never reported as numerical convergence.
+
+## Processing methods
+
+`process_trajectories.m` supports two method names:
+
+- `wnoj`: nonlinear $SE(3)$ WNOJ batch smoothing.
+- `poly`: local-polynomial velocity differentiation retained as a baseline.
+
+Set `trajIds = {}` in the script to process the complete manifest, or list the
+manifest keys that should be regenerated.
+
+## Reference
+
+Tang, Yoon, and Barfoot, “A White-Noise-on-Jerk Motion Prior for
+Continuous-Time Trajectory Estimation on SE(3),” *IEEE Robotics and Automation
+Letters*, 4(2):594–601, 2019,
+[doi:10.1109/LRA.2019.2891492](https://doi.org/10.1109/LRA.2019.2891492).
+
+The author manuscript can be downloaded from
+[arXiv:1809.06518](https://arxiv.org/abs/1809.06518) with **Download PDF**, or
+directly from <https://arxiv.org/pdf/1809.06518>.

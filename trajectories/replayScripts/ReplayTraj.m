@@ -13,7 +13,7 @@ classdef ReplayTraj < fth.traj.TrajectoryBase
         function [H, V, A] = generate(obj, t, ~, ~, ~)
             if isfield(obj.data, 'smoother') && ...
                     isa(obj.data.smoother, 'ReplayWnojSmoother') && ...
-                    strcmp(obj.data.smoother.method, 'wnoj-se3-batch-v1')
+                    strcmp(obj.data.smoother.method, 'wnoj')
                 [H, V, A] = obj.data.smoother.evaluate(t);
                 return;
             end

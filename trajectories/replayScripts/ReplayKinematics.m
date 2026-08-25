@@ -24,7 +24,7 @@ classdef ReplayKinematics
 
             postprocessingMethod = ReplayKinematics.postprocessingMethod(entry);
             smoother = [];
-            if strcmp(postprocessingMethod, 'wnoj-se3-batch-v1')
+            if strcmp(postprocessingMethod, 'wnoj')
                 options = ReplayKinematics.postprocessingOptions(entry);
                 smoother = ReplayWnojSmoother(options);
                 smoother = smoother.fit(t, R, p, [omega_b, v_b]);
@@ -57,8 +57,7 @@ classdef ReplayKinematics
                 'source_mode', char(string(entry.source_mode)), ...
                 'source_file', char(string(entry.source_file)), ...
                 'sampleRateHz', ReplayKinematics.estimateSampleRate(t), ...
-                'accelerationMethod', ReplayKinematics.legacyAccelerationMethod( ...
-                    postprocessingMethod), ...
+                'accelerationMethod', postprocessingMethod, ...
                 'accelerationWindowSamples', derivativeWindowSamples, ...
                 'tStart', t(1), ...
                 'tEnd', t(end));
@@ -74,7 +73,7 @@ classdef ReplayKinematics
 
     methods (Static, Access = private)
         function method = postprocessingMethod(entry)
-            method = 'legacy-local-polynomial-world-derivative';
+            method = 'poly';
             if ~isfield(entry, 'postprocessing') || ...
                     ~isstruct(entry.postprocessing) || ...
                     ~isfield(entry.postprocessing, 'method') || ...
@@ -82,17 +81,9 @@ classdef ReplayKinematics
                 return;
             end
             method = char(string(entry.postprocessing.method));
-            if ~ismember(method, {'legacy-local-polynomial-world-derivative', 'wnoj-se3-batch-v1'})
+            if ~ismember(method, {'poly', 'wnoj'})
                 error('fth:Replay:UnknownPostprocessing', ...
                     'Unknown replay postprocessing method ''%s''.', method);
-            end
-        end
-
-        function method = legacyAccelerationMethod(postprocessingMethod)
-            if strcmp(postprocessingMethod, 'legacy-local-polynomial-world-derivative')
-                method = 'local-polynomial-world-derivative';
-            else
-                method = postprocessingMethod;
             end
         end
 
