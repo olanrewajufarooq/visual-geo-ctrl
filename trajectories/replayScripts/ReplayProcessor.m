@@ -5,7 +5,13 @@ classdef ReplayProcessor
 
     methods (Static)
         function summary = processAll(varargin)
-            summary = ReplayProcessingCore.processAll(varargin{:});
+            if nargin == 2 && ...
+                    (ischar(varargin{1}) || isstring(varargin{1}))
+                summary = ReplayProcessingCore.processAll( ...
+                    [], [], [], varargin{1}, varargin{2});
+            else
+                summary = ReplayProcessingCore.processAll(varargin{:});
+            end
         end
 
         function entry = loadEntry(varargin)

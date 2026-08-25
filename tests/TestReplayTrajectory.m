@@ -165,6 +165,31 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
             testCase.verifyEqual(size(data.traj.a_b), [3 3]);
         end
 
+        function testProcessorReusesValidArtifactCache(testCase)
+            tmpRoot = testCase.createTempStructure();
+            cleanup = onCleanup(@() rmdir(tmpRoot, 's'));
+            %#ok<NASGU>
+
+            rawDir = fullfile(tmpRoot, 'autonomous', 'demo');
+            mkdir(rawDir);
+            rawFile = fullfile(rawDir, 'demo_500hz_freq_sync.csv');
+            testCase.writeRawTrajectoryCsv(rawFile);
+            manifestPath = testCase.writeManifest(tmpRoot, struct( ...
+                'demo_replay', struct( ...
+                    'source_mode', 'autonomous', ...
+                    'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
+                    'artifact_file', 'demo_replay.mat')));
+
+            first = ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'poly');
+            second = ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'poly', false);
+
+            testCase.verifyEqual(first.processedCount, 1);
+            testCase.verifyEqual(first.cachedCount, 0);
+            testCase.verifyEqual(second.processedCount, 0);
+            testCase.verifyEqual(second.cachedCount, 1);
+            testCase.verifyEqual(second.totalCount, 1);
+        end
+
         function testProcessorConvertsWorldSignalsToBodyFrame(testCase)
             tmpRoot = testCase.createTempStructure();
             cleanup = onCleanup(@() rmdir(tmpRoot, 's'));

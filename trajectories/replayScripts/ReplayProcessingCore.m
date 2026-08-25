@@ -2,7 +2,7 @@ classdef ReplayProcessingCore
     %REPLAYPROCESSOR Build and load canonical replay trajectory artifacts.
 
     methods (Static)
-        function summary = processAll(rootDir, manifestPath, useParallel, methodOverride)
+        function summary = processAll(rootDir, manifestPath, useParallel, methodOverride, clearCache)
             %PROCESSALL Convert manifest-listed raw CSV files into .mat artifacts.
             if nargin < 1 || isempty(rootDir)
                 rootDir = ReplayProcessingCore.defaultRootDir();
@@ -26,6 +26,13 @@ classdef ReplayProcessingCore
                 methodOverride = ReplayProcessingCore.normalizePostprocessingMethod( ...
                     methodOverride);
             end
+            if nargin < 5 || isempty(clearCache)
+                clearCache = true;
+            else
+                validateattributes(clearCache, {'logical', 'numeric'}, {'scalar'}, ...
+                    mfilename, 'clearCache');
+                clearCache = logical(clearCache);
+            end
 
             manifest = ReplayProcessingCore.loadManifest(manifestPath);
             ids = fieldnames(manifest);
@@ -47,21 +54,39 @@ classdef ReplayProcessingCore
             end
 
             fprintf('[replay] Processing %d trajectories from %s\n', n, manifestPath);
-            if useParallel && n > 1
+            cached = false(n, 1);
+            if ~clearCache
+                for i = 1:n
+                    cached(i) = ReplayProcessingCore.isCacheValid( ...
+                        outPaths{i}, rawPaths{i}, entries{i});
+                end
+            end
+            pending = find(~cached);
+            elapsed = zeros(n, 1);
+            errors = cell(n, 1);
+            if useParallel && numel(pending) > 1
                 fprintf('[replay] Parallel preprocessing enabled.\n');
-                [elapsed, errors] = ReplayProcessingCore.processAllParallel( ...
-                    ids, entries, rawPaths, outPaths);
-            else
+                [pendingElapsed, pendingErrors] = ReplayProcessingCore.processAllParallel( ...
+                    ids(pending), entries(pending), rawPaths(pending), outPaths(pending));
+                elapsed(pending) = pendingElapsed;
+                errors(pending) = pendingErrors;
+            elseif ~isempty(pending)
                 fprintf('[replay] Sequential preprocessing enabled.\n');
-                [elapsed, errors] = ReplayProcessingCore.processAllSequential( ...
-                    ids, entries, rawPaths, outPaths);
+                [pendingElapsed, pendingErrors] = ReplayProcessingCore.processAllSequential( ...
+                    ids(pending), entries(pending), rawPaths(pending), outPaths(pending));
+                elapsed(pending) = pendingElapsed;
+                errors(pending) = pendingErrors;
+            else
+                fprintf('[replay] Cache hit for all trajectories.\n');
             end
 
             failed = false(n, 1);
             for i = 1:n
                 fprintf('[replay %d/%d] %s\n', i, n, ids{i});
                 fprintf('  source: %s\n', rawPaths{i});
-                if isempty(errors{i})
+                if cached(i)
+                    fprintf('  cache: reused %s\n', outPaths{i});
+                elseif isempty(errors{i})
                     fprintf('  artifact: %s (%.1f s)\n', outPaths{i}, elapsed(i));
                 else
                     failed(i) = true;
@@ -76,9 +101,13 @@ classdef ReplayProcessingCore
                     'Replay preprocessing failed for: %s', strjoin(failedIds, ', '));
             end
 
-            summary = struct('processedCount', n, ...
-                'manifestPath', manifestPath, 'parallel', useParallel && n > 1);
-            fprintf('[replay] Completed %d trajectories.\n', summary.processedCount);
+            summary = struct('processedCount', sum(~cached), ...
+                'cachedCount', sum(cached), 'totalCount', n, ...
+                'manifestPath', manifestPath, ...
+                'parallel', useParallel && numel(pending) > 1, ...
+                'clearCache', clearCache);
+            fprintf('[replay] Completed %d trajectories (%d processed, %d cached).\n', ...
+                summary.totalCount, summary.processedCount, summary.cachedCount);
         end
 
         function entry = loadEntry(replayCfg)
@@ -159,6 +188,8 @@ classdef ReplayProcessingCore
                 fileTimer = tic;
                 try
                     traj = ReplayProcessingCore.processSingle(rawPaths{i}, ids{i}, entries{i});
+                    traj.meta.postprocessingCacheKey = ...
+                        ReplayProcessingCore.postprocessingCacheKey(entries{i});
                     writeReplayArtifact(outPaths{i}, traj);
                 catch exception
                     errors{i} = ReplayProcessingCore.formatException(exception);
@@ -175,6 +206,8 @@ classdef ReplayProcessingCore
                 fileTimer = tic;
                 try
                     traj = ReplayProcessingCore.processSingle(rawPaths{i}, ids{i}, entries{i});
+                    traj.meta.postprocessingCacheKey = ...
+                        ReplayProcessingCore.postprocessingCacheKey(entries{i});
                     writeReplayArtifact(outPaths{i}, traj);
                 catch exception
                     errors{i} = ReplayProcessingCore.formatException(exception);
@@ -235,6 +268,47 @@ classdef ReplayProcessingCore
 
         function traj = processSingle(rawPath, replayId, entry)
             traj = ReplayKinematics.processSingle(rawPath, replayId, entry);
+        end
+
+        function valid = isCacheValid(artifactPath, rawPath, entry)
+            valid = false;
+            if ~isfile(artifactPath)
+                return;
+            end
+            if isfile(rawPath)
+                rawInfo = dir(rawPath);
+                artifactInfo = dir(artifactPath);
+                if rawInfo.datenum > artifactInfo.datenum
+                    return;
+                end
+            end
+            try
+                data = load(artifactPath, 'traj');
+                valid = isfield(data, 'traj') && isfield(data.traj, 'meta') && ...
+                    isfield(data.traj.meta, 'postprocessingCacheKey') && ...
+                    strcmp(data.traj.meta.postprocessingCacheKey, ...
+                    ReplayProcessingCore.postprocessingCacheKey(entry));
+            catch
+                valid = false;
+            end
+        end
+
+        function key = postprocessingCacheKey(entry)
+            method = 'legacy-local-polynomial-world-derivative';
+            if isfield(entry, 'postprocessing') && ...
+                    isstruct(entry.postprocessing) && ...
+                    isfield(entry.postprocessing, 'method') && ...
+                    ~isempty(entry.postprocessing.method)
+                method = ReplayProcessingCore.normalizePostprocessingMethod( ...
+                    entry.postprocessing.method);
+            end
+            payload = struct('method', method);
+            if isfield(entry, 'postprocessing') && ...
+                    isstruct(entry.postprocessing) && ...
+                    isfield(entry.postprocessing, 'wnoj')
+                payload.wnoj = entry.postprocessing.wnoj;
+            end
+            key = jsonencode(payload);
         end
     end
 end
