@@ -44,7 +44,8 @@ classdef TestReplayWnojSmoother < matlab.unittest.TestCase
             Vj = Vi + dt * Ai;
             Aj = Ai;
 
-            e = ReplayWnojSmoother.priorResidual( ...
+            smoother = ReplayWnojSmoother();
+            e = smoother.priorResidual( ...
                 Ti, Vi, Ai, Tj, Vj, Aj, dt);
 
             testCase.verifyEqual(size(e), [18 1]);

@@ -18,43 +18,43 @@ classdef ReplayWnojSmoother
             if nargin < 1
                 options = struct();
             end
-            obj.options = ReplayWnojSmoother.resolveOptions(options);
+            obj.options = obj.resolveOptions(options);
             obj.method = 'wnoj-se3-batch-v1';
         end
 
         function obj = fit(obj, t, R, p, VBody)
             options = obj.options;
-            [t, HMeas, VBody] = ReplayWnojSmoother.validateMeasurements( ...
+            [t, HMeas, VBody] = obj.validateMeasurements( ...
                 t, R, p, VBody);
-            [knotIndices, knotTimes] = ReplayWnojSmoother.selectKnots( ...
+            [knotIndices, knotTimes] = obj.selectKnots( ...
                 t, options.knotIntervalSeconds);
             HMeas = HMeas(:, :, knotIndices);
             VBody = VBody(knotIndices, :).';
             K = numel(knotTimes);
-            [T, V, A] = ReplayWnojSmoother.initializeStates( ...
+            [T, V, A] = obj.initializeStates( ...
                 knotTimes, HMeas, VBody);
-            initialCost = ReplayWnojSmoother.batchCost( ...
+            initialCost = obj.batchCost( ...
                 T, V, A, knotTimes, HMeas, VBody, options);
             costHistory = zeros(options.maxIterations + 1, 1);
             costHistory(1) = initialCost;
             stepHistory = zeros(options.maxIterations, 1);
             converged = false;
             for iteration = 1:options.maxIterations
-                [residual, jacobian] = ReplayWnojSmoother.linearizeBatch( ...
+                [residual, jacobian] = obj.linearizeBatch( ...
                     T, V, A, knotTimes, HMeas, VBody, options);
                 normalMatrix = jacobian.' * jacobian;
                 gradient = jacobian.' * residual;
                 damping = options.initialDamping * max(1, max(diag(normalMatrix)));
                 delta = -(normalMatrix + damping * eye(size(normalMatrix))) \ gradient;
                 stepNorm = norm(delta, inf);
-                [TTrial, VTrial, ATrial] = ReplayWnojSmoother.retract(T, V, A, delta);
-                trialCost = ReplayWnojSmoother.batchCost( ...
+                [TTrial, VTrial, ATrial] = obj.retract(T, V, A, delta);
+                trialCost = obj.batchCost( ...
                     TTrial, VTrial, ATrial, knotTimes, HMeas, VBody, options);
                 if trialCost > costHistory(iteration)
                     damping = 10 * damping;
                     delta = -(normalMatrix + damping * eye(size(normalMatrix))) \ gradient;
-                    [TTrial, VTrial, ATrial] = ReplayWnojSmoother.retract(T, V, A, delta);
-                    trialCost = ReplayWnojSmoother.batchCost( ...
+                    [TTrial, VTrial, ATrial] = obj.retract(T, V, A, delta);
+                    trialCost = obj.batchCost( ...
                         TTrial, VTrial, ATrial, knotTimes, HMeas, VBody, options);
                 end
                 T = TTrial;
@@ -102,7 +102,7 @@ classdef ReplayWnojSmoother
                 i = min(find(obj.t <= tq, 1, 'last'), numel(obj.t) - 1);
             end
             tau = tq - obj.t(i);
-            [H, V, A] = ReplayWnojSmoother.interpolate( ...
+            [H, V, A] = obj.interpolate( ...
                 obj.H(:, :, i), obj.V(:, i), obj.A(:, i), ...
                 obj.H(:, :, i + 1), obj.V(:, i + 1), obj.A(:, i + 1), ...
                 obj.t(i + 1) - obj.t(i), tau, obj.options.jerkSpectralDensity);
@@ -120,9 +120,13 @@ classdef ReplayWnojSmoother
                 dt^3 / 6 * Qc, dt^2 / 2 * Qc, dt * Qc];
         end
 
-        function e = priorResidual(Ti, Vi, Ai, Tj, Vj, Aj, dt)
+    end
+
+    methods
+
+        function e = priorResidual(obj, Ti, Vi, Ai, Tj, Vj, Aj, dt)
             eta = fth.se3.logSE3(Tj / Ti);
-            Jinv = ReplayWnojSmoother.leftJacobianInverse(eta);
+            Jinv = obj.leftJacobianInverse(eta);
             localVj = Jinv * Vj;
             localAj = -0.5 * fth.se3.adV(localVj) * Vj + Jinv * Aj;
             gammaI = [zeros(6, 1); Vi; Ai];
@@ -130,10 +134,6 @@ classdef ReplayWnojSmoother
             [Phi, ~] = ReplayWnojSmoother.transition(dt, eye(6));
             e = gammaJ - Phi * gammaI;
         end
-
-    end
-
-    methods
 
         function diagnostics = validate(obj)
             times = obj.outputTimes(:);
@@ -155,9 +155,9 @@ classdef ReplayWnojSmoother
         end
     end
 
-    methods (Static, Access = private)
-        function options = resolveOptions(options)
-            if nargin < 1 || isempty(options)
+    methods (Access = private)
+        function options = resolveOptions(obj, options)
+            if nargin < 2 || isempty(options)
                 options = struct();
             end
             defaults = struct( ...
@@ -185,7 +185,7 @@ classdef ReplayWnojSmoother
             end
         end
 
-        function [t, H, V] = validateMeasurements(t, R, p, V)
+        function [t, H, V] = validateMeasurements(obj, t, R, p, V)
             t = t(:);
             n = numel(t);
             if size(R, 1) ~= 3 || size(R, 2) ~= 3 || size(R, 3) ~= n || ...
@@ -206,7 +206,7 @@ classdef ReplayWnojSmoother
             end
         end
 
-        function [indices, knots] = selectKnots(t, interval)
+        function [indices, knots] = selectKnots(obj, t, interval)
             indices = 1;
             last = 1;
             for k = 2:numel(t)
@@ -224,7 +224,7 @@ classdef ReplayWnojSmoother
             knots = t(indices);
         end
 
-        function [T, V, A] = initializeStates(t, HMeas, VMeas)
+        function [T, V, A] = initializeStates(obj, t, HMeas, VMeas)
             K = numel(t);
             T = HMeas;
             V = VMeas;
@@ -236,13 +236,13 @@ classdef ReplayWnojSmoother
             A(:, K) = A(:, K - 1);
         end
 
-        function cost = batchCost(T, V, A, t, HMeas, VMeas, options)
-            residual = ReplayWnojSmoother.residualVector( ...
+        function cost = batchCost(obj, T, V, A, t, HMeas, VMeas, options)
+            residual = obj.residualVector( ...
                 T, V, A, t, HMeas, VMeas, options);
             cost = 0.5 * (residual.' * residual);
         end
 
-        function [r, J] = linearizeBatch(T, V, A, t, HMeas, VMeas, options)
+        function [r, J] = linearizeBatch(obj, T, V, A, t, HMeas, VMeas, options)
             K = numel(t);
             rows = 12 * K + 18 * (K - 1);
             cols = 18 * K;
@@ -251,13 +251,13 @@ classdef ReplayWnojSmoother
             epsilon = 1e-6;
             row = 0;
             for k = 1:K
-                base = ReplayWnojSmoother.measurementResidual( ...
+                base = obj.measurementResidual( ...
                     T(:, :, k), V(:, k), HMeas(:, :, k), VMeas(:, k), options);
                 r(row + (1:12)) = base;
                 for local = 1:18
-                    [Tp, Vp, Ap] = ReplayWnojSmoother.perturbState( ...
+                    [Tp, Vp, Ap] = obj.perturbState( ...
                         T, V, A, k, local, epsilon);
-                    perturbed = ReplayWnojSmoother.measurementResidual( ...
+                    perturbed = obj.measurementResidual( ...
                         Tp(:, :, k), Vp(:, k), HMeas(:, :, k), ...
                         VMeas(:, k), options);
                     J(row + (1:12), 18 * (k - 1) + local) = ...
@@ -267,7 +267,7 @@ classdef ReplayWnojSmoother
             end
             for k = 1:K - 1
                 dt = t(k + 1) - t(k);
-                base = ReplayWnojSmoother.priorWhitenedResidual( ...
+                base = obj.priorWhitenedResidual( ...
                     T(:, :, k), V(:, k), A(:, k), T(:, :, k + 1), ...
                     V(:, k + 1), A(:, k + 1), dt, options.jerkSpectralDensity);
                 r(row + (1:18)) = base;
@@ -279,9 +279,9 @@ classdef ReplayWnojSmoother
                         knot = k + 1;
                         stateLocal = local - 18;
                     end
-                    [Tp, Vp, Ap] = ReplayWnojSmoother.perturbState( ...
+                    [Tp, Vp, Ap] = obj.perturbState( ...
                         T, V, A, knot, stateLocal, epsilon);
-                    perturbed = ReplayWnojSmoother.priorWhitenedResidual( ...
+                    perturbed = obj.priorWhitenedResidual( ...
                         Tp(:, :, k), Vp(:, k), Ap(:, k), Tp(:, :, k + 1), ...
                         Vp(:, k + 1), Ap(:, k + 1), dt, options.jerkSpectralDensity);
                     J(row + (1:18), 18 * (k - 1) + local) = ...
@@ -291,18 +291,18 @@ classdef ReplayWnojSmoother
             end
         end
 
-        function r = measurementResidual(T, V, HMeas, VMeas, options)
+        function r = measurementResidual(obj, T, V, HMeas, VMeas, options)
             r = [fth.se3.logSE3(HMeas / T) / options.poseSigma; ...
                 (V - VMeas) / options.twistSigma];
         end
 
-        function r = priorWhitenedResidual(Ti, Vi, Ai, Tj, Vj, Aj, dt, Qc)
-            e = ReplayWnojSmoother.priorResidual(Ti, Vi, Ai, Tj, Vj, Aj, dt);
+        function r = priorWhitenedResidual(obj, Ti, Vi, Ai, Tj, Vj, Aj, dt, Qc)
+            e = obj.priorResidual(Ti, Vi, Ai, Tj, Vj, Aj, dt);
             [~, Q] = ReplayWnojSmoother.transition(dt, Qc);
             r = chol(Q, 'lower') \ e;
         end
 
-        function [T, V, A] = perturbState(T, V, A, knot, local, epsilon)
+        function [T, V, A] = perturbState(obj, T, V, A, knot, local, epsilon)
             delta = zeros(18, 1);
             delta(local) = epsilon;
             offset = 18 * (knot - 1);
@@ -312,7 +312,7 @@ classdef ReplayWnojSmoother
             A(:, knot) = A(:, knot) + delta(13:18);
         end
 
-        function r = residualVector(T, V, A, t, HMeas, VMeas, options)
+        function r = residualVector(obj, T, V, A, t, HMeas, VMeas, options)
             K = numel(t);
             r = zeros(12 * K + 18 * (K - 1), 1);
             cursor = 0;
@@ -324,7 +324,7 @@ classdef ReplayWnojSmoother
             end
             for k = 1:K - 1
                 dt = t(k + 1) - t(k);
-                e = ReplayWnojSmoother.priorResidual( ...
+                e = obj.priorResidual( ...
                     T(:, :, k), V(:, k), A(:, k), T(:, :, k + 1), ...
                     V(:, k + 1), A(:, k + 1), dt);
                 [~, Q] = ReplayWnojSmoother.transition(dt, options.jerkSpectralDensity);
@@ -334,7 +334,7 @@ classdef ReplayWnojSmoother
             r = r(1:cursor);
         end
 
-        function [T, V, A] = retract(T, V, A, delta)
+        function [T, V, A] = retract(obj, T, V, A, delta)
             K = size(V, 2);
             for k = 1:K
                 offset = 18 * (k - 1);
@@ -345,7 +345,7 @@ classdef ReplayWnojSmoother
             end
         end
 
-        function [H, V, A] = interpolate(Ti, Vi, Ai, Tj, Vj, Aj, dt, tau, Qc)
+        function [H, V, A] = interpolate(obj, Ti, Vi, Ai, Tj, Vj, Aj, dt, tau, Qc)
             [PhiTau, QTau] = ReplayWnojSmoother.transition(tau, Qc);
             [PhiDt, QDt] = ReplayWnojSmoother.transition(dt, Qc);
             if tau <= eps
@@ -356,20 +356,20 @@ classdef ReplayWnojSmoother
             end
             Lambda = PhiTau - Omega * PhiDt;
             eta = fth.se3.logSE3(Tj / Ti);
-            Jinv = ReplayWnojSmoother.leftJacobianInverse(eta);
+            Jinv = obj.leftJacobianInverse(eta);
             localVj = Jinv * Vj;
             localAj = -0.5 * fth.se3.adV(localVj) * Vj + Jinv * Aj;
             gamma = Lambda * [zeros(6, 1); Vi; Ai] + Omega * [eta; localVj; localAj];
             xi = gamma(1:6);
             localV = gamma(7:12);
             localA = gamma(13:18);
-            J = inv(ReplayWnojSmoother.leftJacobianInverse(xi));
+            J = inv(obj.leftJacobianInverse(xi));
             V = J * localV;
             A = J * (localA + 0.5 * fth.se3.adV(localV) * V);
             H = fth.se3.expSE3(fth.se3.vec2tilde(xi)) * Ti;
         end
 
-        function Jinv = leftJacobianInverse(xi)
+        function Jinv = leftJacobianInverse(obj, xi)
             ad = fth.se3.adV(xi);
             Jinv = eye(6) - 0.5 * ad + (1 / 12) * ad^2 - ...
                 (1 / 720) * ad^4 + (1 / 30240) * ad^6;
