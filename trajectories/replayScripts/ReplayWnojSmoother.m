@@ -119,7 +119,7 @@ classdef ReplayWnojSmoother
                     break;
                 end
                 relativeDecrease = (previousCost - currentCost) / max(1, previousCost);
-                if relativeDecrease <= obj.options.costTolerance
+                if relativeDecrease <= obj.options.relativeCostTolerance
                     converged = true;
                     terminationReason = 'cost tolerance';
                     break;
@@ -199,7 +199,7 @@ classdef ReplayWnojSmoother
             [H, V, A] = obj.paperStateToProject(T, W, D);
         end
 
-        function [Phi, Q] = transition(obj, dt, Qc) %#ok<INUSL>
+        function [Phi, Q] = transition(obj, dt, Qc) %#ok<INUSD>
             I = eye(6);
             Phi = [I, dt * I, 0.5 * dt^2 * I; ...
                 zeros(6), I, dt * I; zeros(6), zeros(6), I];
@@ -241,7 +241,7 @@ classdef ReplayWnojSmoother
     end
 
     methods (Access = private)
-        function options = resolveOptions(obj, supplied) %#ok<INUSL>
+        function options = resolveOptions(obj, supplied)
             if isempty(supplied)
                 supplied = struct();
             end
@@ -258,11 +258,11 @@ classdef ReplayWnojSmoother
                 'sigmaAngularVelocityRadps', 0.10, ...
                 'jerkSpectralDensityAngular', 1.0, ...
                 'jerkSpectralDensityLinear', 1.0, ...
-                'maxIterations', 15, ...
+                'maxIterations', 200, ...
                 'maxDampingTrials', 8, ...
-                'stepTolerance', 1e-7, ...
-                'gradientTolerance', 1e-6, ...
-                'costTolerance', 1e-7, ...
+                'stepTolerance', 1e-5, ...
+                'gradientTolerance', 1e-4, ...
+                'relativeCostTolerance', 1e-6, ...
                 'initialDamping', 1e-6, ...
                 'minimumDamping', 1e-12, ...
                 'finiteDifferenceStep', 1e-6, ...
@@ -286,6 +286,14 @@ classdef ReplayWnojSmoother
                 end
             end
 
+            allowedNames = [fieldnames(defaults); { ...
+                'poseSigma'; 'twistSigma'; 'jerkSpectralDensity'}];
+            unknownNames = setdiff(fieldnames(supplied), allowedNames);
+            if ~isempty(unknownNames)
+                error('fth:ReplayWnoj:UnknownOption', ...
+                    'Unknown WNOJ option: %s.', unknownNames{1});
+            end
+
             names = fieldnames(defaults);
             options = supplied;
             for k = 1:numel(names)
@@ -298,7 +306,7 @@ classdef ReplayWnojSmoother
                 'sigmaPositionMeters', 'sigmaOrientationRadians', ...
                 'sigmaLinearVelocityMps', 'sigmaAngularVelocityRadps', ...
                 'maxIterations', 'maxDampingTrials', 'stepTolerance', ...
-                'gradientTolerance', 'costTolerance', 'initialDamping', ...
+                'gradientTolerance', 'relativeCostTolerance', 'initialDamping', ...
                 'minimumDamping', 'finiteDifferenceStep'};
             for k = 1:numel(positiveScalars)
                 value = options.(positiveScalars{k});
@@ -354,7 +362,7 @@ classdef ReplayWnojSmoother
                 repmat(options.sigmaLinearVelocityMps, 3, 1)];
         end
 
-        function values = expandAxisVariance(obj, value, name) %#ok<INUSL>
+        function values = expandAxisVariance(obj, value, name) %#ok<INUSD>
             if isscalar(value)
                 values = repmat(value, 3, 1);
             else
@@ -366,7 +374,7 @@ classdef ReplayWnojSmoother
             end
         end
 
-        function [t, H, V] = validateMeasurements(obj, t, R, p, V) %#ok<INUSL>
+        function [t, H, V] = validateMeasurements(obj, t, R, p, V) %#ok<INUSD>
             t = t(:);
             n = numel(t);
             if n < 3 || size(R, 1) ~= 3 || size(R, 2) ~= 3 || ...
@@ -393,7 +401,7 @@ classdef ReplayWnojSmoother
             end
         end
 
-        function [indices, knots] = selectKnots(obj, t, interval) %#ok<INUSL>
+        function [indices, knots] = selectKnots(obj, t, interval) %#ok<INUSD>
             indices = zeros(numel(t), 1);
             count = 1;
             indices(count) = 1;
@@ -425,7 +433,7 @@ classdef ReplayWnojSmoother
             W = -VProject;
         end
 
-        function [T, W, D] = initializeStates(obj, t, TMeas, WMeas) %#ok<INUSL>
+        function [T, W, D] = initializeStates(obj, t, TMeas, WMeas) %#ok<INUSD>
             K = numel(t);
             T = TMeas;
             W = WMeas;
@@ -627,21 +635,21 @@ classdef ReplayWnojSmoother
             A = -D;
         end
 
-        function inverse = inversePose(obj, pose) %#ok<INUSL>
+        function inverse = inversePose(obj, pose) %#ok<INUSD>
             R = pose(1:3, 1:3);
             p = pose(1:3, 4);
             inverse = [R.', -R.' * p; 0 0 0 1];
         end
 
-        function pose = expPose(obj, vector) %#ok<INUSL>
+        function pose = expPose(obj, vector) %#ok<INUSD>
             pose = fth.se3.expSE3(fth.se3.vec2tilde(vector));
         end
 
-        function vector = logPose(obj, pose) %#ok<INUSL>
+        function vector = logPose(obj, pose) %#ok<INUSD>
             vector = fth.se3.logSE3(pose);
         end
 
-        function matrix = adjointMatrix(obj, vector) %#ok<INUSL>
+        function matrix = adjointMatrix(obj, vector) %#ok<INUSD>
             matrix = fth.se3.adV(vector);
         end
 
@@ -684,7 +692,7 @@ classdef ReplayWnojSmoother
             xiDDot = J \ (D - Jdot * xiDot);
         end
 
-        function value = lastOrNaN(obj, values) %#ok<INUSL>
+        function value = lastOrNaN(obj, values) %#ok<INUSD>
             if isempty(values)
                 value = NaN;
             else
@@ -692,7 +700,7 @@ classdef ReplayWnojSmoother
             end
         end
 
-        function value = finalRelativeDecrease(obj, costs) %#ok<INUSL>
+        function value = finalRelativeDecrease(obj, costs) %#ok<INUSD>
             if numel(costs) < 2
                 value = NaN;
             else

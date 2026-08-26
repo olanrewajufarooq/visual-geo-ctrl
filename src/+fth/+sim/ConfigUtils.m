@@ -202,6 +202,8 @@ classdef ConfigUtils
             if isempty(gamma), return; end
             if iscell(gamma), count = numel(gamma); return; end
             fth.sim.ConfigUtils.validateGammaShape(gamma, adaptMode);
+            % A scalar Euclidean Gamma is broadcast by EuclideanAdaptation.
+            if isscalar(gamma), return; end
             singleWidth = 1;
             if ~strcmpi(adaptMode, 'bregman'), singleWidth = 10; end
             [~, count] = fth.sim.ConfigUtils.normalizeBatchField(gamma, singleWidth);

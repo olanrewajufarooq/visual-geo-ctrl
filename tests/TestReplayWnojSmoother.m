@@ -42,6 +42,22 @@ classdef TestReplayWnojSmoother < matlab.unittest.TestCase
                 'maxDampingTrials', 2.5)), 'fth:ReplayWnoj:InvalidOptions');
         end
 
+        function testUsesControllerReadyConvergenceDefaults(testCase)
+            smoother = ReplayWnojSmoother();
+
+            testCase.verifyEqual(smoother.options.maxIterations, 200);
+            testCase.verifyEqual( ...
+                smoother.options.relativeCostTolerance, 1e-6);
+            testCase.verifyEqual(smoother.options.stepTolerance, 1e-5);
+            testCase.verifyEqual(smoother.options.gradientTolerance, 1e-4);
+        end
+
+        function testRejectsRemovedCostToleranceOption(testCase)
+            testCase.verifyError(@() ReplayWnojSmoother(struct( ...
+                'costTolerance', 1e-6)), ...
+                'fth:ReplayWnoj:UnknownOption');
+        end
+
         function testWnojPriorResidualUsesBodyStateAndAcceleration(testCase)
             dt = 0.1;
             Ti = eye(4);
@@ -102,7 +118,7 @@ classdef TestReplayWnojSmoother < matlab.unittest.TestCase
                 'jerkSpectralDensityLinear', 1e-4, ...
                 'maxIterations', 10, ...
                 'stepTolerance', 1e-8, ...
-                'costTolerance', 1e-8);
+                'relativeCostTolerance', 1e-8);
 
             smoother = ReplayWnojSmoother(options);
             smoother = smoother.fit(t, R, p, [omega, v]);

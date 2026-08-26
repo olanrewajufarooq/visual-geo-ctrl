@@ -136,7 +136,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
         function testIdentifiabilityMcogLowWhenOneDirectionUnexcited(testCase)
             N = 1;
             F = eye(10);
-            F(10, 10) = 0;
+            F(4, 4) = 0;
             ident = struct('infoMatrix', F, 'updateCount', N);
             logs = testCase.buildAdaptiveLogs(N, ones(N, 1), ones(N, 1), ...
                 zeros(N, 3), zeros(N, 3), zeros(N, 6), zeros(N, 6), ident);
@@ -222,7 +222,7 @@ classdef TestTrackingMetrics < matlab.unittest.TestCase
             logs.est.inertia = estInertia;
             logs.est.inertiaActual = actualInertia;
             if ~isempty(ident)
-                logs.est.identifiability = ident;
+                logs.est.regressionExcitation = ident;
             end
         end
     end

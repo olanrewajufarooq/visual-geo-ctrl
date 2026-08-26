@@ -4,7 +4,7 @@ classdef TestNamingUtils < matlab.unittest.TestCase
     methods (Test)
         function testTrajectoryLabelKnownNames(testCase)
             testCase.verifyEqual(fth.io.NamingUtils.trajectoryLabel('circle'), 'circle');
-            testCase.verifyEqual(fth.io.NamingUtils.trajectoryLabel('infinity3d'), 'inf3d');
+            testCase.verifyEqual(fth.io.NamingUtils.trajectoryLabel('infinity3d'), 'infinity3d');
             testCase.verifyEqual(fth.io.NamingUtils.trajectoryLabel('takeoffland'), 'tkoffland');
         end
 

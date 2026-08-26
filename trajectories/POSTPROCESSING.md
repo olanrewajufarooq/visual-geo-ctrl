@@ -111,15 +111,20 @@ The default knot spacing is 0.01 s. The controller's original 500 Hz output grid
 is recovered with the paper's Gaussian-process interpolation equations, then
 converted back to $(H,V,A)$. Optimization status, cost history, sparse-system
 size, final step and cost decrease, and termination reason are stored in each
-artifact's diagnostics. Reaching a fixed iteration limit emits a warning and is
-recorded as `converged = false`; it is never reported as numerical convergence.
+artifact's diagnostics. The optimizer uses these controller-ready stopping
+settings:
 
-## Processing methods
+```matlab
+maxIterations = 200;
+relativeCostTolerance = 1e-6;
+stepTolerance = 1e-5;
+gradientTolerance = 1e-4;
+```
 
-`process_trajectories.m` supports two method names:
-
-- `wnoj`: nonlinear $SE(3)$ WNOJ batch smoothing.
-- `poly`: local-polynomial velocity differentiation retained as a baseline.
+The iteration count is a maximum; satisfying a convergence criterion stops the
+solve early. Reaching the limit emits a warning and is recorded as
+`converged = false`; it is never reported as numerical convergence. WNOJ is the
+only replay post-processing method.
 
 Set `trajIds = {}` in the script to process the complete manifest, or list the
 manifest keys that should be regenerated.
