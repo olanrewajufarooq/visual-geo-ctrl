@@ -34,13 +34,15 @@ columns ordered as `[m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]`.
 
 ## Specialized Gamma runs
 
-After a completed general run, provide its report root explicitly:
+After a completed general run, set `sourceReportDir` near the top of the
+script to its report root, then run the script from the repository root:
 
 ```matlab
-optimize_bregmann_gamma_gain(struct('sourceReportDir', ...
-    'results/tuning/<general-run>'))
-optimize_euclidean_gamma_gains(struct('sourceReportDir', ...
-    'results/tuning/<general-run>'))
+% Edit sourceReportDir in run/optimize_bregmann_gamma_gain.m, then:
+optimize_bregmann_gamma_gain
+
+% Edit sourceReportDir in run/optimize_euclidean_gamma_gains.m, then:
+optimize_euclidean_gamma_gains
 ```
 
 The Bregman script optimizes only scalar Bregman Gamma. The Euclidean script

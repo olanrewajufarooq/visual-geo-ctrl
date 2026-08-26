@@ -1,34 +1,43 @@
-function optimize_bregmann_gamma_gain(overrides)
 %OPTIMIZE_BREGMANN_GAMMA_GAIN Optimize only scalar Bregman Gamma.
-%   The fixed Kp, Kd, lambda, and starting Gamma are loaded from the
-%   explicitly supplied general-run report directory.
-    startup;
-    opts = fth.opt.GainOptimizationUtils.defaults();
-    opts.outputRoot = fullfile('results', 'tuning', 'bregman-gamma');
-    opts.cacheRoot = fullfile(opts.outputRoot, 'cache');
-    opts.clearCache = false;
-    if nargin < 1 || isempty(overrides) || ~isfield(overrides, 'sourceReportDir')
-        error('fth:GainOptimizer:MissingSourceReport', ...
-            'Provide overrides.sourceReportDir for the completed general-run reports.');
-    end
-    names = fieldnames(overrides);
-    for i = 1:numel(names), opts.(names{i}) = overrides.(names{i}); end
+%   Edit sourceReportDir and opts below, then run this script from the
+%   repository root. Fixed controller gains come from the selected report.
 
-    catalog = fth.opt.GainOptimizationScenario.catalog();
-    scenarios = catalog(strcmp({catalog.adaptation}, 'bregman'));
-    if ~(ischar(opts.scenarios) || (isstring(opts.scenarios) && isscalar(opts.scenarios))) || ...
-            ~strcmpi(char(opts.scenarios), 'all')
-        scenarios = fth.opt.GainOptimizationScenario.select(scenarios, opts.scenarios);
-    end
-    for i = 1:numel(scenarios)
-        scenario = scenarios(i);
-        fixed = fth.opt.GainOptimizationIO.loadBestVector(opts.sourceReportDir, ...
-            scenario.id, 19, 'bregman');
-        localOpts = opts;
-        localOpts.scenarios = scenario.id;
-        localOpts.initialVector = fixed;
-        localOpts.optimizationMask = false(1, 19);
-        localOpts.optimizationMask(19) = true;
-        fth.opt.GainOptimizer.run(localOpts);
-    end
+clear; close all;
+startup;
+
+sourceReportDir = ''; % e.g. 'results/tuning/20260826_174743'
+if isempty(sourceReportDir)
+    error('fth:GainOptimizer:MissingSourceReport', ...
+        'Set sourceReportDir to the completed general-run report root.');
+end
+
+opts = fth.opt.GainOptimizationUtils.defaults();
+opts.scenarios = 'all';
+opts.duration = 25;
+opts.swarmSize = 100;
+opts.maxIterations = 100;
+opts.functionTolerance = 1e-4;
+opts.maxStallIterations = 15;
+opts.randomSeed = 20260824;
+opts.useParallel = true;
+opts.clearCache = false;
+opts.outputRoot = fullfile('results', 'tuning', 'bregman-gamma');
+opts.cacheRoot = fullfile(opts.outputRoot, 'cache');
+
+catalog = fth.opt.GainOptimizationScenario.catalog();
+scenarios = catalog(strcmp({catalog.adaptation}, 'bregman'));
+if ~(ischar(opts.scenarios) || (isstring(opts.scenarios) && isscalar(opts.scenarios))) || ...
+        ~strcmpi(char(opts.scenarios), 'all')
+    scenarios = fth.opt.GainOptimizationScenario.select(scenarios, opts.scenarios);
+end
+for i = 1:numel(scenarios)
+    scenario = scenarios(i);
+    fixed = fth.opt.GainOptimizationIO.loadBestVector(sourceReportDir, ...
+        scenario.id, 19, 'bregman');
+    localOpts = opts;
+    localOpts.scenarios = scenario.id;
+    localOpts.initialVector = fixed;
+    localOpts.optimizationMask = false(1, 19);
+    localOpts.optimizationMask(19) = true;
+    fth.opt.GainOptimizer.run(localOpts);
 end

@@ -51,4 +51,5 @@ See [`gain_tuning_data_output.md`](gain_tuning_data_output.md) for the complete
 output data dictionary and plotting-oriented file formats. After a completed
 general run, `run/optimize_bregmann_gamma_gain.m` and
 `run/optimize_euclidean_gamma_gains.m` can optimize only the corresponding
-Gamma variables using an explicit general-run report directory.
+Gamma variables using the `sourceReportDir` configured at the top of each
+script.
