@@ -182,7 +182,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             cfg.setController('Feedforward');
             cfg.setPotentialType('log');
             cfg.setAdaptation('euclidean');
-            cfg.setTrajectory('hover', 1, true);
+            cfg.setTrajectory('hover', true);
             cfg.setSimParams(0.005, 0.02);
             cfg.setAdaptationParams(0.005);
             cfg.setControlParams(0.01);
@@ -210,7 +210,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             cfg.setController('Feedforward');
             cfg.setPotentialType('log');
             cfg.setAdaptation('euclidean');
-            cfg.setTrajectory('hover', 1, true);
+            cfg.setTrajectory('hover', true);
             cfg.setSimParams(0.005, 0.02);
             cfg.setAdaptationParams(0.005);
             cfg.setControlParams(0.01);
@@ -243,7 +243,7 @@ classdef TestResultsManager < matlab.unittest.TestCase
             cfg.setController('Feedforward');
             cfg.setPotentialType('log');
             cfg.setAdaptation('euclidean');
-            cfg.setTrajectory({'hover', 'circle'}, [1 1], [true true]);
+            cfg.setTrajectory({'hover', 'circle'}, [true true]);
             cfg.setSimParams(0.005, 0.02);
             cfg.setAdaptationParams(0.005);
             cfg.setControlParams(0.01);

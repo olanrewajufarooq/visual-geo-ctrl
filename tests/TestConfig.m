@@ -176,12 +176,13 @@ classdef TestConfig < matlab.unittest.TestCase
             testCase.verifyGreaterThan(cfg.controller.Gamma, 0);
         end
 
-        function testBregmanRejectsTenVectorGamma(testCase)
+        function testBregmanAcceptsPerRunVectorGamma(testCase)
             cfg = fth.sim.Config();
             cfg.setController('Feedforward');
             cfg.setAdaptation('bregman');
             cfg.setAdaptiveGains(ones(10, 1));
-            testCase.verifyError(@() cfg.done(), 'Config:InvalidGainShape');
+            cfg.done();
+            testCase.verifyEqual(cfg.getBatchCount(), 10);
         end
 
         function testBregmanGammaBatchCount(testCase)
@@ -299,10 +300,11 @@ classdef TestConfig < matlab.unittest.TestCase
             testCase.verifyEqual(cfg.payload.dropTime, 15);
         end
 
-        function testDeprecatedSetPayloadWithInitFlagThrows(testCase)
+        function testSetPayloadScenarioWithInitFlag(testCase)
             cfg = fth.sim.Config();
-            testCase.verifyError(@() cfg.setPayload(0.5, [0; 0; 0], 10, false), ...
-                'Config:DeprecatedSetPayload');
+            cfg.setPayloadScenario(0.5, [0; 0; 0], 10);
+            testCase.verifyEqual(cfg.payload.mass, 0.5);
+            testCase.verifyEqual(cfg.payload.dropTime, 10);
         end
 
         function testSetParamInitVehicle(testCase)

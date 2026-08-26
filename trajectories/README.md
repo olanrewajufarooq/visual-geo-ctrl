@@ -57,9 +57,9 @@ Replay implementation files are grouped under `trajectories/replayScripts/`. The
 run('trajectories/process_trajectories.m')
 ```
 
-This creates `.mat` artifacts under `trajectories/processed/`. Configure the
-script with `processingMethod = 'wnoj'` or `'poly'`. Set `trajIds = {}` to
-process the complete manifest, or provide selected manifest keys, for example:
+This creates WNOJ-smoothed `.mat` artifacts under `trajectories/processed/`.
+Set `trajIds = {}` to process the complete manifest, or provide selected
+manifest keys, for example:
 
 ```matlab
 trajIds = {'ellipse_01_auto', 'lemniscate_01_auto', 'RATM_01_auto'};
@@ -108,7 +108,8 @@ Differentiating the converted body signals is important. It includes the frame t
 d(R' v_world)/dt = R' * (dv_world/dt - omega_world x v_world)
 ```
 
-The replay processor now performs this conversion before deriving acceleration. The replay trajectory also interpolates orientation along `SO(3)` using the relative rotation logarithm/Rodrigues formula rather than selecting the nearest sample.
+The replay processor performs this conversion before fitting the joint pose,
+twist, and acceleration trajectory on $SE(3)$.
 
 ### Acceleration Post-Processing
 
@@ -124,13 +125,12 @@ V = \begin{bmatrix}\omega_b\\v_b\end{bmatrix},
 A = \dot{V}.
 $$
 
-The `poly` baseline estimates acceleration by differentiating the converted velocity signals. Its translational body-frame identity is
-
-$$
-\frac{d}{dt}\left(R^\mathsf{T}v_w\right)
-= R^\mathsf{T}\dot{v}_w - \omega_b \times v_b.
-$$
-
-The `wnoj` processor first converts the measured world-frame velocity channels to body twist. It then runs the nonlinear sparse $SE(3)$ batch smoother using the exact convention transformation $T=H^{-1}$, $\varpi=-V$, and $\dot{\varpi}=-A$. Gaussian-process interpolation returns mutually consistent $H$, $V$, and $A$ on the original sample grid. See [POSTPROCESSING.md](POSTPROCESSING.md) for the equations and reference.
+The processor converts the measured world-frame velocity channels to body
+twist, then runs the nonlinear sparse $SE(3)$ WNOJ batch smoother using the
+exact convention transformation $T=H^{-1}$, $\varpi=-V$, and
+$\dot{\varpi}=-A$. Gaussian-process interpolation returns mutually consistent
+$H$, $V$, and $A$ on the original sample grid. See
+[POSTPROCESSING.md](POSTPROCESSING.md) for the equations, convergence settings,
+and reference.
 
 Sources: [dataset repository](https://github.com/tii-racing/drone-racing-dataset), [dataset interpolation script](https://raw.githubusercontent.com/tii-racing/drone-racing-dataset/main/scripts/data_interpolation.py), and [companion paper](https://doi.org/10.1109/LRA.2024.3371288).

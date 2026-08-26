@@ -5,16 +5,15 @@ classdef ReplayProcessor
 
     methods (Static)
         function summary = processAll(varargin)
-            isConvenienceCall = nargin >= 2 && nargin <= 3 && ...
-                (ischar(varargin{1}) || isstring(varargin{1})) && ...
-                ismember(lower(char(string(varargin{1}))), {'wnoj', 'poly'});
+            isConvenienceCall = nargin >= 1 && nargin <= 2 && ...
+                (islogical(varargin{1}) || isnumeric(varargin{1}));
             if isConvenienceCall
                 trajectoryIds = [];
-                if nargin == 3
-                    trajectoryIds = varargin{3};
+                if nargin == 2
+                    trajectoryIds = varargin{2};
                 end
                 summary = ReplayProcessingCore.processAll( ...
-                    [], [], [], varargin{1}, varargin{2}, trajectoryIds);
+                    [], [], [], varargin{1}, trajectoryIds);
             else
                 summary = ReplayProcessingCore.processAll(varargin{:});
             end

@@ -3,7 +3,7 @@ classdef ReplayProcessingCore
 
     methods (Static)
         function summary = processAll(rootDir, manifestPath, useParallel, ...
-                methodOverride, clearCache, trajectoryIds)
+                clearCache, trajectoryIds)
             %PROCESSALL Convert manifest-listed raw CSV files into .mat artifacts.
             if nargin < 1 || isempty(rootDir)
                 rootDir = ReplayProcessingCore.defaultRootDir();
@@ -21,20 +21,19 @@ classdef ReplayProcessingCore
                     useParallel = false;
                 end
             end
-            if nargin < 4 || isempty(methodOverride)
-                methodOverride = '';
-            else
-                methodOverride = ReplayProcessingCore.normalizePostprocessingMethod( ...
-                    methodOverride);
-            end
-            if nargin < 5 || isempty(clearCache)
+            if nargin < 4 || isempty(clearCache)
                 clearCache = true;
             else
-                validateattributes(clearCache, {'logical', 'numeric'}, {'scalar'}, ...
-                    mfilename, 'clearCache');
+                if ~isscalar(clearCache) || ...
+                        ~(islogical(clearCache) || ...
+                        (isnumeric(clearCache) && isfinite(clearCache) && ...
+                        ismember(clearCache, [0 1])))
+                    error('fth:Replay:InvalidClearCache', ...
+                        'clearCache must be a logical scalar.');
+                end
                 clearCache = logical(clearCache);
             end
-            if nargin < 6
+            if nargin < 5
                 trajectoryIds = [];
             end
 
@@ -47,9 +46,6 @@ classdef ReplayProcessingCore
             entries = cell(n, 1);
             for i = 1:n
                 entries{i} = manifest.(ids{i});
-                if ~isempty(methodOverride)
-                    entries{i}.postprocessing.method = methodOverride;
-                end
                 rawPaths{i} = ReplayProcessingCore.resolveSourcePath(rootDir, entries{i}.source_file);
                 outPaths{i} = fullfile(rootDir, char(string(entries{i}.artifact_file)));
                 outDir = fileparts(outPaths{i});
@@ -170,15 +166,6 @@ classdef ReplayProcessingCore
     end
 
     methods (Static, Access = private)
-        function method = normalizePostprocessingMethod(method)
-            method = lower(char(string(method)));
-            if ~ismember(method, {'wnoj', 'poly'})
-                error('fth:Replay:UnknownProcessingMethod', ...
-                    ['Unknown replay processing method ''%s''. ' ...
-                     'Expected ''wnoj'' or ''poly''.'], method);
-            end
-        end
-
         function ids = selectManifestIds(allIds, requestedIds)
             if isempty(requestedIds)
                 ids = allIds;
@@ -319,15 +306,7 @@ classdef ReplayProcessingCore
         end
 
         function key = postprocessingCacheKey(entry)
-            method = 'poly';
-            if isfield(entry, 'postprocessing') && ...
-                    isstruct(entry.postprocessing) && ...
-                    isfield(entry.postprocessing, 'method') && ...
-                    ~isempty(entry.postprocessing.method)
-                method = ReplayProcessingCore.normalizePostprocessingMethod( ...
-                    entry.postprocessing.method);
-            end
-            payload = struct('method', method, 'cacheRevision', 4);
+            payload = struct('method', 'wnoj', 'cacheRevision', 5);
             if isfield(entry, 'postprocessing') && ...
                     isstruct(entry.postprocessing) && ...
                     isfield(entry.postprocessing, 'wnoj')

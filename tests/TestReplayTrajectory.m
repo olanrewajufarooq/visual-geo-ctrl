@@ -108,14 +108,13 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
             testCase.verifyTrue(isfile(artifactPath));
             testCase.verifyEqual(data.traj.meta.id, 'demo_replay');
             testCase.verifyEqual(data.traj.meta.accelerationMethod, ...
-                'poly');
-            testCase.verifyEqual(data.traj.meta.accelerationWindowSamples, 201);
+                'wnoj');
             testCase.verifyEqual(size(data.traj.p), [3 3]);
             testCase.verifyEqual(size(data.traj.v_b), [3 3]);
             testCase.verifyEqual(size(data.traj.omega_b), [3 3]);
         end
 
-        function testProcessorAcceptsExplicitPolynomialMethod(testCase)
+        function testProcessorRejectsRemovedMethodArgument(testCase)
             tmpRoot = testCase.createTempStructure();
             cleanup = onCleanup(@() rmdir(tmpRoot, 's'));
             %#ok<NASGU>
@@ -130,13 +129,9 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
                     'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
                     'artifact_file', 'demo_replay.mat')));
 
-            ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'poly');
-            data = load(fullfile(tmpRoot, 'demo_replay.mat'), 'traj');
-
-            testCase.verifyEqual(data.traj.meta.postprocessingMethod, ...
-                'poly');
-            testCase.verifyEqual(data.traj.meta.accelerationMethod, ...
-                'poly');
+            testCase.verifyError(@() ReplayProcessor.processAll( ...
+                tmpRoot, manifestPath, false, 'poly'), ...
+                'fth:Replay:InvalidClearCache');
         end
 
         function testProcessorBuildsExactWnojArtifact(testCase)
@@ -154,7 +149,7 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
                     'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
                     'artifact_file', 'demo_replay.mat')));
 
-            summary = ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'wnoj');
+            summary = ReplayProcessor.processAll(tmpRoot, manifestPath, false);
             data = load(fullfile(tmpRoot, 'demo_replay.mat'), 'traj');
 
             testCase.verifyEqual(summary.processedCount, 1);
@@ -180,8 +175,8 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
                     'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
                     'artifact_file', 'demo_replay.mat')));
 
-            first = ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'poly');
-            second = ReplayProcessor.processAll(tmpRoot, manifestPath, false, 'poly', false);
+            first = ReplayProcessor.processAll(tmpRoot, manifestPath, false);
+            second = ReplayProcessor.processAll(tmpRoot, manifestPath, false, false);
 
             testCase.verifyEqual(first.processedCount, 1);
             testCase.verifyEqual(first.cachedCount, 0);
@@ -210,7 +205,7 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
                 'artifact_file', 'second_replay.mat')));
 
             summary = ReplayProcessor.processAll( ...
-                tmpRoot, manifestPath, false, 'poly', true, "second_replay");
+                tmpRoot, manifestPath, false, true, "second_replay");
 
             testCase.verifyEqual(summary.trajectoryIds, {'second_replay'});
             testCase.verifyEqual(summary.totalCount, 1);
@@ -225,7 +220,7 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
             rawDir = fullfile(tmpRoot, 'autonomous', 'demo');
             mkdir(rawDir);
             rawFile = fullfile(rawDir, 'demo_500hz_freq_sync.csv');
-            testCase.writeRawTrajectoryCsv(rawFile);
+            testCase.writeRotatedConstantVelocityCsv(rawFile);
             manifestPath = testCase.writeManifest(tmpRoot, struct( ...
                 'demo_replay', struct('source_mode', 'autonomous', ...
                 'source_file', 'autonomous/demo/demo_500hz_freq_sync.csv', ...
@@ -233,8 +228,10 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
 
             ReplayProcessor.processAll(tmpRoot, manifestPath, false);
             data = load(fullfile(tmpRoot, 'demo_replay.mat'), 'traj');
-            testCase.verifyEqual(data.traj.v_b(2, :), [-1.2 1.1 1.3], 'AbsTol', 1e-12);
-            testCase.verifyEqual(data.traj.omega_b(2, :), [-0.5 0.4 0.6], 'AbsTol', 1e-12);
+            testCase.verifyEqual(data.traj.v_b(2, :), [0 -1 0], ...
+                'AbsTol', 5e-2);
+            testCase.verifyEqual(data.traj.omega_b(2, :), [0 0 0], ...
+                'AbsTol', 1e-3);
         end
 
         function testReplayTrajectoryReturnsProcessedState(testCase)
@@ -307,6 +304,25 @@ classdef TestReplayTrajectory < matlab.unittest.TestCase
                 0.0, 1000, 'img0.jpg', 0, 0, 0, 0, 0, 0, 0.1, 0.2, 0.3, 0.01, 0.02, 0.03, 1, 0, 0, 0, 1, 0, 0, 0, 1;
                 0.5, 1500, 'img1.jpg', 1, 2, 3, 0, 0, 0, 1.1, 1.2, 1.3, 0.4, 0.5, 0.6, 0, 1, 0, -1, 0, 0, 0, 0, 1;
                 1.0, 2000, 'img2.jpg', 2, 4, 6, 0, 0, 0, 2.1, 2.2, 2.3, 0.7, 0.8, 0.9, 1, 0, 0, 0, 1, 0, 0, 0, 1
+            };
+            T = cell2table(rows, 'VariableNames', cellstr(headers));
+            writetable(T, path);
+        end
+
+        function writeRotatedConstantVelocityCsv(path)
+            headers = [ ...
+                "elapsed_time", "timestamp", "img_filename", ...
+                "drone_x", "drone_y", "drone_z", ...
+                "drone_roll", "drone_pitch", "drone_yaw", ...
+                "drone_velocity_linear_x", "drone_velocity_linear_y", "drone_velocity_linear_z", ...
+                "drone_velocity_angular_x", "drone_velocity_angular_y", "drone_velocity_angular_z", ...
+                "drone_rot[0]", "drone_rot[1]", "drone_rot[2]", ...
+                "drone_rot[3]", "drone_rot[4]", "drone_rot[5]", ...
+                "drone_rot[6]", "drone_rot[7]", "drone_rot[8]"];
+            rows = {
+                0.0, 1000, 'img0.jpg', 0.0, 0, 0, 0, 0, pi/2, 1, 0, 0, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0, 1;
+                0.5, 1500, 'img1.jpg', 0.5, 0, 0, 0, 0, pi/2, 1, 0, 0, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0, 1;
+                1.0, 2000, 'img2.jpg', 1.0, 0, 0, 0, 0, pi/2, 1, 0, 0, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0, 1
             };
             T = cell2table(rows, 'VariableNames', cellstr(headers));
             writetable(T, path);
