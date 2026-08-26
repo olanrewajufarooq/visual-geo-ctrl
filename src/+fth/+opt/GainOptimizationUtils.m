@@ -2,11 +2,12 @@ classdef GainOptimizationUtils
     %GAINOPTIMIZATIONUTILS Small reusable optimizer helpers.
     methods (Static)
         function opts = defaults()
-            opts = struct('scenarios', 'all', 'duration', 25, 'swarmSize', 40, ...
-                'maxIterations', 30, 'functionTolerance', 1e-4, ...
+            opts = struct('scenarios', 'all', 'duration', 25, 'swarmSize', 100, ...
+                'maxIterations', 100, 'functionTolerance', 1e-3, ...
                 'maxStallIterations', 15, 'randomSeed', 20260824, 'useParallel', true, ...
                 'outputRoot', fullfile('results', 'tuning'), ...
-                'cacheRoot', fullfile('results', 'tuning', 'cache'), 'clearCache', true, ...
+                'cacheRoot', fullfile('results', 'tuning', 'cache'), 'clearCache', false, ...
+                'optimizationMask', [], 'initialVector', [], ...
                 'bounds', struct('Kp', [0.005, 15.0], 'Kd', [0.001, 10.0], ...
                     'lambda', [0.0, 20.0], 'gammaLog10', [-6.0, -1.0]));
         end
@@ -40,6 +41,21 @@ classdef GainOptimizationUtils
                 if isempty(values), value = NaN; else, value = min(values); end
             else
                 value = NaN;
+            end
+        end
+
+        function n = gammaWidth(mode)
+            %GAMMAWIDTH Return the number of Gamma variables for an adaptation mode.
+            switch lower(char(mode))
+                case 'none'
+                    n = 0;
+                case 'bregman'
+                    n = 1;
+                case 'euclidean'
+                    n = 10;
+                otherwise
+                    error('fth:GainOptimizationUtils:InvalidMode', ...
+                        'Unknown adaptation mode: %s.', char(mode));
             end
         end
 
