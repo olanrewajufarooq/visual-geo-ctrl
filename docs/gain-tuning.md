@@ -39,8 +39,11 @@ cell array of scenario IDs. Results are written to
 `best_gains.m` containing `Kp`, `Kd`, `lambda`, and `Gamma`.
 
 The optimizer checkpoints each iteration in
-`results/tuning/cache/<scenario-id>/optimizer_state.mat`. Cache selection is
-per scenario. Set the `clearCache` field for the relevant entry in the
+`results/tuning/cache/<scenario-id>/optimizer_state.mat`. Each cache also
+keeps the three lowest-cost distinct historical candidates in `topX` and
+`topCost`, and writes them to `best_gains.csv`; `best_gains.txt` and
+`best_gains.m` describe rank 1. Cache selection is per scenario. Set the
+`clearCache` field for the relevant entry in the
 `GainOptimizationScenario.catalog()` method to `true` to force fresh
 optimization; an empty field inherits `opts.clearCache`. Otherwise a matching
 incomplete scenario resumes from its last saved swarm, and a completed one

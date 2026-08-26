@@ -102,6 +102,16 @@ classdef GainOptimizer
                     bestCostCheckpoint = cached.bestCost;
                     bestXCheckpoint = cached.bestX;
                 end
+                topX = zeros(0, fullDimension);
+                topCost = zeros(0, 1);
+                if found && ~clearCache && isfield(cached, 'topX') && isfield(cached, 'topCost')
+                    topX = cached.topX;
+                    topCost = cached.topCost;
+                elseif isfinite(bestCostCheckpoint)
+                    [topX, topCost] = fth.opt.GainOptimizationIO.updateTopCandidates( ...
+                        topX, topCost, bestXCheckpoint, bestCostCheckpoint, ...
+                        problem.LowerBound, problem.UpperBound);
+                end
                 completedIterations = iterationOffset;
                 output = struct();
                 exitflag = NaN;
@@ -119,9 +129,11 @@ classdef GainOptimizer
                     problem.LowerBound(activeMask), problem.UpperBound(activeMask), psOpts);
                 bestX = expandVector(bestX);
                 elapsed = elapsedBefore + toc(startTimer);
+                [topX, topCost] = fth.opt.GainOptimizationIO.updateTopCandidates( ...
+                    topX, topCost, bestX, bestCost, problem.LowerBound, problem.UpperBound);
+                bestXCheckpoint = topX(1, :);
+                bestCostCheckpoint = topCost(1);
                 [~, bestBreakdown] = problem.evaluate(bestX);
-                bestXCheckpoint = bestX;
-                bestCostCheckpoint = bestCost;
                 completedIterations = max(completedIterations, iterationOffset + output.iterations);
                 if isempty(improvementHistory) || bestCost < improvementHistory.best_cost(end)
                     improvementHistory(end+1, :) = fth.opt.GainOptimizationIO.gainTable( ...
@@ -160,6 +172,15 @@ classdef GainOptimizer
                     if isfield(optimValues, 'swarm')
                         lastSwarm = optimValues.swarm;
                     end
+                    if isfield(optimValues, 'swarmfvals') && isfield(optimValues, 'swarm')
+                        [topX, topCost] = fth.opt.GainOptimizationIO.updateTopCandidates( ...
+                            topX, topCost, expandSwarm(optimValues.swarm), ...
+                            optimValues.swarmfvals, problem.LowerBound, problem.UpperBound);
+                    elseif isfield(optimValues, 'bestx') && isfield(optimValues, 'bestfval')
+                        [topX, topCost] = fth.opt.GainOptimizationIO.updateTopCandidates( ...
+                            topX, topCost, expandVector(optimValues.bestx), ...
+                            optimValues.bestfval, problem.LowerBound, problem.UpperBound);
+                    end
                     completedIterations = iterationOffset + optimValues.iteration;
                     elapsedNow = elapsedBefore + toc(startTimer);
                     history(end+1, :) = [completedIterations, bestCostCheckpoint, elapsedNow];
@@ -186,7 +207,13 @@ classdef GainOptimizer
                 save(fullfile(cacheFolder, 'optimizer_state.mat'), 'bestX', 'bestCost', ...
                     'history', 'baseline', 'baselineBreakdown', 'opts', 'scenario', ...
                     'runSignature', 'lastSwarm', 'completedIterations', ...
-                    'elapsedSeconds', 'completed', 'improvementHistory');
+                    'elapsedSeconds', 'completed', 'improvementHistory', 'topX', 'topCost');
+                fth.opt.GainOptimizationIO.writeTopGains(cacheFolder, scenario, topX, topCost);
+            end
+
+            function fullSwarm = expandSwarm(activeSwarm)
+                fullSwarm = repmat(fixedVector, size(activeSwarm, 1), 1);
+                fullSwarm(:, activeMask) = double(activeSwarm);
             end
         end
     end

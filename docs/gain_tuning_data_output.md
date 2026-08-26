@@ -17,10 +17,15 @@ as optional runtime metadata for estimating iteration duration and total cost.
   named gain columns. Older generated files with two unnamed positional rows
   are legacy outputs and are not rewritten.
 - `optimizer_state.mat`: MATLAB-native state including `bestX`, `bestCost`,
-  `history`, `improvementHistory`, baseline/final breakdowns, options,
-  checkpoint swarm, completion state, and run signature. Gamma values in
+  `topX`, `topCost`, `history`, `improvementHistory`, baseline/final
+  breakdowns, options, checkpoint swarm, completion state, and run signature.
+  `topX` is ranked by ascending cost and contains up to three numerically
+  distinct historical candidates. Gamma values in
   `bestX` are log10 values; table/CSV Gamma columns are physical values
   (`10.^bestX(19:end)`).
+- `best_gains.csv`: ranked cache candidates (`rank_1` through `rank_3`) with
+  named physical-gain columns. It may contain fewer than three rows early in
+  an interrupted run.
 - `run_metadata.json`: compact scenario, optimizer, completion, iteration,
   elapsed-time, and signature metadata for non-MATLAB tooling.
 - `best_gains.txt`, `best_gains.m`, and `convergence.png`: human-readable,

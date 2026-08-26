@@ -79,5 +79,37 @@ classdef TestGainOptimizationIO < matlab.unittest.TestCase
                 '', root, 'adaptive-basic-bregman-no-payload', 19, 'bregman'), ...
                 'fth:GainOptimizationSource:MissingSource');
         end
+
+        function testUpdateTopCandidatesKeepsThreeDistinctLowestCosts(testCase)
+            existingX = [1, 1; 2, 2];
+            existingCost = [3; 1];
+            candidatesX = [3, 3; 1 + 1e-10, 1; 4, 4; 5, 5];
+            candidatesCost = [2; 0.5; NaN; 4];
+
+            [topX, topCost] = fth.opt.GainOptimizationIO.updateTopCandidates( ...
+                existingX, existingCost, candidatesX, candidatesCost, [0, 0], [10, 10]);
+
+            testCase.verifyEqual(topCost, [0.5; 1; 2]);
+            testCase.verifyEqual(topX, [1, 1; 2, 2; 3, 3], 'AbsTol', 1e-9);
+        end
+
+        function testWriteTopGainsUsesRankedRows(testCase)
+            folder = tempname;
+            mkdir(folder);
+            cleanup = onCleanup(@() rmdir(folder, 's')); %#ok<NASGU>
+            scenario = struct('id', 'demo', 'adaptation', 'bregman', ...
+                'coriolisForm', 'consistent', 'withPayload', false, 'paramInit', 'nominal');
+            topX = [ones(1, 19); 2 * ones(1, 19); 3 * ones(1, 19)];
+            topCost = [1; 2; 3];
+
+            fth.opt.GainOptimizationIO.writeTopGains(folder, scenario, topX, topCost);
+            contents = fileread(fullfile(folder, 'best_gains.csv'));
+
+            testCase.verifySubstring(contents, 'rank_1');
+            testCase.verifySubstring(contents, 'rank_3');
+            testCase.verifySubstring(contents, 'Gamma_1');
+            testCase.verifyTrue(isfile(fullfile(folder, 'best_gains.txt')));
+            testCase.verifyTrue(isfile(fullfile(folder, 'best_gains.m')));
+        end
     end
 end
