@@ -18,14 +18,15 @@ opts.duration = 25;
 opts.swarmSize = 100;
 opts.maxIterations = 100;
 
-opts.functionTolerance = 1e-4;
+opts.functionTolerance = 1e-3;
 opts.maxStallIterations = 15;
 
 opts.randomSeed = 20260824;
 opts.useParallel = true;
 opts.clearCache = false;
 
-% Search bounds. Gamma bounds are specified in log10 space.
+%% Search bounds. Gamma bounds are specified in log10 space.
+
 opts.bounds.Kp = [5e-3, 15.0];
 opts.bounds.Kd = [1e-3, 10.0];
 opts.bounds.lambda = [0.0, 20.0];
