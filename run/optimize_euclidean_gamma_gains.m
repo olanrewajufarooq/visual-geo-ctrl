@@ -13,6 +13,10 @@ opt = struct();
 % opt.fixedGains.lambda = [0.5;0.5;0.5;0.2;0.2;0.2];
 % opt.fixedGains.Gamma = 1e-3*ones(10,1);
 
+% Optional search-bound overrides. Gamma bounds are log10 values.
+% opt.bounds = struct();
+% opt.bounds.gammaLog10 = [-6, -1];
+
 %% Running Optimization
 
 fth.opt.GammaOptimizationRunner.run('euclidean', opt);

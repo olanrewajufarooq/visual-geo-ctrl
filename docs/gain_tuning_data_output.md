@@ -53,3 +53,11 @@ optimizes only the ten Euclidean Gamma values. Both freeze `Kp`, `Kd`, and
 user-supplied fixed gains, call `fth.opt.GammaOptimizationRunner.run` with a
 `fixedGains` struct containing physical `Kp`, `Kd`, `lambda`, and `Gamma`; a
 commented example is included in each script.
+
+Search bounds can be overridden field-by-field through `opt.bounds` before
+the runner call. Gamma bounds use log10 optimizer space, for example:
+
+```matlab
+opt.bounds = struct();
+opt.bounds.gammaLog10 = [-5, -2];
+```

@@ -21,7 +21,14 @@ classdef GammaOptimizationRunner
             fixedGains = [];
             names = fieldnames(overrides);
             for i = 1:numel(names)
-                if isfield(opts, names{i}), opts.(names{i}) = overrides.(names{i}); end
+                if strcmp(names{i}, 'bounds') && isstruct(overrides.bounds)
+                    boundNames = fieldnames(overrides.bounds);
+                    for j = 1:numel(boundNames)
+                        opts.bounds.(boundNames{j}) = overrides.bounds.(boundNames{j});
+                    end
+                elseif isfield(opts, names{i})
+                    opts.(names{i}) = overrides.(names{i});
+                end
             end
             if isfield(overrides, 'sourceReportDir'), sourceReportDir = overrides.sourceReportDir; end
             if isfield(overrides, 'fixedGains'), fixedGains = overrides.fixedGains; end
