@@ -48,7 +48,11 @@ classdef GainOptimizationIO
             fprintf(fid, 'with_payload_drop = %d\nparam_init = %s\ncost = %.16g\nelapsed_seconds = %.6f\n', scenario.withPayload, scenario.paramInit, cost, elapsed);
             fprintf(fid, 'Kp = [%s]\nKd = [%s]\nlambda = [%s]\n', sprintf(' %.16g', x(1:6)), sprintf(' %.16g', x(7:12)), sprintf(' %.16g', x(13:18)));
             if numel(x) > 18, fprintf(fid, 'Gamma = [%s]\n', sprintf(' %.16g', 10.^x(19:end))); else, fprintf(fid, 'Gamma = []\n'); end
-            fprintf(fid, 'scenario_failures = %d\n', sum([breakdown.scenario.failed]));
+            failures = NaN;
+            if isstruct(breakdown) && isfield(breakdown, 'scenario')
+                failures = sum([breakdown.scenario.failed]);
+            end
+            fprintf(fid, 'scenario_failures = %g\n', failures);
         end
 
         function writeScript(folder, scenario, x, cost)
@@ -114,6 +118,79 @@ classdef GainOptimizationIO
             bestRow = fth.opt.GainOptimizationIO.gainTable(NaN, bestCost, NaN, ...
                 bestX, 'best');
             writetable([baselineRow; bestRow], fullfile(folder, 'baseline_and_best.csv'));
+        end
+
+        function [topX, topCost] = updateTopCandidates(topX, topCost, candidatesX, ...
+                candidatesCost, lowerBound, upperBound)
+            %UPDATETOPCANDIDATES Merge and rank the three best distinct vectors.
+            topX = double(topX);
+            topCost = double(topCost(:));
+            candidatesX = double(candidatesX);
+            candidatesCost = double(candidatesCost(:));
+            if isempty(topX)
+                topX = zeros(0, size(candidatesX, 2));
+            end
+            if size(topX, 2) ~= size(candidatesX, 2) || ...
+                    (numel(topX) ~= 0 && size(topX, 1) ~= numel(topCost))
+                    size(topX, 1) ~= numel(topCost)
+                error('fth:GainOptimizationIO:InvalidTopCandidates', ...
+                    'Candidate vectors and costs have incompatible dimensions.');
+            end
+            if isempty(candidatesX)
+                return;
+            end
+            valid = isfinite(candidatesCost) & all(isfinite(candidatesX), 2);
+            candidatesX = candidatesX(valid, :);
+            candidatesCost = candidatesCost(valid);
+            if isempty(candidatesX)
+                return;
+            end
+
+            allX = [topX; candidatesX];
+            allCost = [topCost; candidatesCost];
+            [allCost, order] = sort(allCost, 'ascend');
+            allX = allX(order, :);
+            scale = max(double(upperBound(:).') - double(lowerBound(:).'), eps);
+            keep = false(size(allCost));
+            for i = 1:numel(allCost)
+                if ~any(keep)
+                    keep(i) = true;
+                else
+                    distances = sqrt(sum(((allX(keep, :) - allX(i, :)) ./ scale) .^ 2, 2));
+                    keep(i) = all(distances >= 1e-8);
+                end
+                if nnz(keep) == 3
+                    break;
+                end
+            end
+            topX = allX(keep, :);
+            topCost = allCost(keep);
+        end
+
+        function writeTopGains(folder, scenario, topX, topCost)
+            %WRITETOPGAINS Write the ranked cache candidates in physical units.
+            if isempty(topX)
+                return;
+            end
+            topX = double(topX);
+            topCost = double(topCost(:));
+            gammaCount = size(topX, 2) - 18;
+            names = [{'rank', 'best_cost', 'scenario_id'}, ...
+                arrayfun(@(i) sprintf('Kp_%d', i), 1:6, 'UniformOutput', false), ...
+                arrayfun(@(i) sprintf('Kd_%d', i), 1:6, 'UniformOutput', false), ...
+                arrayfun(@(i) sprintf('lambda_%d', i), 1:6, 'UniformOutput', false), ...
+                arrayfun(@(i) sprintf('Gamma_%d', i), 1:gammaCount, 'UniformOutput', false)];
+            rows = cell(size(topX, 1), numel(names));
+            for i = 1:size(topX, 1)
+                x = topX(i, :);
+                rows(i, :) = [{sprintf('rank_%d', i)}, {topCost(i)}, {scenario.id}, ...
+                    num2cell(x(1:18)), num2cell(10 .^ x(19:end))];
+            end
+            writetable(cell2table(rows, 'VariableNames', names), ...
+                fullfile(folder, 'best_gains.csv'));
+            fth.opt.GainOptimizationIO.writeSummary(folder, scenario, topX(1, :), ...
+                topCost(1), NaN, struct());
+            fth.opt.GainOptimizationIO.writeScript(folder, scenario, topX(1, :), topCost(1));
         end
 
         function writeMetadata(folder, scenario, opts, runSignature, exitflag, output, completed, elapsed)
