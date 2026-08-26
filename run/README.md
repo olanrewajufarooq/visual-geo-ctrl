@@ -4,7 +4,7 @@ The MATLAB files in this directory are grouped by purpose. Run them from the
 repository root after the project paths have been initialized by the script's
 `startup` call.
 
-## `run_nominal_*`
+## `nominal_*`
 
 Nominal-controller demonstrations and comparisons. These scripts run the
 controller without online adaptation and are useful for checking baseline
@@ -12,10 +12,10 @@ tracking behavior and comparing Coriolis-model choices.
 
 Examples:
 
-- `run_nominal_demo.m`
-- `run_nominal_coriolis_comparison.m`
+- `nominal_demo.m`
+- `nominal_coriolis_comparison.m`
 
-## `run_adaptive_*`
+## `adaptive_*`
 
 Adaptive-controller demonstrations, reproductions, and comparisons. These
 scripts configure Euclidean or Bregman adaptation, payload conditions, and
@@ -23,10 +23,10 @@ replay trajectories for evaluating adaptive behavior.
 
 Examples:
 
-- `run_adaptive_demo.m`
-- `run_adaptive_gain_comparison.m`
-- `run_adaptive_coriolis_comparison.m`
-- `run_adaptive_reproduce.m`
+- `adaptive_demo.m`
+- `adaptive_gain_comparison.m`
+- `adaptive_coriolis_comparison.m`
+- `adaptive_reproduce.m`
 
 ## `plot_*`
 
