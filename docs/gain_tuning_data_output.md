@@ -34,8 +34,10 @@ columns ordered as `[m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]`.
 
 ## Specialized Gamma runs
 
-After a completed general run, set `sourceReportDir` near the top of the
-script to its report root, then run the script from the repository root:
+After a completed general run, run the corresponding script from the
+repository root. With the default empty source directory, the runner selects
+the newest matching general-run report under `results/tuning` and errors when
+none exists:
 
 ```matlab
 % Edit sourceReportDir in run/optimize_bregmann_gamma_gain.m, then:
@@ -47,4 +49,7 @@ optimize_euclidean_gamma_gains
 
 The Bregman script optimizes only scalar Bregman Gamma. The Euclidean script
 optimizes only the ten Euclidean Gamma values. Both freeze `Kp`, `Kd`, and
-`lambda` from the selected general-run scenario reports.
+`lambda` from the selected general-run scenario reports. For experiments with
+user-supplied fixed gains, call `fth.opt.GammaOptimizationRunner.run` with a
+`fixedGains` struct containing physical `Kp`, `Kd`, `lambda`, and `Gamma`; a
+commented example is included in each script.

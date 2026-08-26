@@ -60,5 +60,24 @@ classdef TestGainOptimizationIO < matlab.unittest.TestCase
                 'adaptive-basic-bregman-no-payload', 19, 'bregman'), ...
                 'fth:GainOptimizationIO:IncompleteSource');
         end
+
+        function testGainSourceConvertsDirectPhysicalGains(testCase)
+            gains = struct('Kp', (1:6).', 'Kd', (7:12).', ...
+                'lambda', (13:18).', 'Gamma', 1e-3);
+            x = fth.opt.GainOptimizationSource.gainsToVector(gains, 'bregman');
+
+            testCase.verifyEqual(x(1:18), 1:18, 'AbsTol', 1e-12);
+            testCase.verifyEqual(x(19), -3, 'AbsTol', 1e-12);
+        end
+
+        function testGainSourceRejectsMissingLatestReport(testCase)
+            root = tempname;
+            mkdir(root);
+            cleanup = onCleanup(@() rmdir(root, 's')); %#ok<NASGU>
+
+            testCase.verifyError(@() fth.opt.GainOptimizationSource.loadVector( ...
+                '', root, 'adaptive-basic-bregman-no-payload', 19, 'bregman'), ...
+                'fth:GainOptimizationSource:MissingSource');
+        end
     end
 end
