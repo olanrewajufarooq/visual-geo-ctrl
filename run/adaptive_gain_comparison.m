@@ -85,6 +85,7 @@ adaptOpts.Gamma = { ...
     1/10, ...                                                   % breg-low
     1/20, ...                                                   % breg-mid
     1/30 };                                                     % breg-high
+adaptOpts.useBackTracking = true;
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).
