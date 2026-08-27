@@ -44,6 +44,11 @@ payloadOpts.dims     = [0.20, 0.20, 0.10];
 payloadOpts.dropTime = 2*duration/3;
 cfg.usePayloadOptions(payloadOpts);
 
+% Disable interactive visualization while retaining plot generation below.
+vizOpts.enable      = false;
+vizOpts.liveSummary = false;
+cfg.useVizOptions(vizOpts);
+
 cfg.done();
 
 % Run the simulation.
