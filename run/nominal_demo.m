@@ -47,7 +47,7 @@ ctrlOpts.paramInit              = 'vehicle-slight-dev';
 % ctrlOpts.lambda    = [0, 6.4749, 0, 0, 13.3918, 0]';
 % ctrlOpts.paramInit = 'mid-vehicle-payload';
 
-ctrlOpts.coriolisFactorization  = 'consistent';    % 'basic', 'consistent'
+ctrlOpts.coriolisForm            = 'consistent';    % 'basic', 'consistent'
 cfg.useControllerOptions(ctrlOpts);
 
 %% Visualization.
