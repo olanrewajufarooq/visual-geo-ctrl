@@ -44,11 +44,11 @@ ctrlOpts.Kp           = [ ...
                         ];
 ctrlOpts.Kd           = [ ...
                           2.3213, 2.9351, 6.2079, 5.6503, 3.3681, 9.652; ... % basic
-                          4.4558, 3.7303, 4.3602, 9.2087, 2.5359, 9.7730; ... % consistent
+                          4.4558, 3.7303, 4.3602, 9.2087, 2.5359, 9.773; ... % consistent
                         ];
 ctrlOpts.lambda       = [ ...
                           3.7561, 9.7063, 17.4548, 11.1242, 9.8628, 5.8183; ... % basic
-                          12.2058, 15.0468, 9.1650, 5.0389, 8.4363, 6.7940; ... % consistent
+                          12.2058, 15.0468, 9.165, 5.0389, 8.4363, 6.794; ... % consistent
                         ]; % composite-variable coupling
 ctrlOpts.paramInit    = 'vehicle-slight-dev';       % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
 

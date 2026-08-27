@@ -47,7 +47,7 @@ cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation.
 adaptOpts.type  = 'bregman';          % 'none','euclidean','bregman'
-% adaptOpts.Gamma = 1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4];  % Gamma for Euclidean. Corr. to pi = [m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]
+% adaptOpts.Gamma = [0.36, 0.12, 0.12, 0.12, 0.08, 0.08, 0.12, 0.004, 0.004, 0.004]; % Gamma for Euclidean.
 % Replay accelerations have substantially larger regressor scale than the
 % analytic demo; use a conservative Bregman rate for this physical dataset.
 adaptOpts.Gamma = 0.0036; % Gamma value for Bregman
@@ -55,9 +55,9 @@ adaptOpts.Gamma = 0.0036; % Gamma value for Bregman
 % Payload-tuned alternative (keep commented while usePayloadOptions is disabled):
 % ctrlOpts.Kp        = [14.1025, 4.9611, 14.3137, 10.6738, 4.3983, 5.2758]';
 % ctrlOpts.Kd        = [4.0496, 5.6882, 6.0132, 9.7956, 1.9258, 8.8811]';
-% ctrlOpts.lambda    = [7.7375, 2.4013, 12.1450, 4.8512, 6.4212, 12.8789]';
+% ctrlOpts.lambda    = [7.7375, 2.4013, 12.145, 4.8512, 6.4212, 12.8789]';
 % ctrlOpts.paramInit = 'mid-vehicle-payload';
-% adaptOpts.Gamma    = 0.0009;
+% adaptOpts.Gamma    = 9e-4;
 adaptOpts.useBackTracking = true;
 cfg.useAdaptationOptions(adaptOpts);
 
