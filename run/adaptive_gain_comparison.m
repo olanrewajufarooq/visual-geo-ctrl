@@ -78,10 +78,10 @@ adaptOpts.type = {'euclidean', ...
                     'euclidean', 'euclidean', 'euclidean', ...
                     'bregman',   'bregman',   'bregman'};
 adaptOpts.Gamma = { ...
-    1e-2 * zeros(1, 10), ...                                    % baseline (disabled)
-    1e-2 * [36, 12, 12, 12,   8,   8,  12, 0.4, 0.4, 0.4], ...  % euclid-base-gain
-    1e-2 * [72, 12, 12, 12, 360, 360, 360,  40,  40,  40], ...  % euclid-high-inertia
-    1e-2 * [36,120,120,120,   8,   8,  12, 0.4, 0.4, 0.4], ...  % euclid-high-cog
+    zeros(1, 10), ...                                      % baseline (disabled)
+    [0.36, 0.12, 0.12, 0.12, 0.08, 0.08, 0.12, 0.004, 0.004, 0.004], ...  % euclid-base-gain
+    [0.72, 0.12, 0.12, 0.12, 3.6, 3.6, 3.6, 0.4, 0.4, 0.4], ...          % euclid-high-inertia
+    [0.36, 1.2, 1.2, 1.2, 0.08, 0.08, 0.12, 0.004, 0.004, 0.004], ...      % euclid-high-cog
     1/10, ...                                                   % breg-low
     1/20, ...                                                   % breg-mid
     1/30 };                                                     % breg-high

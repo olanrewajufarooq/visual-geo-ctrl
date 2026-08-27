@@ -27,14 +27,14 @@ cfg.useTrajectoryOptions(trajOpts);
 
 % Controller and gains.
 ctrlOpts.potential  = 'inertia-gain';             % 'log','inertia-gain','body-gain','ref-gain','sym-inv'
-ctrlOpts.Kp         = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
-ctrlOpts.Kd         = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
+ctrlOpts.Kp         = [12.8028, 8.5605, 13.5362, 7.5227, 4.5456, 10.7101]';
+ctrlOpts.Kd         = [5.3874, 5.9667, 3.4602, 9.5722, 9.8436, 8.597]';
 ctrlOpts.paramInit  = 'mid-vehicle-payload';      % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
 cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation — single Euclidean run.
 adaptOpts.type  = 'euclidean';
-adaptOpts.Gamma = 1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4];
+adaptOpts.Gamma = [0.01732, 4.361e-6, 2.78e-6, 1.196e-5, 0.003379, 4.533e-6, 1.078e-4, 6.019e-5, 1.629e-6, 0.02391];
 cfg.useAdaptationOptions(adaptOpts);
 
 % Payload schedule (mass drop event).

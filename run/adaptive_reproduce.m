@@ -52,9 +52,9 @@ adaptOpts.Gamma = 0.0036;
 % Payload-tuned alternative (keep commented while usePayloadOptions is disabled):
 % ctrlOpts.Kp        = [14.1025, 4.9611, 14.3137, 10.6738, 4.3983, 5.2758]';
 % ctrlOpts.Kd        = [4.0496, 5.6882, 6.0132, 9.7956, 1.9258, 8.8811]';
-% ctrlOpts.lambda    = [7.7375, 2.4013, 12.1450, 4.8512, 6.4212, 12.8789]';
+% ctrlOpts.lambda    = [7.7375, 2.4013, 12.145, 4.8512, 6.4212, 12.8789]';
 % ctrlOpts.paramInit = 'mid-vehicle-payload';
-% adaptOpts.Gamma    = 0.0009;
+% adaptOpts.Gamma    = 9e-4;
 adaptOpts.useBackTracking = false;
 cfg.useAdaptationOptions(adaptOpts);
 
