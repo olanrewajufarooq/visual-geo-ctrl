@@ -36,16 +36,25 @@ cfg.useTrajectoryOptions(trajOpts);
 
 %% Controller and gains.
 ctrlOpts.potential = 'inertia-gain';
-ctrlOpts.Kp        = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
-ctrlOpts.Kd        = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
+ctrlOpts.Kp        = [6.6208, 0.2757, 0.7529, 4.9531, 1.4358, 0.7464]';
+ctrlOpts.Kd        = [2.941, 1.983, 4.2557, 6.3416, 0.0433, 10]';
+ctrlOpts.lambda    = [18.7537, 5.8721, 19.9955, 17.2356, 14.5522, 15.0557]';
 ctrlOpts.paramInit = 'vehicle-slight-dev';  % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
+ctrlOpts.coriolisForm = 'basic';
 % Use 'vehicle' or 'vehicle-slight-dev' when payload options are disabled; use a payload-specific mode when a payload is configured.
 cfg.useControllerOptions(ctrlOpts);
 
 % Adaptation.
 adaptOpts.type  = 'bregman';
 % Replay accelerations require a conservative Bregman adaptation rate.
-adaptOpts.Gamma = 1e-3;
+adaptOpts.Gamma = 0.0036;
+
+% Payload-tuned alternative (keep commented while usePayloadOptions is disabled):
+% ctrlOpts.Kp        = [14.1025, 4.9611, 14.3137, 10.6738, 4.3983, 5.2758]';
+% ctrlOpts.Kd        = [4.0496, 5.6882, 6.0132, 9.7956, 1.9258, 8.8811]';
+% ctrlOpts.lambda    = [7.7375, 2.4013, 12.1450, 4.8512, 6.4212, 12.8789]';
+% ctrlOpts.paramInit = 'mid-vehicle-payload';
+% adaptOpts.Gamma    = 0.0009;
 adaptOpts.useBackTracking = false;
 cfg.useAdaptationOptions(adaptOpts);
 

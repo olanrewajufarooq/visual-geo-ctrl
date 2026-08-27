@@ -41,9 +41,33 @@ cfg.useTrajectoryOptions(trajOpts);
 
 %% Controller and gains.
 ctrlOpts.potential    = 'inertia-gain';
-ctrlOpts.Kp           = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]';
-ctrlOpts.Kd           = [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]';
-ctrlOpts.lambda       = 1e-3 * [5, 5, 5, 50, 50, 50];
+ctrlOpts.Kp           = [ ...
+                          2.268, 1.2305, 2.91, 3.3161, 2.94, 2.5273; ... % baseline
+                          0.236, 1.8053, 0.2848, 0.8799, 0.5816, 0.5564; ... % euclid-base-gain
+                          0.236, 1.8053, 0.2848, 0.8799, 0.5816, 0.5564; ... % euclid-high-inertia
+                          0.236, 1.8053, 0.2848, 0.8799, 0.5816, 0.5564; ... % euclid-high-cog
+                          6.6208, 0.2757, 0.7529, 4.9531, 1.4358, 0.7464; ... % breg-low
+                          6.6208, 0.2757, 0.7529, 4.9531, 1.4358, 0.7464; ... % breg-mid
+                          6.6208, 0.2757, 0.7529, 4.9531, 1.4358, 0.7464; ... % breg-high
+                        ];
+ctrlOpts.Kd           = [ ...
+                          2.3213, 2.9351, 6.2079, 5.6503, 3.3681, 9.652; ... % baseline
+                          0.4658, 1.7862, 9.9645, 9.5947, 9.7699, 8.4356; ... % euclid-base-gain
+                          0.4658, 1.7862, 9.9645, 9.5947, 9.7699, 8.4356; ... % euclid-high-inertia
+                          0.4658, 1.7862, 9.9645, 9.5947, 9.7699, 8.4356; ... % euclid-high-cog
+                          2.941, 1.983, 4.2557, 6.3416, 0.0433, 10; ... % breg-low
+                          2.941, 1.983, 4.2557, 6.3416, 0.0433, 10; ... % breg-mid
+                          2.941, 1.983, 4.2557, 6.3416, 0.0433, 10; ... % breg-high
+                        ];
+ctrlOpts.lambda       = [ ...
+                          3.7561, 9.7063, 17.4548, 11.1242, 9.8628, 5.8183; ... % baseline
+                          6.6353, 5.4944, 18.9476, 20, 12.4559, 18.9255; ... % euclid-base-gain
+                          6.6353, 5.4944, 18.9476, 20, 12.4559, 18.9255; ... % euclid-high-inertia
+                          6.6353, 5.4944, 18.9476, 20, 12.4559, 18.9255; ... % euclid-high-cog
+                          18.7537, 5.8721, 19.9955, 17.2356, 14.5522, 15.0557; ... % breg-low
+                          18.7537, 5.8721, 19.9955, 17.2356, 14.5522, 15.0557; ... % breg-mid
+                          18.7537, 5.8721, 19.9955, 17.2356, 14.5522, 15.0557; ... % breg-high
+                        ];
 ctrlOpts.paramInit    = 'vehicle-slight-dev';  % 'vehicle','vehicle-plus-payload','mid-vehicle-payload','vehicle-plus-payload-higher','vehicle-slight-dev','random', or 10x1 custom theta
 % Use 'vehicle' or 'vehicle-slight-dev' when payload options are disabled; use a payload-specific mode when a payload is configured.
 ctrlOpts.coriolisForm = 'consistent';
