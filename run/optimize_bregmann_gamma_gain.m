@@ -1,6 +1,10 @@
 %OPTIMIZE_BREGMANN_GAMMA_GAIN Optimize scalar Bregman Gamma.
 startup;
 opt = struct();
+opt.scenarios = {'adaptive-basic-bregman-payload-drop', ...
+                 'adaptive-consistent-bregman-payload-drop'};
+opt.paramInit = 'vehicle-plus-payload';
+opt.replayId = 'lemniscate_01_auto';
 
 
 %% To select a specific source directory, define it on opt before the call:

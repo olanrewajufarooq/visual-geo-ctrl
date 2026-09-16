@@ -30,7 +30,7 @@ cfg.useSimOptions(simOpts);
 
 % Replay Trajectory Options
 trajOpts.name                      = 'replay';
-trajOpts.replay.id                 = 'ellipse_01_auto'; % Options: 'ellipse_01_auto', 'lemniscate_01_auto', 'RATM_01_auto'
+trajOpts.replay.id                 = 'lemniscate_01_auto'; % Options: 'ellipse_01_auto', 'lemniscate_01_auto', 'RATM_01_auto'
 cfg.useTrajectoryOptions(trajOpts);
 
 %% Controller and gains.
@@ -40,12 +40,6 @@ ctrlOpts.Kd        = [4.4558, 3.7303, 4.3602, 9.2087, 2.5359, 9.773]';
 ctrlOpts.lambda    = [12.2058, 15.0468, 9.165, 5.0389, 8.4363, 6.794]'; % composite-variable coupling
 
 ctrlOpts.paramInit              = 'vehicle-slight-dev';
-
-% Payload-tuned alternative (keep commented while usePayloadOptions is disabled):
-% ctrlOpts.Kp        = [14.9141, 14.8619, 15, 15, 9.3736, 15]';
-% ctrlOpts.Kd        = [10, 0.001, 7.9213, 0.001, 0.001, 2.0136]';
-% ctrlOpts.lambda    = [0, 6.4749, 0, 0, 13.3918, 0]';
-% ctrlOpts.paramInit = 'mid-vehicle-payload';
 
 ctrlOpts.coriolisForm            = 'consistent';    % 'basic', 'consistent'
 cfg.useControllerOptions(ctrlOpts);

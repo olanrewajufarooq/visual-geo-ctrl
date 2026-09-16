@@ -19,6 +19,8 @@ classdef GammaOptimizationRunner
             opts.clearCache = false;
             sourceReportDir = '';
             fixedGains = [];
+            paramInit = '';
+            replayId = '';
             names = fieldnames(overrides);
             for i = 1:numel(names)
                 if strcmp(names{i}, 'bounds') && isstruct(overrides.bounds)
@@ -32,6 +34,8 @@ classdef GammaOptimizationRunner
             end
             if isfield(overrides, 'sourceReportDir'), sourceReportDir = overrides.sourceReportDir; end
             if isfield(overrides, 'fixedGains'), fixedGains = overrides.fixedGains; end
+            if isfield(overrides, 'paramInit'), paramInit = char(string(overrides.paramInit)); end
+            if isfield(overrides, 'replayId'), replayId = char(string(overrides.replayId)); end
 
             catalog = fth.opt.GainOptimizationScenario.catalog();
             scenarios = catalog(strcmp({catalog.adaptation}, mode));
@@ -51,6 +55,8 @@ classdef GammaOptimizationRunner
                 end
                 localOpts = opts;
                 localOpts.scenarios = scenario.id;
+                if ~isempty(paramInit), localOpts.paramInit = paramInit; end
+                if ~isempty(replayId), localOpts.replayId = replayId; end
                 localOpts.initialVector = fixed;
                 localOpts.optimizationMask = mask;
                 fth.opt.GainOptimizer.run(localOpts);
