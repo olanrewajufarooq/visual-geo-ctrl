@@ -1,6 +1,10 @@
 %OPTIMIZE_EUCLIDEAN_GAMMA_GAINS Optimize the ten Euclidean Gammas.
 startup;
 opt = struct();
+opt.scenarios = {'adaptive-basic-euclidean-payload-drop', ...
+                 'adaptive-consistent-euclidean-payload-drop'};
+opt.paramInit = 'vehicle-plus-payload';
+opt.replayId = 'lemniscate_01_auto';
 
 %% To select a specific source directory, define it on opt before the call:
 

@@ -52,12 +52,15 @@ classdef GainOptimizationScenario
             scenarios = catalog(locations);
         end
 
-        function cfg = build(scenario, duration)
+        function cfg = build(scenario, duration, replayId)
+            if nargin < 3 || isempty(replayId)
+                replayId = 'ellipse_01_auto';
+            end
             cfg = fth.sim.Config();
             cfg.useSimOptions(struct('dt', 0.005, 'duration', duration, 'controlDt', 0.01, ...
                 'adaptationDt', 0.005, 'enableSafety', false, 'parallelRuns', false, ...
                 'scriptName', ['gain_tuning_' scenario.id]));
-            cfg.useTrajectoryOptions(struct('name', 'replay', 'replay', struct('id', 'ellipse_01_auto')));
+            cfg.useTrajectoryOptions(struct('name', 'replay', 'replay', struct('id', replayId)));
             cfg.useControllerOptions(struct('potential', 'inertia-gain', 'paramInit', scenario.paramInit, ...
                 'coriolisForm', scenario.coriolisForm, 'lambda', [0.5; 0.5; 0.5; 0.2; 0.2; 0.2]));
             cfg.setAdaptation(scenario.adaptation);

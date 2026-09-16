@@ -24,6 +24,21 @@ classdef GainOptimizer
 
             for i = 1:numel(scenarios)
                 scenario = scenarios(i);
+                if isfield(opts, 'paramInit') && ~isempty(opts.paramInit)
+                    paramInit = opts.paramInit;
+                    if iscell(paramInit)
+                        if numel(paramInit) ~= numel(scenarios)
+                            error('fth:GainOptimizer:InvalidParamInitOverride', ...
+                                'paramInit cell array must match the selected scenario count.');
+                        end
+                        paramInit = paramInit{i};
+                    end
+                    scenario.paramInit = char(string(paramInit));
+                end
+                replayId = '';
+                if isfield(opts, 'replayId') && ~isempty(opts.replayId)
+                    replayId = char(string(opts.replayId));
+                end
                 fprintf('\n[%d/%d] %s\n', i, numel(scenarios), scenario.label);
                 clearCache = opts.clearCache;
                 if isfield(scenario, 'clearCache') && ~isempty(scenario.clearCache)
@@ -45,7 +60,7 @@ classdef GainOptimizer
                 end
 
                 problem = fth.opt.GainEvaluationProblem(scenario.adaptation, ...
-                    {fth.opt.GainOptimizationScenario.build(scenario, opts.duration)}, ...
+                    {fth.opt.GainOptimizationScenario.build(scenario, opts.duration, replayId)}, ...
                     struct('bounds', opts.bounds));
                 [baseline, baselineBreakdown] = problem.evaluateBaseline();
                 if any(problem.BaselineFailures)
@@ -95,7 +110,6 @@ classdef GainOptimizer
                 if ~exist(cacheFolder, 'dir'), mkdir(cacheFolder); end
                 if ~exist(reportFolder, 'dir'), mkdir(reportFolder); end
 
-                lastSwarm = initial;
                 bestXCheckpoint = fixedVector;
                 bestCostCheckpoint = inf;
                 if found && ~clearCache && isfield(cached, 'bestCost') && isfield(cached, 'bestX')
@@ -112,6 +126,15 @@ classdef GainOptimizer
                         topX, topCost, bestXCheckpoint, bestCostCheckpoint, ...
                         problem.LowerBound, problem.UpperBound);
                 end
+                if size(topX, 2) == fullDimension && numel(topCost) == size(topX, 1)
+                    validTop = isfinite(topCost) & all(isfinite(topX), 2);
+                    savedTop = topX(validTop, activeMask);
+                    count = min([3, size(initial, 1), size(savedTop, 1)]);
+                    if count > 0
+                        initial(1:count, :) = savedTop(1:count, :);
+                    end
+                end
+                lastSwarm = initial;
                 completedIterations = iterationOffset;
                 output = struct();
                 exitflag = NaN;
