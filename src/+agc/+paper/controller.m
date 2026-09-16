@@ -64,7 +64,7 @@ if isempty(dtAdapt), return; end
 % The plant update and parameter update can run at different fixed rates.
 switch lower(string(cfg.mode))
     case "euclidean"
-        estimateNext = piHat - dtAdapt * cfg.Gamma * (Y.' * s);
+        estimateNext = agc.paper.adaptation('euclidean-step', piHat, Y.' * s, cfg.Gamma, dtAdapt);
     case "bregman"
         G = pseudoGradient(Y.' * s);
         estimateNext = agc.paper.adaptation('bregman-step', Jhat, G, cfg.gammaB, dtAdapt);

@@ -4,11 +4,33 @@ function value = adaptation(action, varargin)
 %% Dispatch the requested estimator operation
 
 switch lower(string(action))
+    case "euclidean-step"
+        value = euclideanStep(varargin{:});
     case "bregman-step"
         value = bregmanStep(varargin{:});
     otherwise
         error('agc:paper:adaptation:UnknownAction', 'Unknown adaptation action.');
 end
+end
+
+function piNext = euclideanStep(piHat, gradient, Gamma, dt)
+%EUCLIDEANSTEP Apply the paper's unconstrained inertial-parameter update.
+%
+% The caller supplies gradient = Y.'*s, so this implements
+% piHat_next = piHat - dt*Gamma*Y.'*s.
+
+%% Validate the 10-parameter update data
+
+piHat = piHat(:);
+gradient = gradient(:);
+validateattributes(piHat, {'numeric'}, {'real', 'finite', 'numel', 10});
+validateattributes(gradient, {'numeric'}, {'real', 'finite', 'numel', 10});
+validateattributes(Gamma, {'numeric'}, {'real', 'finite', 'size', [10 10]});
+validateattributes(dt, {'numeric'}, {'real', 'finite', 'positive', 'scalar'});
+
+%% Euclidean gradient step
+
+piNext = piHat - dt * Gamma * gradient;
 end
 
 function Jnext = bregmanStep(J, G, gamma, dt)

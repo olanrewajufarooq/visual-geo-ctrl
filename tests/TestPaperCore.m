@@ -51,6 +51,18 @@ classdef TestPaperCore < matlab.unittest.TestCase
             testCase.verifyEqual(Jnext, Jnext.', 'AbsTol', 1e-12);
         end
 
+        function euclideanStepMatchesGradientUpdate(testCase)
+            piHat = [2; 0.1; -0.2; 0.3; 0.4; 0.5; 0.6; 0.01; -0.02; 0.03];
+            gradient = [0.2; -0.3; 0.1; 0.4; -0.5; 0.6; -0.7; 0.8; -0.9; 1.0];
+            Gamma = diag(1:10) * 1e-2;
+            dt = 0.05;
+
+            actual = agc.paper.adaptation('euclidean-step', piHat, gradient, Gamma, dt);
+            expected = piHat - dt * Gamma * gradient;
+
+            testCase.verifyEqual(actual, expected, 'AbsTol', 1e-12);
+        end
+
         function regressorMatchesBothPaperFactorizations(testCase)
             pi = [2.1; 0.05; -0.03; 0.02; 0.33; 0.41; 0.49; 0.01; 0.02; -0.01];
             H = eye(4); H(1:3,1:3) = axang2rotm([0.2, -0.3, 0.4, 0.6]);
