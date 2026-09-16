@@ -1,7 +1,18 @@
 function run = runScenario(scenario)
-%RUNSCENARIO Deterministic multi-rate rollout of one immutable scenario.
+%RUNSCENARIO Run one deterministic, multi-rate closed-loop simulation.
+%
+% Controller, estimator, and Robotics plant use explicit fixed rates. The
+% controller wrench is zero-order-held between controller sample instants.
+
+%% Scenario contract and Robotics Toolbox plant
+
 validateScenario(scenario);
-plant = agc.plant.floatingBody(scenario.plantPi, scenario.controller.gravity);
+
+% plantGravity is physical world acceleration. controller.gravity is the
+% separate compensation convention used by the paper controller.
+plant = agc.plant.floatingBody(scenario.plantPi, scenario.plantGravity);
+
+%% Preallocate the complete replay log
 nSteps = round(scenario.duration / scenario.dtPlant);
 n = nSteps + 1;
 run = struct('t', (0:nSteps).' * scenario.dtPlant, 'H', zeros(4,4,n), ...
@@ -15,9 +26,12 @@ controlEvery = round(scenario.dtControl / scenario.dtPlant);
 adaptEvery = round(scenario.dtAdaptation / scenario.dtPlant);
 lastWrench = zeros(6,1);
 lastDiagnostics = emptyDiagnostics();
+
+%% Fixed-step plant loop
 for k = 1:n
     t = run.t(k);
     desired = scenario.trajectory(t);
+    % Evaluate and hold the wrench only at controller sample instants.
     if mod(k - 1, controlEvery) == 0
         [lastWrench, lastDiagnostics] = agc.paper.controller( ...
             state, desired, scenario.controller, estimate, []);
@@ -26,6 +40,7 @@ for k = 1:n
         [~, ~, estimate] = agc.paper.controller( ...
             state, desired, scenario.controller, estimate, scenario.dtAdaptation);
     end
+    % Log the state that corresponds to the wrench before plant propagation.
     run.H(:,:,k) = state.H;
     run.V(k,:) = state.V(:).';
     run.Hdesired(:,:,k) = desired.H;
@@ -45,8 +60,9 @@ run.finalEstimate = estimate;
 end
 
 function validateScenario(s)
+%VALIDATESCENARIO Validate fields and rate alignment before simulation.
 required = {'plantPi', 'initial', 'trajectory', 'duration', 'dtPlant', ...
-    'dtControl', 'dtAdaptation', 'controller', 'initialEstimate'};
+    'dtControl', 'dtAdaptation', 'plantGravity', 'controller', 'initialEstimate'};
 for k = 1:numel(required)
     if ~isfield(s, required{k})
         error('agc:sim:runScenario:MissingField', 'scenario.%s is required.', required{k});
@@ -66,5 +82,6 @@ end
 end
 
 function diagnostics = emptyDiagnostics()
+%EMPTYDIAGNOSTICS Supply well-defined values before the first control tick.
 diagnostics = struct('s', zeros(6,1), 'Psi', 0, 'Vs', 0);
 end

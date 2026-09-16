@@ -22,6 +22,21 @@ classdef TestRoboticsPlant < matlab.unittest.TestCase
             testCase.verifyEqual(acceleration, zeros(6,1), 'AbsTol', 1e-10);
         end
 
+        function paperGravityConventionCancelsRoboticsGravityAtHover(testCase)
+            pi = [2; 0; 0; 0; 0.1; 0.12; 0.14; 0; 0; 0];
+            state = struct('H', eye(4), 'V', zeros(6,1));
+            desired = struct('H', eye(4), 'V', zeros(6,1), 'Vdot', zeros(6,1));
+            cfg = struct('mode', 'nominal', 'coriolis', 'c2', 'KR', eye(3), ...
+                'Kxi', eye(3), 'Lambda', eye(6), 'kd', 1, 'ks', 1, ...
+                'alpha', 0.5, 'gravity', [0; 0; 9.81]);
+            plant = agc.plant.floatingBody(pi, [0; 0; -9.81]);
+
+            wrench = agc.paper.controller(state, desired, cfg, pi, []);
+            acceleration = agc.plant.acceleration(plant, state, wrench);
+
+            testCase.verifyEqual(acceleration, zeros(6,1), 'AbsTol', 1e-10);
+        end
+
         function propagatedQuaternionRemainsUnitLength(testCase)
             pi = [1; 0; 0; 0; 0.1; 0.1; 0.1; 0; 0; 0];
             plant = agc.plant.floatingBody(pi, zeros(3,1));

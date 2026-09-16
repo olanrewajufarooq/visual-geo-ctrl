@@ -34,8 +34,9 @@ scenario.duration = 0.1;
 scenario.dtPlant = 0.01;
 scenario.dtControl = 0.02;
 scenario.dtAdaptation = 0.02;
+scenario.plantGravity = [0; 0; -9.81];
 scenario.controller = struct('mode', mode, 'coriolis', 'c2', 'KR', eye(3), ...
     'Kxi', eye(3), 'Lambda', eye(6), 'kd', 1, 'ks', 0.5, 'alpha', 0.5, ...
-    'gravity', [0; 0; -9.81], 'Gamma', 0.01 * eye(10), 'gammaB', 0.1);
+    'gravity', [0; 0; 9.81], 'Gamma', 0.01 * eye(10), 'gammaB', 0.1);
 scenario.initialEstimate = pi;
 end

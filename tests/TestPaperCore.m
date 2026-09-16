@@ -58,7 +58,7 @@ classdef TestPaperCore < matlab.unittest.TestCase
             Vr = [-0.2; 0.3; 0.4; 0.1; -0.5; 0.6];
             Vrdot = [0.7; 0.2; -0.1; -0.3; 0.4; 0.5];
             I6 = agc.math.inertiaFromPi(pi);
-            g = [0; 0; -9.81];
+            g = [0; 0; 9.81];
 
             for form = ["c1", "c2"]
                 Y = agc.paper.regressor(H, V, Vr, Vrdot, g, form);
@@ -74,7 +74,7 @@ classdef TestPaperCore < matlab.unittest.TestCase
             pi = [1.5; 0; 0; 0; 0.2; 0.25; 0.3; 0; 0; 0];
             cfg = struct('mode', 'nominal', 'coriolis', 'c1', 'KR', eye(3), ...
                 'Kxi', eye(3), 'Lambda', eye(6), 'kd', 1, 'ks', 2, ...
-                'alpha', 0.5, 'gravity', [0; 0; -9.81]);
+                'alpha', 0.5, 'gravity', [0; 0; 9.81]);
 
             [W, diagnostics] = agc.paper.controller(state, desired, cfg, pi, []);
 
