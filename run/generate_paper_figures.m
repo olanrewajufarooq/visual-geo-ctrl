@@ -1,9 +1,9 @@
 % GENERATE_PAPER_FIGURES Export paper figures from one saved theory-suite run.
-% Set suiteDirectory to a results/v2/<timestamp> directory, then press Run.
+% Set suiteDirectory to a results/<timestamp> directory, then press Run.
 
 %% User settings
 
-suiteDirectory = '';
+suiteDirectory = 'results';
 outputDirectory = '';
 showFigures = false;
 
@@ -12,7 +12,7 @@ showFigures = false;
 startup;
 if isempty(suiteDirectory)
     error('generate_paper_figures:SuiteDirectory', ...
-        'Set suiteDirectory to a saved results/v2/<timestamp> directory.');
+        'Set suiteDirectory to a saved results/<timestamp> directory.');
 end
 
 %% Export static PNG and PDF publication assets

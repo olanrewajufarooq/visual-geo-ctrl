@@ -10,15 +10,12 @@ if ~isfield(options, 'visible'), options.visible = false; end
 validateattributes(suiteDirectory, {'char', 'string'}, {'nonempty'});
 validateattributes(options.outputDirectory, {'char', 'string'}, {'scalartext'});
 validateattributes(options.visible, {'logical', 'numeric'}, {'scalar'});
-suiteDirectory = char(suiteDirectory);
+suiteDirectory = agc.io.resolveResultSuite(suiteDirectory);
 options.outputDirectory = char(options.outputDirectory);
 options.visible = logical(options.visible);
 
 %% Discover and validate the complete controller comparison matrix
 
-if ~isfolder(suiteDirectory)
-    error('agc:viz:paperFigures:SuiteNotFound', 'Suite directory does not exist: %s', suiteDirectory);
-end
 if isempty(options.outputDirectory)
     outputDirectory = fullfile(suiteDirectory, 'figures');
 else

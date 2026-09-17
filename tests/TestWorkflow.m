@@ -63,6 +63,18 @@ classdef TestWorkflow < matlab.unittest.TestCase
             testCase.verifyTrue(agc.math.isSPD(bregman.initialEstimate));
         end
 
+        function defaultScenarioUsesOptimizedDiagonalGainEntry(testCase)
+            scenario = agc.sim.defaultScenario('lemniscate_01_auto', 'euclidean', 'c2', 0.1);
+            gains = optimized_gains('euclidean', 'c2');
+
+            testCase.verifyEqual(scenario.controller.KR, diag(gains.KRdiag));
+            testCase.verifyEqual(scenario.controller.Kxi, diag(gains.Kxidiag));
+            testCase.verifyEqual(scenario.controller.Lambda, diag(gains.LambdaDiag));
+            testCase.verifyEqual(scenario.controller.gammaE, gains.gammaE);
+            testCase.verifyEqual(scenario.controller.gammaB, gains.gammaB);
+            testCase.verifyFalse(isfield(scenario.controller, 'Gamma'));
+        end
+
         function defaultScenarioRunsThroughRoboticsBackend(testCase)
             scenario = agc.sim.defaultScenario('lemniscate_01_auto', 'nominal', 'c1', 0.02);
 
@@ -82,6 +94,6 @@ scenario = struct('plantPi', pi, 'initial', struct('H', eye(4), 'V', zeros(6,1))
     'plantGravity', [0; 0; -9.81], ...
     'controller', struct('mode', 'nominal', 'coriolis', 'c1', 'KR', eye(3), ...
         'Kxi', eye(3), 'Lambda', eye(6), 'kd', 1, 'ks', 0.5, 'alpha', 0.5, ...
-        'gravity', [0; 0; 9.81], 'Gamma', eye(10), 'gammaB', 1), ...
+        'gravity', [0; 0; 9.81], 'gammaE', ones(10,1), 'gammaB', 1), ...
     'initialEstimate', pi);
 end

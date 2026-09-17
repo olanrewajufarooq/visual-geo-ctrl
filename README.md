@@ -7,9 +7,9 @@ MATLAB reference implementation of the paper's fully actuated UAV tracking contr
 Open the repository in MATLAB and run `startup`, then use one of the scripts in `run/`:
 
 - `run_theory_suite` — nominal, Euclidean, and Bregman controllers with `C1` and `C2`.
-- `run_batch` — independent variants through the parallel batch runner.
-- `optimize_gains` — explicit replay tracking/effort optimization.
-- `replay_run` — post-process a saved `results/v2/...` run as a 3-D trajectory animation.
+- `run_batch` — parallel six-variant comparison, saved under `results/<timestamp>/`, with paper figures by default.
+- `optimize_gains` — all-gain replay tracking/effort optimization that promotes the selected scenario's winner.
+- `replay_run` — post-process a saved `results/<timestamp>/...` run as a 3-D trajectory animation.
 - `plot_trajectories` — inspect a recorded, preprocessed replay trajectory.
 - `generate_paper_figures` — export static tracking and adaptation figures from a saved theory-suite directory.
 
