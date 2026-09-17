@@ -6,3 +6,5 @@ Every `.m` file here is a MATLAB script. Edit its settings at the top, then run 
 - `run_batch.m` sends the same independent scenario matrix through the sequential or Parallel Computing Toolbox batch runner.
 - `optimize_gains.m` uses Global Optimization Toolbox to tune the transverse gains of the Bregman/`C2` scenario against explicit replay tracking and effort costs.
 - `replay_run.m` visualizes a saved v2 result and can export an MP4.
+- `plot_trajectories.m` plots one recorded artifact from `trajectories/processed/`; it does not run a simulation.
+- `generate_paper_figures.m` exports the C1/C2 and Euclidean/Bregman comparison figures from one saved theory-suite directory.

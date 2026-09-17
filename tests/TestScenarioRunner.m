@@ -10,6 +10,8 @@ classdef TestScenarioRunner < matlab.unittest.TestCase
             testCase.verifyTrue(all(isfinite(run.wrench), 'all'));
             testCase.verifyEqual(size(run.s), [11, 6]);
             testCase.verifyTrue(all(run.Psi >= -1e-12));
+            testCase.verifySize(run.estimatePi, [11, 10]);
+            testCase.verifyEqual(run.estimatePi, repmat(scenario.plantPi.', 11, 1), 'AbsTol', 1e-12);
         end
 
         function bregmanRunKeepsEveryLoggedEstimateSPD(testCase)
@@ -20,6 +22,9 @@ classdef TestScenarioRunner < matlab.unittest.TestCase
             run = agc.sim.runScenario(scenario);
 
             testCase.verifyTrue(all(run.minPseudoEigenvalue > 0));
+            testCase.verifySize(run.estimatePi, [11, 10]);
+            testCase.verifyEqual(run.estimatePi(end,:).', ...
+                agc.math.piFromPseudo(run.finalEstimate), 'AbsTol', 1e-12);
         end
     end
 end

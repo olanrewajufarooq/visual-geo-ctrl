@@ -18,7 +18,8 @@ n = nSteps + 1;
 run = struct('t', (0:nSteps).' * scenario.dtPlant, 'H', zeros(4,4,n), ...
     'V', zeros(n,6), 'Hdesired', zeros(4,4,n), 'Vdesired', zeros(n,6), ...
     'wrench', zeros(n,6), 's', zeros(n,6), ...
-    'Psi', zeros(n,1), 'Vs', zeros(n,1), 'minPseudoEigenvalue', nan(n,1), ...
+    'Psi', zeros(n,1), 'Vs', zeros(n,1), 'estimatePi', zeros(n,10), ...
+    'minPseudoEigenvalue', nan(n,1), ...
     'mode', char(scenario.controller.mode), 'coriolis', char(scenario.controller.coriolis));
 state = scenario.initial;
 estimate = scenario.initialEstimate;
@@ -49,6 +50,7 @@ for k = 1:n
     run.s(k,:) = lastDiagnostics.s.';
     run.Psi(k) = lastDiagnostics.Psi;
     run.Vs(k) = lastDiagnostics.Vs;
+    run.estimatePi(k,:) = estimateToPi(scenario.controller.mode, estimate).';
     if strcmpi(scenario.controller.mode, 'bregman')
         run.minPseudoEigenvalue(k) = min(eig(0.5 * (estimate + estimate.')));
     end
@@ -84,4 +86,13 @@ end
 function diagnostics = emptyDiagnostics()
 %EMPTYDIAGNOSTICS Supply well-defined values before the first control tick.
 diagnostics = struct('s', zeros(6,1), 'Psi', 0, 'Vs', 0);
+end
+
+function piHat = estimateToPi(mode, estimate)
+%ESTIMATETOPI Convert the mode-specific estimator state for run logging.
+if strcmpi(mode, 'bregman')
+    piHat = agc.math.piFromPseudo(estimate);
+else
+    piHat = estimate(:);
+end
 end

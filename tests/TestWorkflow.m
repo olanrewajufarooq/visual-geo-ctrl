@@ -50,6 +50,19 @@ classdef TestWorkflow < matlab.unittest.TestCase
             testCase.verifyEqual(scenario.plantGravity, [0; 0; -9.81]);
         end
 
+        function adaptiveModesShareOneSmallPhysicalInitialMismatch(testCase)
+            nominal = agc.sim.defaultScenario('lemniscate_01_auto', 'nominal', 'c1', 0.1);
+            euclidean = agc.sim.defaultScenario('lemniscate_01_auto', 'euclidean', 'c1', 0.1);
+            bregman = agc.sim.defaultScenario('lemniscate_01_auto', 'bregman', 'c1', 0.1);
+
+            bregmanPi = agc.math.piFromPseudo(bregman.initialEstimate);
+
+            testCase.verifyEqual(nominal.initialEstimate, nominal.plantPi, 'AbsTol', 1e-12);
+            testCase.verifyGreaterThan(norm(euclidean.initialEstimate - euclidean.plantPi), 1e-12);
+            testCase.verifyEqual(euclidean.initialEstimate, bregmanPi, 'AbsTol', 1e-12);
+            testCase.verifyTrue(agc.math.isSPD(bregman.initialEstimate));
+        end
+
         function defaultScenarioRunsThroughRoboticsBackend(testCase)
             scenario = agc.sim.defaultScenario('lemniscate_01_auto', 'nominal', 'c1', 0.02);
 

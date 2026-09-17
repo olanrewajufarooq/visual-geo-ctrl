@@ -10,6 +10,8 @@ Open the repository in MATLAB and run `startup`, then use one of the scripts in 
 - `run_batch` — independent variants through the parallel batch runner.
 - `optimize_gains` — explicit replay tracking/effort optimization.
 - `replay_run` — post-process a saved `results/v2/...` run as a 3-D trajectory animation.
+- `plot_trajectories` — inspect a recorded, preprocessed replay trajectory.
+- `generate_paper_figures` — export static tracking and adaptation figures from a saved theory-suite directory.
 
 Edit the settings at the top of each script before running it.
 
