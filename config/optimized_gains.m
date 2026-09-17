@@ -1,20 +1,20 @@
 function gains = optimized_gains(mode, coriolis)
 %OPTIMIZED_GAINS Automatically maintained per-scenario gain registry.
-% Last promotion: 2026-09-17 14:38:28.
+% Last promotion: 2026-09-17 21:55:19.
 key = sprintf('%s_%s', lower(char(string(mode))), lower(char(string(coriolis))));
 switch key
     case 'nominal_c1'
-        gains = struct('KRdiag', [4 5 6], 'Kxidiag', [3 3 4], 'LambdaDiag', [2 2 2 2 2 2], 'kd', 1, 'ks', 0.5, 'alpha', 0.5, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 0.001);
+        gains = struct('KRdiag', [0.1819 0.01 2.596], 'Kxidiag', [85.36 3.784 100], 'LambdaDiag', [38.73 26.23 5.068 0.1638 0.2499 0.1605], 'kd', 24.6, 'ks', 1.651, 'alpha', 0.1439, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 0.001);
     case 'nominal_c2'
-        gains = struct('KRdiag', [4 5 6], 'Kxidiag', [3 3 4], 'LambdaDiag', [2 2 2 2 2 2], 'kd', 1, 'ks', 0.5, 'alpha', 0.5, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 0.001);
+        gains = struct('KRdiag', [3.073 0.01241 5.623], 'Kxidiag', [100 28.7 100], 'LambdaDiag', [14.17 5.649 12.24 0.1466 0.1087 0.1126], 'kd', 0.5001, 'ks', 23.46, 'alpha', 0.8573, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 0.001);
     case 'euclidean_c1'
         gains = struct('KRdiag', [4 5 6], 'Kxidiag', [3 3 4], 'LambdaDiag', [2 2 2 2 2 2], 'kd', 1, 'ks', 0.5, 'alpha', 0.5, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 0.001);
     case 'euclidean_c2'
-        gains = struct('KRdiag', [4 5 6], 'Kxidiag', [3 3 4], 'LambdaDiag', [2 2 2 2 2 2], 'kd', 1, 'ks', 0.5, 'alpha', 0.5, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 0.001);
+        gains = struct('KRdiag', [0.02081 0.121 2.522], 'Kxidiag', [21.81 12 28.13], 'LambdaDiag', [33.02 99.51 100 1.226 2.753 0.905], 'kd', 85.84, 'ks', 6.393, 'alpha', 0.1081, 'gammaE', [0.008287;3.186e-05;8.089e-05;1e-05;1e-05;1e-05;1e-05;1e-05;0.002694;0.0002115], 'gammaB', 0.001);
     case 'bregman_c1'
-        gains = struct('KRdiag', [0.030225641349407324 0.090019221077913492 0.68464570320998086], 'Kxidiag', [100 4.1332328550601893 6.380017022159242], 'LambdaDiag', [5.2906513399210811 16.282133280817376 21.446370147614065 0.21649563223641727 0.49558180162048154 1.0462427157163474], 'kd', 2.1233070118586017, 'ks', 18.26299782729577, 'alpha', 0.69680147526869429, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 7.717274538032889e-07);
+        gains = struct('KRdiag', [0.8752 0.1478 3.518], 'Kxidiag', [100 43.03 20.77], 'LambdaDiag', [1.405 4.572 3.305 0.1037 0.04545 0.4213], 'kd', 0.5001, 'ks', 10.52, 'alpha', 0.9, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 1e-05);
     case 'bregman_c2'
-        gains = struct('KRdiag', [4 5 6], 'Kxidiag', [3 3 4], 'LambdaDiag', [2 2 2 2 2 2], 'kd', 1, 'ks', 0.5, 'alpha', 0.5, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 0.001);
+        gains = struct('KRdiag', [8.29 5.128 0.05887], 'Kxidiag', [60.06 44.44 15.75], 'LambdaDiag', [4.728 2.592 4.947 0.1549 0.0569 0.2784], 'kd', 0.5001, 'ks', 11.45, 'alpha', 0.3102, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 1e-05);
     otherwise
         error('agc:config:optimized_gains:UnknownScenario', 'Unknown scenario key: %s.', key);
 end

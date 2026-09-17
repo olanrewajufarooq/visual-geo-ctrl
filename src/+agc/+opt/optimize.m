@@ -19,6 +19,18 @@ solverOptions = optimoptions('particleswarm', 'Display', 'iter', ...
     'FunctionTolerance', options.functionTolerance, ...
     'MaxStallIterations', options.maxStallIterations, ...
     'UseParallel', logical(options.parallel));
+if ~isempty(options.initialPoints)
+    initialPoints = options.initialPoints;
+    if isvector(initialPoints), initialPoints = initialPoints(:).'; end
+    if size(initialPoints, 2) ~= numel(lowerBound)
+        error('agc:opt:optimize:InitialPointsWidth', ...
+            'Each initial point must have %d coordinates.', numel(lowerBound));
+    end
+    % Historical optimized entries can predate tightened bounds. Project only
+    % the seed point to the valid search box; the manual seed is unchanged.
+    initialPoints = min(max(initialPoints, lowerBound), upperBound);
+    solverOptions.InitialPoints = initialPoints;
+end
 [candidate, cost] = particleswarm(objectiveHandle, numel(lowerBound), lowerBound, upperBound, solverOptions);
 
 %% Re-evaluate the winner with the requested batch parallelism

@@ -12,8 +12,8 @@ mode = '';
 coriolis = '';
 duration = 30;
 useParallel = true;
-swarmSize = 40;
-maxIterations = 80;
+swarmSize = 50;
+maxIterations = 50;
 functionTolerance = 1e-3;
 maxStallIterations = 10;
 promoteBest = true;
@@ -37,11 +37,17 @@ for variantIndex = 1:size(variants, 1)
         variantIndex, size(variants, 1));
 
     base = agc.sim.defaultScenario(replayId, selectedMode, selectedCoriolis, duration, 'manual');
+    optimizedBase = agc.sim.defaultScenario(replayId, selectedMode, selectedCoriolis, duration, 'optimized');
     [lowerBound, upperBound] = agc.opt.gainBounds(selectedMode);
+    % Always evaluate known feasible baselines before exploring random points.
+    % Legacy promoted values outside revised bounds are projected by optimize.
+    initialPoints = [agc.opt.encodeScenarioGains(base); ...
+        agc.opt.encodeScenarioGains(optimizedBase)];
+    initialPoints = unique(initialPoints, 'rows', 'stable');
     result = agc.opt.optimize({base}, @agc.opt.applyScenarioGains, lowerBound, upperBound, ...
         struct('weights', weights, 'swarmSize', swarmSize, 'maxIterations', maxIterations, ...
         'functionTolerance', functionTolerance, 'maxStallIterations', maxStallIterations, ...
-        'parallel', useParallel));
+        'parallel', useParallel, 'initialPoints', initialPoints));
 
     bestScenario = agc.opt.applyScenarioGains(result.candidate, {base});
     bestController = bestScenario{1}.controller;
@@ -50,6 +56,7 @@ for variantIndex = 1:size(variants, 1)
         'LambdaDiag', diag(bestController.Lambda).', ...
         'kd', bestController.kd, 'ks', bestController.ks, 'alpha', bestController.alpha, ...
         'gammaE', bestController.gammaE(:), 'gammaB', bestController.gammaB);
+    bestGains = agc.opt.roundGains(bestGains, 4);
 
     resultDirectory = fullfile(root, 'results', 'optimization', stamp, ...
         sprintf('%s_%s', selectedMode, selectedCoriolis));

@@ -10,7 +10,8 @@ if ~isstruct(options)
     error('agc:opt:optimizationOptions:Type', 'options must be a struct.');
 end
 defaults = struct('weights', struct(), 'swarmSize', 30, 'maxIterations', 20, ...
-    'parallel', true, 'functionTolerance', 1e-3, 'maxStallIterations', 10);
+    'parallel', true, 'functionTolerance', 1e-3, 'maxStallIterations', 10, ...
+    'initialPoints', []);
 fields = fieldnames(defaults);
 for k = 1:numel(fields)
     field = fields{k};
@@ -22,4 +23,5 @@ validateattributes(options.maxIterations, {'numeric'}, {'scalar', 'integer', 'po
 validateattributes(options.parallel, {'logical', 'numeric'}, {'scalar'});
 validateattributes(options.functionTolerance, {'numeric'}, {'real', 'finite', 'positive', 'scalar'});
 validateattributes(options.maxStallIterations, {'numeric'}, {'scalar', 'integer', 'positive'});
+validateattributes(options.initialPoints, {'numeric'}, {'real', 'finite'});
 end

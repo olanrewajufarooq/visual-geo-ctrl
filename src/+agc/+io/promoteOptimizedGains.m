@@ -13,6 +13,7 @@ if ~isstruct(metadata)
     error('agc:io:promoteOptimizedGains:Metadata', 'metadata must be a struct.');
 end
 validateGains(gains);
+gains = agc.opt.roundGains(gains, 4);
 
 modes = ["nominal", "euclidean", "bregman"];
 forms = ["c1", "c2"];
@@ -44,7 +45,7 @@ end
 validateattributes(gains.KRdiag, {'numeric'}, {'real', 'finite', 'size', [1 3], 'positive'});
 validateattributes(gains.Kxidiag, {'numeric'}, {'real', 'finite', 'size', [1 3], 'positive'});
 validateattributes(gains.LambdaDiag, {'numeric'}, {'real', 'finite', 'size', [1 6], 'positive'});
-validateattributes(gains.kd, {'numeric'}, {'real', 'finite', 'positive', 'scalar'});
+validateattributes(gains.kd, {'numeric'}, {'real', 'finite', '>', 0.5, 'scalar'});
 validateattributes(gains.ks, {'numeric'}, {'real', 'finite', 'positive', 'scalar'});
 validateattributes(gains.alpha, {'numeric'}, {'real', 'finite', '>', 0, '<', 1, 'scalar'});
 validateattributes(gains.gammaE, {'numeric'}, {'real', 'finite', 'positive', 'size', [10, 1]});
@@ -87,7 +88,21 @@ end
 
 function text = renderGains(gains)
 text = sprintf(['struct(''KRdiag'', %s, ''Kxidiag'', %s, ''LambdaDiag'', %s, ', ...
-    '''kd'', %.17g, ''ks'', %.17g, ''alpha'', %.17g, ''gammaE'', %s, ''gammaB'', %.17g)'], ...
-    mat2str(gains.KRdiag, 17), mat2str(gains.Kxidiag, 17), mat2str(gains.LambdaDiag, 17), ...
-    gains.kd, gains.ks, gains.alpha, mat2str(gains.gammaE, 17), gains.gammaB);
+    '''kd'', %s, ''ks'', %s, ''alpha'', %s, ''gammaE'', %s, ''gammaB'', %s)'], ...
+    formatNumeric(gains.KRdiag), formatNumeric(gains.Kxidiag), formatNumeric(gains.LambdaDiag), ...
+    formatNumeric(gains.kd), formatNumeric(gains.ks), formatNumeric(gains.alpha), ...
+    formatNumeric(gains.gammaE), formatNumeric(gains.gammaB));
+end
+
+function text = formatNumeric(value)
+%FORMATNUMERIC Render rounded MATLAB literals with no more than four figures.
+rows = cell(1, size(value, 1));
+for row = 1:size(value, 1)
+    entries = arrayfun(@(entry) sprintf('%.4g', entry), value(row,:), 'UniformOutput', false);
+    rows{row} = strjoin(entries, ' ');
+end
+text = ['[', strjoin(rows, ';'), ']'];
+if isscalar(value)
+    text = text(2:end-1);
+end
 end

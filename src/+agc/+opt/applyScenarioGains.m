@@ -51,6 +51,9 @@ alpha = candidate(15);
 if alpha <= 0 || alpha >= 1
     error('agc:opt:applyScenarioGains:Alpha', 'alpha must lie strictly between zero and one.');
 end
+if positive(13) <= 0.5
+    error('agc:opt:applyScenarioGains:Kd', 'kd must be strictly greater than one half.');
+end
 
 adaptationGain = [];
 if strcmp(mode, 'euclidean')
