@@ -1,6 +1,8 @@
 % GENERATE_PAPER_FIGURES Export figures from one saved theory-suite run.
-% By default, comparisons go to <suite>/comparisons and each standalone
-% diagnostic is stored beside its run.mat in <variant>/figures.
+% By default, comparisons are grouped by study in
+% <suite>/comparisons/{nominal,euclidean,bregman,euclidean_v_bregman,performance}
+% and each standalone diagnostic is stored beside its run.mat in
+% <variant>/figures.
 
 %% User settings
 

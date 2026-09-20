@@ -12,10 +12,10 @@ mode = '';
 coriolis = '';
 duration = 30;
 useParallel = true;
-swarmSize = 50;
-maxIterations = 50;
+swarmSize = 10;
+maxIterations = 10;
 functionTolerance = 1e-3;
-maxStallIterations = 10;
+maxStallIterations = 5;
 promoteBest = true;
 
 %% Expand the requested scenario batch

@@ -40,7 +40,13 @@ classdef TestVisualization < matlab.unittest.TestCase
                 fullfile(suiteDirectory, 'nominal_c1', 'figures'));
             comparison = output(names == "nominal_position_error_c1_c2");
             testCase.verifyEqual(comparison.directory, ...
-                fullfile(suiteDirectory, 'comparisons'));
+                fullfile(suiteDirectory, 'comparisons', 'nominal'));
+            adaptiveComparison = output(names == "euclidean_vs_bregman_position_error_c1");
+            testCase.verifyEqual(adaptiveComparison.directory, ...
+                fullfile(suiteDirectory, 'comparisons', 'euclidean_v_bregman'));
+            performance = output(names == "performance_position_rmse");
+            testCase.verifyEqual(performance.directory, ...
+                fullfile(suiteDirectory, 'comparisons', 'performance'));
 
             for item = output
                 testCase.verifyTrue(isfile(item.files.png));

@@ -64,6 +64,17 @@ classdef TestWorkflow < matlab.unittest.TestCase
             testCase.verifyTrue(agc.math.isSPD(bregman.initialEstimate));
         end
 
+        function defaultScenarioUsesFivePercentAffineInvariantMismatch(testCase)
+            scenario = agc.sim.defaultScenario('lemniscate_01_auto', 'nominal', 'c1', 0.1);
+            J = agc.math.pseudoFromPi(scenario.plantPi);
+            Jhat = agc.math.pseudoFromPi(scenario.initialEstimate);
+            [Q, D] = eig(0.5 * (J + J.'));
+            JinverseHalf = Q * diag(1 ./ sqrt(diag(D))) * Q.';
+            affineDeviation = norm(logm(JinverseHalf * Jhat * JinverseHalf), 'fro');
+
+            testCase.verifyEqual(affineDeviation, 0.05, 'AbsTol', 1e-10);
+        end
+
         function defaultScenarioUsesOptimizedDiagonalGainEntry(testCase)
             scenario = agc.sim.defaultScenario('lemniscate_01_auto', 'euclidean', 'c2', 0.1);
             gains = optimized_gains('euclidean', 'c2');

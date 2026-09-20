@@ -36,7 +36,7 @@ scenario = struct('plantPi', pi, 'initial', struct('H', initialH, 'V', desired0.
 end
 
 function [piHat, Jhat] = adaptiveInitialEstimate(pi)
-%ADAPTIVEINITIALESTIMATE Return a shared 2% physically consistent mismatch.
+%ADAPTIVEINITIALESTIMATE Return a shared 5% physically consistent mismatch.
 
 J = agc.math.pseudoFromPi(pi);
 [Q, D] = eig(0.5 * (J + J.'));
@@ -49,7 +49,7 @@ E = [0.70, 0.15, -0.10, 0.20; ...
      0.20, -0.18, 0.14, -0.55];
 E = E / norm(E, 'fro');
 
-Jhat = Jhalf * expm(0.02 * E) * Jhalf;
+Jhat = Jhalf * expm(0.05 * E) * Jhalf;
 Jhat = 0.5 * (Jhat + Jhat.');
 piHat = agc.math.piFromPseudo(Jhat);
 end

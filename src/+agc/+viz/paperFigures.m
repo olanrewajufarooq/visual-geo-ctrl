@@ -13,8 +13,13 @@ modes = ["nominal", "euclidean", "bregman"];
 forms = ["c1", "c2"];
 requireVariants(entries, modes, forms);
 
-comparisonDirectory = resultDirectory(suiteDirectory, options, 'comparisons');
-if ~isfolder(comparisonDirectory), mkdir(comparisonDirectory); end
+comparisonRoot = resultDirectory(suiteDirectory, options, 'comparisons');
+comparisonDirectory = comparisonDirectories(comparisonRoot);
+comparisonNames = fieldnames(comparisonDirectory);
+for k = 1:numel(comparisonNames)
+    directory = comparisonDirectory.(comparisonNames{k});
+    if ~isfolder(directory), mkdir(directory); end
+end
 
 output = struct('name', {}, 'directory', {}, 'files', {});
 
@@ -24,17 +29,18 @@ for mode = modes
     c1 = selectEntry(entries, mode, "c1");
     c2 = selectEntry(entries, mode, "c2");
     prefix = char(mode + "_");
-    output(end + 1) = savePlot([prefix 'trajectory_c1_c2'], comparisonDirectory, options, ...
+    directory = comparisonDirectory.(char(mode));
+    output(end + 1) = savePlot([prefix 'trajectory_c1_c2'], directory, options, ...
         @() plotTrajectoryComparison(c1, c2)); %#ok<AGROW>
-    output(end + 1) = savePlot([prefix 'position_error_c1_c2'], comparisonDirectory, options, ...
+    output(end + 1) = savePlot([prefix 'position_error_c1_c2'], directory, options, ...
         @() plotScalarComparison(c1, c2, 'positionError', 'Position error', '||p-p_d|| (m)', false)); %#ok<AGROW>
-    output(end + 1) = savePlot([prefix 'attitude_error_c1_c2'], comparisonDirectory, options, ...
+    output(end + 1) = savePlot([prefix 'attitude_error_c1_c2'], directory, options, ...
         @() plotScalarComparison(c1, c2, 'attitudeError', 'Attitude error', 'theta_R (rad)', false)); %#ok<AGROW>
-    output(end + 1) = savePlot([prefix 'sliding_norm_c1_c2'], comparisonDirectory, options, ...
+    output(end + 1) = savePlot([prefix 'sliding_norm_c1_c2'], directory, options, ...
         @() plotScalarComparison(c1, c2, 'slidingNorm', 'Sliding residual', '||s||_{Lambda^{-1}}', true)); %#ok<AGROW>
-    output(end + 1) = savePlot([prefix 'transverse_energy_c1_c2'], comparisonDirectory, options, ...
+    output(end + 1) = savePlot([prefix 'transverse_energy_c1_c2'], directory, options, ...
         @() plotScalarComparison(c1, c2, 'Vs', 'Transverse energy', 'V_s', true)); %#ok<AGROW>
-    output(end + 1) = savePlot([prefix 'wrench_norm_c1_c2'], comparisonDirectory, options, ...
+    output(end + 1) = savePlot([prefix 'wrench_norm_c1_c2'], directory, options, ...
         @() plotScalarComparison(c1, c2, 'wrenchNorm', 'Control-wrench norm', '||W_c||', false)); %#ok<AGROW>
 end
 
@@ -42,25 +48,25 @@ for form = forms
     euclidean = selectEntry(entries, "euclidean", form);
     bregman = selectEntry(entries, "bregman", form);
     suffix = ['_' char(form)];
-    output(end + 1) = savePlot(['euclidean_vs_bregman_position_error' suffix], comparisonDirectory, options, ...
+    output(end + 1) = savePlot(['euclidean_vs_bregman_position_error' suffix], comparisonDirectory.euclidean_v_bregman, options, ...
         @() plotAdaptiveComparison(euclidean, bregman, 'positionError', 'Position error', '||p-p_d|| (m)', false)); %#ok<AGROW>
-    output(end + 1) = savePlot(['euclidean_vs_bregman_attitude_error' suffix], comparisonDirectory, options, ...
+    output(end + 1) = savePlot(['euclidean_vs_bregman_attitude_error' suffix], comparisonDirectory.euclidean_v_bregman, options, ...
         @() plotAdaptiveComparison(euclidean, bregman, 'attitudeError', 'Attitude error', 'theta_R (rad)', false)); %#ok<AGROW>
-    output(end + 1) = savePlot(['euclidean_vs_bregman_sliding_norm' suffix], comparisonDirectory, options, ...
+    output(end + 1) = savePlot(['euclidean_vs_bregman_sliding_norm' suffix], comparisonDirectory.euclidean_v_bregman, options, ...
         @() plotAdaptiveComparison(euclidean, bregman, 'slidingNorm', 'Sliding residual', '||s||_{Lambda^{-1}}', true)); %#ok<AGROW>
-    output(end + 1) = savePlot(['euclidean_vs_bregman_parameter_error' suffix], comparisonDirectory, options, ...
+    output(end + 1) = savePlot(['euclidean_vs_bregman_parameter_error' suffix], comparisonDirectory.euclidean_v_bregman, options, ...
         @() plotAdaptiveComparison(euclidean, bregman, 'parameterError', 'Parameter error', 'normalized ||piHat-pi||', false)); %#ok<AGROW>
-    output(end + 1) = savePlot(['euclidean_vs_bregman_pseudo_inertia_margin' suffix], comparisonDirectory, options, ...
+    output(end + 1) = savePlot(['euclidean_vs_bregman_pseudo_inertia_margin' suffix], comparisonDirectory.euclidean_v_bregman, options, ...
         @() plotAdaptiveComparison(euclidean, bregman, 'pseudoMargin', 'Pseudo-inertia margin', 'min eig(JHat)', false)); %#ok<AGROW>
 end
 
 % Batch metrics remain useful, but each metric is a separate figure so its
 % scale and units are never conflated with an unrelated performance measure.
-output(end + 1) = savePlot('performance_position_rmse', comparisonDirectory, options, ...
+output(end + 1) = savePlot('performance_position_rmse', comparisonDirectory.performance, options, ...
     @() plotMetricSummary(entries, modes, forms, 'positionRMSE', 'Position RMSE', 'RMSE (m)'));
-output(end + 1) = savePlot('performance_attitude_rmse', comparisonDirectory, options, ...
+output(end + 1) = savePlot('performance_attitude_rmse', comparisonDirectory.performance, options, ...
     @() plotMetricSummary(entries, modes, forms, 'attitudeRMSE', 'Attitude RMSE', 'RMSE (rad)'));
-output(end + 1) = savePlot('performance_wrench_rms', comparisonDirectory, options, ...
+output(end + 1) = savePlot('performance_wrench_rms', comparisonDirectory.performance, options, ...
     @() plotMetricSummary(entries, modes, forms, 'wrenchRMS', 'Control-wrench RMS', 'RMS wrench'));
 
 %% Standalone diagnostics: every signal can be inspected without a composite
@@ -115,6 +121,16 @@ if isempty(options.outputDirectory)
 else
     directory = fullfile(suiteDirectory, options.outputDirectory, name);
 end
+end
+
+function directories = comparisonDirectories(root)
+%COMPARISONDIRECTORIES Group suite-level comparisons by scientific question.
+
+directories = struct('nominal', fullfile(root, 'nominal'), ...
+    'euclidean', fullfile(root, 'euclidean'), ...
+    'bregman', fullfile(root, 'bregman'), ...
+    'euclidean_v_bregman', fullfile(root, 'euclidean_v_bregman'), ...
+    'performance', fullfile(root, 'performance'));
 end
 
 function directory = diagnosticDirectory(entry, suiteDirectory, options, variant)
@@ -174,7 +190,7 @@ if entry.mode ~= "nominal"
         struct('name', 'cog', 'draw', @() plotCog(entry, signal)); ...
         struct('name', 'inertia_principal', 'draw', @() plotInertia(entry, signal, 1:3, 'Principal inertia', 'inertia (kg m^2)', {'I_{xx}', 'I_{yy}', 'I_{zz}'})); ...
         struct('name', 'inertia_off_diagonal', 'draw', @() plotInertia(entry, signal, 4:6, 'Off-diagonal inertia', 'inertia (kg m^2)', {'I_{xy}', 'I_{xz}', 'I_{yz}'}))];
-    specification = [specification, adaptive];
+    specification = [specification; adaptive];
 end
 
 for k = 1:numel(specification)
@@ -183,7 +199,7 @@ end
 end
 
 function output = savePlot(name, directory, options, draw)
-%SAVEPLOT Render one scientific claim and export it as PNG and vector PDF.
+%SAVEPLOT Render one scientific claim and export it as PNG and high-res PDF.
 
 figureHandle = draw();
 set(figureHandle, 'Visible', onOff(options.visible));
@@ -369,7 +385,7 @@ end
 function output = exportStatic(figureHandle, name, directory)
 pngFile = fullfile(directory, [name '.png']); pdfFile = fullfile(directory, [name '.pdf']);
 exportgraphics(figureHandle, pngFile, 'Resolution', 300);
-exportgraphics(figureHandle, pdfFile, 'ContentType', 'vector');
+exportgraphics(figureHandle, pdfFile, 'ContentType', 'image', 'Resolution', 300);
 output = struct('name', name, 'directory', directory, 'files', struct('png', pngFile, 'pdf', pdfFile));
 end
 

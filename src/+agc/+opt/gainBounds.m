@@ -15,10 +15,10 @@ positiveUpper = 4 * ones(1, 14);
 lowerBound = [positiveLower, 0.01];
 upperBound = [positiveUpper, 0.99];
 if strcmp(mode, 'euclidean')
-    lowerBound = [lowerBound, repmat(-5, 1, 10)];
-    upperBound = [upperBound, repmat(2, 1, 10)];
+    lowerBound = [lowerBound, repmat(-8, 1, 10)];
+    upperBound = [upperBound, repmat(3, 1, 10)];
 elseif strcmp(mode, 'bregman')
-    lowerBound(end + 1) = -5;
-    upperBound(end + 1) = 2;
+    lowerBound(end + 1) = -8;
+    upperBound(end + 1) = 3;
 end
 end
