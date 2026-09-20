@@ -33,6 +33,18 @@ classdef TestWorkflow < matlab.unittest.TestCase
             testCase.verifyFalse(detail.batch.parallel);
         end
 
+        function objectiveCanWeightNormalizedParameterEstimationRmse(testCase)
+            scenario = makeScenario();
+            scenario.initialEstimate(1) = 1.1 * scenario.plantPi(1);
+            weights = struct('position', 0, 'attitude', 0, 'effort', 0, ...
+                'estimation', 1, 'failure', 1e6);
+
+            [cost, detail] = agc.opt.objective(0, {scenario}, @(~, base) base, weights, false);
+
+            testCase.verifyGreaterThan(detail.batch.metrics{1}.parameterEstimationRMSE, 0);
+            testCase.verifyEqual(cost, detail.batch.metrics{1}.parameterEstimationRMSE, 'AbsTol', 1e-12);
+        end
+
         function defaultScenarioUsesPreservedReplayArtifact(testCase)
             scenario = agc.sim.defaultScenario('lemniscate_01_auto', 'nominal', 'c2', 0.1);
 
@@ -50,29 +62,18 @@ classdef TestWorkflow < matlab.unittest.TestCase
             testCase.verifyEqual(scenario.plantGravity, [0; 0; -9.81]);
         end
 
-        function allModesShareOneSmallPhysicalInitialMismatch(testCase)
-            nominal = agc.sim.defaultScenario('lemniscate_01_auto', 'nominal', 'c1', 0.1);
-            euclidean = agc.sim.defaultScenario('lemniscate_01_auto', 'euclidean', 'c1', 0.1);
-            bregman = agc.sim.defaultScenario('lemniscate_01_auto', 'bregman', 'c1', 0.1);
+        function defaultPayloadDropStartsEveryModeAtExactLoadedParameters(testCase)
+            nominal = agc.sim.defaultScenario('lemniscate_01_auto', 'nominal', 'c1', 11);
+            euclidean = agc.sim.defaultScenario('lemniscate_01_auto', 'euclidean', 'c1', 11);
+            bregman = agc.sim.defaultScenario('lemniscate_01_auto', 'bregman', 'c1', 11);
 
-            bregmanPi = agc.math.piFromPseudo(bregman.initialEstimate);
-
-            testCase.verifyGreaterThan(norm(nominal.initialEstimate - nominal.plantPi), 1e-12);
-            testCase.verifyEqual(nominal.initialEstimate, euclidean.initialEstimate, 'AbsTol', 1e-12);
-            testCase.verifyGreaterThan(norm(euclidean.initialEstimate - euclidean.plantPi), 1e-12);
-            testCase.verifyEqual(euclidean.initialEstimate, bregmanPi, 'AbsTol', 1e-12);
-            testCase.verifyTrue(agc.math.isSPD(bregman.initialEstimate));
-        end
-
-        function defaultScenarioUsesFivePercentAffineInvariantMismatch(testCase)
-            scenario = agc.sim.defaultScenario('lemniscate_01_auto', 'nominal', 'c1', 0.1);
-            J = agc.math.pseudoFromPi(scenario.plantPi);
-            Jhat = agc.math.pseudoFromPi(scenario.initialEstimate);
-            [Q, D] = eig(0.5 * (J + J.'));
-            JinverseHalf = Q * diag(1 ./ sqrt(diag(D))) * Q.';
-            affineDeviation = norm(logm(JinverseHalf * Jhat * JinverseHalf), 'fro');
-
-            testCase.verifyEqual(affineDeviation, 0.05, 'AbsTol', 1e-10);
+            testCase.verifyEqual(nominal.payloadDrop.releaseTime, 10);
+            testCase.verifyEqual(nominal.initialEstimate, nominal.payloadDrop.loadedPi, 'AbsTol', 1e-12);
+            testCase.verifyEqual(euclidean.initialEstimate, nominal.payloadDrop.loadedPi, 'AbsTol', 1e-12);
+            testCase.verifyEqual(agc.math.piFromPseudo(bregman.initialEstimate), ...
+                nominal.payloadDrop.loadedPi, 'AbsTol', 1e-12);
+            testCase.verifyEqual(nominal.payloadDrop.barePi, nominal.plantPi, 'AbsTol', 1e-12);
+            testCase.verifyTrue(agc.math.isSPD(agc.math.pseudoFromPi(nominal.payloadDrop.loadedPi)));
         end
 
         function defaultScenarioUsesOptimizedDiagonalGainEntry(testCase)
@@ -89,6 +90,7 @@ classdef TestWorkflow < matlab.unittest.TestCase
 
         function defaultScenarioRunsThroughRoboticsBackend(testCase)
             scenario = agc.sim.defaultScenario('lemniscate_01_auto', 'nominal', 'c1', 0.02);
+            scenario.payloadDrop.releaseTime = 0.01;
 
             run = agc.sim.runScenario(scenario);
 

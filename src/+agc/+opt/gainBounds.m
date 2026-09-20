@@ -8,17 +8,19 @@ if ~ismember(mode, {'nominal', 'euclidean', 'bregman'})
     error('agc:opt:gainBounds:UnknownMode', 'Unknown controller mode: %s.', mode);
 end
 
-% Controller gains use a wide shared range [1e-4, 1e4]. This avoids
-% artificial optima at the old 1e-2/1e2 limits while retaining positivity.
-positiveLower = [-4 * ones(1, 12), log10(0.5001), -4];
-positiveUpper = 4 * ones(1, 14);
-lowerBound = [positiveLower, 0.01];
-upperBound = [positiveUpper, 0.99];
+% Gain-family bounds keep random particles in a numerically meaningful
+% regime while preserving the paper constraints kd > 1/2 and 0 < alpha < 1.
+positiveLower = [log10(1e-3) * ones(1,3), log10(1e-2) * ones(1,3), ...
+    log10(1e-2) * ones(1,6), log10(0.55), log10(1e-3)];
+positiveUpper = [log10(30) * ones(1,3), log10(300) * ones(1,3), ...
+    log10(100) * ones(1,3), log10(10) * ones(1,3), log10(100), log10(50)];
+lowerBound = [positiveLower, 0.05];
+upperBound = [positiveUpper, 0.95];
 if strcmp(mode, 'euclidean')
-    lowerBound = [lowerBound, repmat(-8, 1, 10)];
-    upperBound = [upperBound, repmat(3, 1, 10)];
+    lowerBound = [lowerBound, repmat(log10(1e-5), 1, 10)];
+    upperBound = [upperBound, zeros(1, 10)];
 elseif strcmp(mode, 'bregman')
-    lowerBound(end + 1) = -8;
-    upperBound(end + 1) = 3;
+    lowerBound(end + 1) = log10(1e-5);
+    upperBound(end + 1) = log10(1e-1);
 end
 end

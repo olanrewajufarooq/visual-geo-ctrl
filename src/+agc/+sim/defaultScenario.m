@@ -11,6 +11,10 @@ desired0 = trajectory(0);
 m = 3.646; cog = [0; 0; -0.00229];
 I = [0.04092; 0.04017; 0.06921; 5.656e-5; 1.313e-5; -6.494e-5];
 pi = [m; m * cog; I];
+payload = struct('mass', 0.20, 'dimensions', [0.12; 0.12; 0.08], ...
+    'center', [0.15; 0; -0.10]);
+payloadDrop = struct('releaseTime', 10, 'barePi', pi, ...
+    'loadedPi', agc.plant.compoundPi(pi, payload), 'payload', payload);
 initialH = desired0.H; initialH(1:3,4) = initialH(1:3,4) + [0.2; -0.1; 0.15];
 gains = selectGains(gainSource, mode, coriolis);
 
@@ -21,37 +25,16 @@ controller = struct('mode', char(mode), 'coriolis', char(coriolis), ...
     'kd', gains.kd, 'ks', gains.ks, 'alpha', gains.alpha, 'gravity', [0; 0; 9.81], ...
     'gammaE', gains.gammaE, 'gammaB', gains.gammaB);
 
-% Every controller starts from the same nearby physical estimate. The
-% affine-invariant perturbation preserves SPD before Euclidean and nominal
-% use pi coordinates, while Bregman retains pseudo-inertia coordinates.
-[estimatePi, estimateJ] = adaptiveInitialEstimate(pi);
-estimate = estimatePi;
+% Every controller starts from the exact loaded model. The nominal and
+% Euclidean modes use pi coordinates, while Bregman retains pseudo-inertia.
+estimate = payloadDrop.loadedPi;
 if strcmpi(mode, 'bregman')
-    estimate = estimateJ;
+    estimate = agc.math.pseudoFromPi(estimate);
 end
 scenario = struct('plantPi', pi, 'initial', struct('H', initialH, 'V', desired0.V), ...
     'trajectory', trajectory, 'duration', duration, 'dtPlant', 0.002, ...
-    'dtControl', 0.01, 'dtAdaptation', 0.01, 'plantGravity', [0; 0; -9.81], 'controller', controller, ...
-    'initialEstimate', estimate);
-end
-
-function [piHat, Jhat] = adaptiveInitialEstimate(pi)
-%ADAPTIVEINITIALESTIMATE Return a shared 5% physically consistent mismatch.
-
-J = agc.math.pseudoFromPi(pi);
-[Q, D] = eig(0.5 * (J + J.'));
-Jhalf = Q * diag(sqrt(diag(D))) * Q.';
-
-% Fixed symmetric direction: mass, first moment, and second moment all vary.
-E = [0.70, 0.15, -0.10, 0.20; ...
-     0.15, -0.50, 0.12, -0.18; ...
-    -0.10, 0.12, 0.35, 0.14; ...
-     0.20, -0.18, 0.14, -0.55];
-E = E / norm(E, 'fro');
-
-Jhat = Jhalf * expm(0.05 * E) * Jhalf;
-Jhat = 0.5 * (Jhat + Jhat.');
-piHat = agc.math.piFromPseudo(Jhat);
+    'dtControl', 0.02, 'dtAdaptation', 0.01, 'plantGravity', [0; 0; -9.81], 'controller', controller, ...
+    'initialEstimate', estimate, 'payloadDrop', payloadDrop);
 end
 
 function gains = selectGains(source, mode, coriolis)

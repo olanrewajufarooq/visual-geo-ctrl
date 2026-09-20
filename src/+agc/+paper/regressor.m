@@ -51,13 +51,13 @@ adVr = agc.math.adTwist(Vr);
 
 switch lower(string(form))
     case "c1"
-        % C_1(V,I)Vr = -ad_Vr^* I*V.
-        Yc = -adVr.' * inertialBlock(V);
-    case "c2"
-        % C_2 is the Levi--Civita factorization used in the paper.
+        % C_1 is the Levi--Civita factorization used in the paper.
         Yc = 0.5 * (inertialBlock(adV * Vr) ...
             - adVr.' * inertialBlock(V) ...
             - adV.' * inertialBlock(Vr));
+    case "c2"
+        % C_2(V,I)Vr = -ad_Vr^* I*V.
+        Yc = -adVr.' * inertialBlock(V);
     otherwise
         error('agc:paper:regressor:UnknownForm', 'form must be c1 or c2.');
 end

@@ -78,27 +78,46 @@ classdef TestGainRegistry < matlab.unittest.TestCase
             testCase.verifySize(euclideanUpper, [1, 25]);
             testCase.verifySize(bregmanLower, [1, 16]);
             testCase.verifySize(bregmanUpper, [1, 16]);
-            testCase.verifyEqual(nominalLower(15), 0.01);
-            testCase.verifyEqual(nominalUpper(15), 0.99);
+            testCase.verifyEqual(nominalLower(15), 0.05);
+            testCase.verifyEqual(nominalUpper(15), 0.95);
         end
 
-        function gainBoundsUseExpandedSearchRanges(testCase)
+        function gainBoundsUseGainSpecificSearchRanges(testCase)
             [nominalLower, nominalUpper] = agc.opt.gainBounds('nominal');
             [euclideanLower, euclideanUpper] = agc.opt.gainBounds('euclidean');
             [bregmanLower, bregmanUpper] = agc.opt.gainBounds('bregman');
 
-            testCase.verifyEqual(nominalLower(1:12), -4 * ones(1,12));
-            testCase.verifyEqual(nominalUpper(1:12), 4 * ones(1,12));
-            testCase.verifyEqual(nominalLower(13), log10(0.5001), 'AbsTol', 1e-14);
-            testCase.verifyEqual(nominalUpper(13), 4);
-            testCase.verifyEqual(nominalLower(14), -4);
-            testCase.verifyEqual(nominalUpper(14), 4);
-            testCase.verifyEqual(nominalLower(15), 0.01);
-            testCase.verifyEqual(nominalUpper(15), 0.99);
+            testCase.verifyEqual(nominalLower(1:3), -3 * ones(1,3));
+            testCase.verifyEqual(nominalUpper(1:3), log10(30) * ones(1,3), 'AbsTol', 1e-14);
+            testCase.verifyEqual(nominalLower(4:6), -2 * ones(1,3));
+            testCase.verifyEqual(nominalUpper(4:6), log10(300) * ones(1,3), 'AbsTol', 1e-14);
+            testCase.verifyEqual(nominalLower(7:9), -2 * ones(1,3));
+            testCase.verifyEqual(nominalUpper(7:9), 2 * ones(1,3));
+            testCase.verifyEqual(nominalLower(10:12), -2 * ones(1,3));
+            testCase.verifyEqual(nominalUpper(10:12), ones(1,3));
+            testCase.verifyEqual(nominalLower(13), log10(0.55), 'AbsTol', 1e-14);
+            testCase.verifyEqual(nominalUpper(13), 2);
+            testCase.verifyEqual(nominalLower(14), -3);
+            testCase.verifyEqual(nominalUpper(14), log10(50), 'AbsTol', 1e-14);
+            testCase.verifyEqual(nominalLower(15), 0.05);
+            testCase.verifyEqual(nominalUpper(15), 0.95);
             testCase.verifyEqual(euclideanLower(16:25), -5 * ones(1,10));
-            testCase.verifyEqual(euclideanUpper(16:25), 2 * ones(1,10));
+            testCase.verifyEqual(euclideanUpper(16:25), zeros(1,10));
             testCase.verifyEqual(bregmanLower(16), -5);
-            testCase.verifyEqual(bregmanUpper(16), 2);
+            testCase.verifyEqual(bregmanUpper(16), -1);
+        end
+
+        function blockDecoderChangesOnlySelectedCoordinates(testCase)
+            scenario = agc.sim.defaultScenario('lemniscate_01_auto', 'euclidean', 'c1', 0.1, 'manual');
+            incumbent = agc.opt.encodeScenarioGains(scenario);
+            nonadaptive = agc.opt.gainBlockIndices('euclidean', 'nonadaptive');
+            replacement = incumbent(nonadaptive) + 0.1;
+
+            decoded = agc.opt.applyGainBlock(replacement, incumbent, 'nonadaptive', {scenario});
+            candidate = agc.opt.encodeScenarioGains(decoded{1});
+
+            testCase.verifyEqual(candidate(nonadaptive), replacement, 'AbsTol', 1e-12);
+            testCase.verifyEqual(candidate(16:25), incumbent(16:25), 'AbsTol', 1e-12);
         end
 
         function decoderRejectsKdAtOrBelowTheoreticalLimit(testCase)
