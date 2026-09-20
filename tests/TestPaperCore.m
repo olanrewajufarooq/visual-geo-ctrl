@@ -13,14 +13,28 @@ classdef TestPaperCore < matlab.unittest.TestCase
             testCase.verifyEqual(c1, c2, 'AbsTol', 1e-12);
         end
 
-        function c1UsesReferenceVelocityInCoadjointAction(testCase)
+        function c1UsesLeviCivitaFactorization(testCase)
+            pi = [1.9; 0.08; 0.03; -0.05; 0.19; 0.27; 0.33; 0.02; 0.01; -0.015];
+            I6 = agc.math.inertiaFromPi(pi);
+            V = [0.4; -0.2; 0.5; 0.7; 0.1; -0.3];
+            U = [-0.6; 0.8; 0.1; -0.2; 0.9; 0.3];
+            adV = agc.math.adTwist(V);
+            adU = agc.math.adTwist(U);
+            expected = 0.5 * (I6 * adV * U - adU.' * (I6 * V) - adV.' * (I6 * U));
+
+            actual = agc.paper.coriolis('c1', V, I6, U);
+
+            testCase.verifyEqual(actual, expected, 'AbsTol', 1e-12);
+        end
+
+        function c2UsesAlternativeCoadjointFactorization(testCase)
             pi = [1.9; 0.08; 0.03; -0.05; 0.19; 0.27; 0.33; 0.02; 0.01; -0.015];
             I6 = agc.math.inertiaFromPi(pi);
             V = [0.4; -0.2; 0.5; 0.7; 0.1; -0.3];
             U = [-0.6; 0.8; 0.1; -0.2; 0.9; 0.3];
             expected = -agc.math.adTwist(U).' * (I6 * V);
 
-            actual = agc.paper.coriolis('c1', V, I6, U);
+            actual = agc.paper.coriolis('c2', V, I6, U);
 
             testCase.verifyEqual(actual, expected, 'AbsTol', 1e-12);
         end
@@ -75,7 +89,14 @@ classdef TestPaperCore < matlab.unittest.TestCase
             for form = ["c1", "c2"]
                 Y = agc.paper.regressor(H, V, Vr, Vrdot, g, form);
                 Wg = [agc.math.skew(pi(2:4)) * H(1:3,1:3).' * g; pi(1) * H(1:3,1:3).' * g];
-                expected = I6 * Vrdot + agc.paper.coriolis(form, V, I6, Vr) + Wg;
+                adV = agc.math.adTwist(V);
+                adVr = agc.math.adTwist(Vr);
+                if form == "c1"
+                    coriolisWrench = 0.5 * (I6 * adV * Vr - adVr.' * (I6 * V) - adV.' * (I6 * Vr));
+                else
+                    coriolisWrench = -adVr.' * (I6 * V);
+                end
+                expected = I6 * Vrdot + coriolisWrench + Wg;
                 testCase.verifyEqual(Y * pi, expected, 'AbsTol', 1e-11);
             end
         end

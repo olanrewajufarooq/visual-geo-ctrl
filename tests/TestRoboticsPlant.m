@@ -22,6 +22,19 @@ classdef TestRoboticsPlant < matlab.unittest.TestCase
             testCase.verifyEqual(acceleration, zeros(6,1), 'AbsTol', 1e-10);
         end
 
+        function plantUsesPaperProductsOfInertiaOrdering(testCase)
+            % The paper stores [Ixy Ixz Iyz]; RST expects [Iyz Ixz Ixy].
+            pi = [3.4; 0.08; -0.04; 0.02; 0.60; 0.80; 1.10; 0.05; -0.03; 0.04];
+            state = struct('H', eye(4), 'V', zeros(6,1));
+            wrench = [0.30; -0.40; 0.20; 1.00; -0.50; 2.00];
+            plant = agc.plant.floatingBody(pi, zeros(3,1));
+
+            acceleration = agc.plant.acceleration(plant, state, wrench);
+            expected = agc.math.inertiaFromPi(pi) \ wrench;
+
+            testCase.verifyEqual(acceleration, expected, 'AbsTol', 1e-10);
+        end
+
         function paperGravityConventionCancelsRoboticsGravityAtHover(testCase)
             pi = [2; 0; 0; 0; 0.1; 0.12; 0.14; 0; 0; 0];
             state = struct('H', eye(4), 'V', zeros(6,1));

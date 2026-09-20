@@ -51,6 +51,13 @@ classdef TestScenarioRunner < matlab.unittest.TestCase
             testCase.verifyEqual(dropRun.H(:,:,3), loadedRun.H(:,:,3), 'AbsTol', 1e-12);
             testCase.verifyEqual(dropRun.V(3,:), loadedRun.V(3,:), 'AbsTol', 1e-12);
         end
+
+        function defaultScenarioUsesModeratePayloadDrop(testCase)
+            scenario = agc.sim.defaultScenario('lemniscate_01_auto', 'nominal', 'c2', 30);
+
+            testCase.verifyEqual(scenario.payloadDrop.payload.mass, 0.20, 'AbsTol', 1e-12);
+            testCase.verifyEqual(scenario.payloadDrop.releaseTime, 10, 'AbsTol', 1e-12);
+        end
     end
 end
 

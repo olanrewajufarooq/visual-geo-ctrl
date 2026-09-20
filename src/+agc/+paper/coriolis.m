@@ -9,13 +9,13 @@ validateattributes(I6, {'numeric'}, {'real', 'finite', 'size', [6 6]});
 
 switch lower(string(form))
     case "c1"
-        % C_1(V,I)U = -ad_U^*(I*V).
-        value = -agc.math.adTwist(U).' * (I6 * V);
-    case "c2"
-        % C_2 is the left-trivialized Levi--Civita factorization.
+        % C_1 is the left-trivialized Levi--Civita factorization.
         value = 0.5 * (I6 * agc.math.adTwist(V) * U ...
             - agc.math.adTwist(U).' * (I6 * V) ...
             - agc.math.adTwist(V).' * (I6 * U));
+    case "c2"
+        % C_2(V,I)U = -ad_U^*(I*V).
+        value = -agc.math.adTwist(U).' * (I6 * V);
     otherwise
         error('agc:paper:coriolis:UnknownForm', 'form must be c1 or c2.');
 end
