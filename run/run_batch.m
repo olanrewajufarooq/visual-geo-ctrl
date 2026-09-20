@@ -5,7 +5,7 @@
 %% User settings
 
 replayId = 'lemniscate_01_auto';
-duration = 10;
+duration = 30;
 useParallel = true;
 generateFigures = true;
 showFigures = false;

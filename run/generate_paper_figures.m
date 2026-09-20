@@ -1,5 +1,6 @@
-% GENERATE_PAPER_FIGURES Export paper figures from one saved theory-suite run.
-% Set suiteDirectory to a results/<timestamp> directory, then press Run.
+% GENERATE_PAPER_FIGURES Export figures from one saved theory-suite run.
+% By default, comparisons go to <suite>/comparisons and each standalone
+% diagnostic is stored beside its run.mat in <variant>/figures.
 
 %% User settings
 

@@ -1,7 +1,7 @@
 % RUN_THEORY_SUITE Run all paper controller variants on one replay artifact.
 % Edit these settings, then press Run.
 replayId = 'lemniscate_01_auto';
-duration = 10;
+duration = 30;
 useParallel = true;
 startup;
 variants = { ...

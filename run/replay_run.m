@@ -1,4 +1,4 @@
-% REPLAY_RUN Visualize a v2 result directory after simulation completes.
+% REPLAY_RUN Visualize one saved result directory after simulation completes.
 % Set resultDirectory to a folder created by run_theory_suite, then press Run.
 resultDirectory = '';
 exportFile = '';

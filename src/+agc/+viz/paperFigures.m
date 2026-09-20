@@ -1,73 +1,134 @@
 function output = paperFigures(suiteDirectory, options)
-%PAPERFIGURES Export static paper figures from one saved theory-suite folder.
+%PAPERFIGURES Export comparison and standalone figures from a saved suite.
 %
-% The suite must contain nominal, Euclidean, and Bregman runs, each using
-% C1 and C2. Rendering is post-processing only: simulations never plot.
+% Figures are post-processing only. By default, comparisons are written to
+% <suite>/comparisons and a run's diagnostics stay beside its run.mat file
+% in <suite>/<mode>_<coriolis>/figures.
 
 if nargin < 2 || isempty(options), options = struct(); end
-if ~isfield(options, 'outputDirectory'), options.outputDirectory = ''; end
-if ~isfield(options, 'visible'), options.visible = false; end
-validateattributes(suiteDirectory, {'char', 'string'}, {'nonempty'});
-validateattributes(options.outputDirectory, {'char', 'string'}, {'scalartext'});
-validateattributes(options.visible, {'logical', 'numeric'}, {'scalar'});
+options = defaultOptions(options);
 suiteDirectory = agc.io.resolveResultSuite(suiteDirectory);
-options.outputDirectory = char(options.outputDirectory);
-options.visible = logical(options.visible);
-
-%% Discover and validate the complete controller comparison matrix
-
-if isempty(options.outputDirectory)
-    outputDirectory = fullfile(suiteDirectory, 'figures');
-else
-    outputDirectory = options.outputDirectory;
-end
-if ~isfolder(outputDirectory), mkdir(outputDirectory); end
-
 entries = loadSuite(suiteDirectory);
 modes = ["nominal", "euclidean", "bregman"];
 forms = ["c1", "c2"];
 requireVariants(entries, modes, forms);
 
-%% Export the fixed publication figure set
+comparisonDirectory = resultDirectory(suiteDirectory, options, 'comparisons');
+if ~isfolder(comparisonDirectory), mkdir(comparisonDirectory); end
 
-specifications = [ ...
-    struct('name', 'trajectory', 'draw', @() drawTrajectory(entries, modes, forms, options.visible)); ...
-    struct('name', 'tracking', 'draw', @() drawTracking(entries, modes, forms, options.visible)); ...
-    struct('name', 'transverse', 'draw', @() drawTransverse(entries, modes, forms, options.visible)); ...
-    struct('name', 'adaptive_comparison', 'draw', @() drawAdaptiveComparison(entries, forms, options.visible)); ...
-    struct('name', 'performance_summary', 'draw', @() drawPerformance(entries, modes, forms, options.visible)); ...
-    struct('name', 'adaptation', 'draw', @() drawAdaptation(entries, forms, options.visible))];
+output = struct('name', {}, 'directory', {}, 'files', {});
 
-output = repmat(struct('name', '', 'directory', outputDirectory, 'files', struct()), numel(specifications), 1);
-for k = 1:numel(specifications)
-    figureHandle = specifications(k).draw();
-    output(k) = exportStatic(figureHandle, specifications(k).name, outputDirectory);
-    close(figureHandle);
+%% Direct comparisons: only signals with the same units share an axes
+
+for mode = modes
+    c1 = selectEntry(entries, mode, "c1");
+    c2 = selectEntry(entries, mode, "c2");
+    prefix = char(mode + "_");
+    output(end + 1) = savePlot([prefix 'trajectory_c1_c2'], comparisonDirectory, options, ...
+        @() plotTrajectoryComparison(c1, c2)); %#ok<AGROW>
+    output(end + 1) = savePlot([prefix 'position_error_c1_c2'], comparisonDirectory, options, ...
+        @() plotScalarComparison(c1, c2, 'positionError', 'Position error', '||p-p_d|| (m)', false)); %#ok<AGROW>
+    output(end + 1) = savePlot([prefix 'attitude_error_c1_c2'], comparisonDirectory, options, ...
+        @() plotScalarComparison(c1, c2, 'attitudeError', 'Attitude error', 'theta_R (rad)', false)); %#ok<AGROW>
+    output(end + 1) = savePlot([prefix 'sliding_norm_c1_c2'], comparisonDirectory, options, ...
+        @() plotScalarComparison(c1, c2, 'slidingNorm', 'Sliding residual', '||s||_{Lambda^{-1}}', true)); %#ok<AGROW>
+    output(end + 1) = savePlot([prefix 'transverse_energy_c1_c2'], comparisonDirectory, options, ...
+        @() plotScalarComparison(c1, c2, 'Vs', 'Transverse energy', 'V_s', true)); %#ok<AGROW>
+    output(end + 1) = savePlot([prefix 'wrench_norm_c1_c2'], comparisonDirectory, options, ...
+        @() plotScalarComparison(c1, c2, 'wrenchNorm', 'Control-wrench norm', '||W_c||', false)); %#ok<AGROW>
 end
+
+for form = forms
+    euclidean = selectEntry(entries, "euclidean", form);
+    bregman = selectEntry(entries, "bregman", form);
+    suffix = ['_' char(form)];
+    output(end + 1) = savePlot(['euclidean_vs_bregman_position_error' suffix], comparisonDirectory, options, ...
+        @() plotAdaptiveComparison(euclidean, bregman, 'positionError', 'Position error', '||p-p_d|| (m)', false)); %#ok<AGROW>
+    output(end + 1) = savePlot(['euclidean_vs_bregman_attitude_error' suffix], comparisonDirectory, options, ...
+        @() plotAdaptiveComparison(euclidean, bregman, 'attitudeError', 'Attitude error', 'theta_R (rad)', false)); %#ok<AGROW>
+    output(end + 1) = savePlot(['euclidean_vs_bregman_sliding_norm' suffix], comparisonDirectory, options, ...
+        @() plotAdaptiveComparison(euclidean, bregman, 'slidingNorm', 'Sliding residual', '||s||_{Lambda^{-1}}', true)); %#ok<AGROW>
+    output(end + 1) = savePlot(['euclidean_vs_bregman_parameter_error' suffix], comparisonDirectory, options, ...
+        @() plotAdaptiveComparison(euclidean, bregman, 'parameterError', 'Parameter error', 'normalized ||piHat-pi||', false)); %#ok<AGROW>
+    output(end + 1) = savePlot(['euclidean_vs_bregman_pseudo_inertia_margin' suffix], comparisonDirectory, options, ...
+        @() plotAdaptiveComparison(euclidean, bregman, 'pseudoMargin', 'Pseudo-inertia margin', 'min eig(JHat)', false)); %#ok<AGROW>
+end
+
+% Batch metrics remain useful, but each metric is a separate figure so its
+% scale and units are never conflated with an unrelated performance measure.
+output(end + 1) = savePlot('performance_position_rmse', comparisonDirectory, options, ...
+    @() plotMetricSummary(entries, modes, forms, 'positionRMSE', 'Position RMSE', 'RMSE (m)'));
+output(end + 1) = savePlot('performance_attitude_rmse', comparisonDirectory, options, ...
+    @() plotMetricSummary(entries, modes, forms, 'attitudeRMSE', 'Attitude RMSE', 'RMSE (rad)'));
+output(end + 1) = savePlot('performance_wrench_rms', comparisonDirectory, options, ...
+    @() plotMetricSummary(entries, modes, forms, 'wrenchRMS', 'Control-wrench RMS', 'RMS wrench'));
+
+%% Standalone diagnostics: every signal can be inspected without a composite
+
+for k = 1:numel(entries)
+    entry = entries(k);
+    variant = sprintf('%s_%s', entry.mode, entry.coriolis);
+    directory = diagnosticDirectory(entry, suiteDirectory, options, variant);
+    if ~isfolder(directory), mkdir(directory); end
+    output = [output, exportRunDiagnostics(entry, variant, directory, options)]; %#ok<AGROW>
+end
+end
+
+function options = defaultOptions(options)
+%DEFAULTOPTIONS Normalize public exporter options.
+
+if ~isfield(options, 'outputDirectory'), options.outputDirectory = ''; end
+if ~isfield(options, 'visible'), options.visible = false; end
+validateattributes(options.outputDirectory, {'char', 'string'}, {'scalartext'});
+validateattributes(options.visible, {'logical', 'numeric'}, {'scalar'});
+options.outputDirectory = char(options.outputDirectory);
+options.visible = logical(options.visible);
 end
 
 function entries = loadSuite(suiteDirectory)
-%LOADSUITE Read every direct child result directory containing run.mat.
+%LOADSUITE Load every immediate saved variant from a result suite.
 
 children = dir(suiteDirectory);
-entries = struct('mode', {}, 'coriolis', {}, 'scenario', {}, 'run', {}, 'metrics', {});
+entries = repmat(struct('mode', "", 'coriolis', "", 'directory', '', ...
+    'scenario', struct(), 'run', struct(), 'metrics', struct()), numel(children), 1);
+count = 0;
 for k = 1:numel(children)
-    if ~children(k).isdir || startsWith(children(k).name, '.')
-        continue;
-    end
-    resultDirectory = fullfile(suiteDirectory, children(k).name);
-    if ~isfile(fullfile(resultDirectory, 'run.mat'))
-        continue;
-    end
-    payload = agc.io.loadRun(resultDirectory);
-    entries(end + 1) = struct('mode', string(payload.run.mode), ... %#ok<AGROW>
-        'coriolis', string(payload.run.coriolis), 'scenario', payload.scenario, ...
+    if ~children(k).isdir || startsWith(children(k).name, '.'), continue; end
+    directory = fullfile(suiteDirectory, children(k).name);
+    if ~isfile(fullfile(directory, 'run.mat')), continue; end
+    payload = agc.io.loadRun(directory);
+    count = count + 1;
+    entries(count) = struct('mode', string(payload.run.mode), ...
+        'coriolis', string(payload.run.coriolis), 'directory', directory, ...
+        'scenario', payload.scenario, ...
         'run', payload.run, 'metrics', payload.metrics);
+end
+
+entries = entries(1:count);
+end
+
+function directory = resultDirectory(suiteDirectory, options, name)
+%RESULTDIRECTORY Resolve the suite-level comparison destination.
+
+if isempty(options.outputDirectory)
+    directory = fullfile(suiteDirectory, name);
+else
+    directory = fullfile(suiteDirectory, options.outputDirectory, name);
+end
+end
+
+function directory = diagnosticDirectory(entry, suiteDirectory, options, variant)
+%DIAGNOSTICDIRECTORY Keep diagnostics with their run unless redirected.
+
+if isempty(options.outputDirectory)
+    directory = fullfile(entry.directory, 'figures');
+else
+    directory = fullfile(suiteDirectory, options.outputDirectory, 'diagnostics', variant);
 end
 end
 
 function requireVariants(entries, modes, forms)
-%REQUIREVARIANTS Fail early when a paper comparison would be incomplete.
+%REQUIREVARIANTS Fail before exporting an incomplete paper matrix.
 
 for mode = modes
     for form = forms
@@ -80,217 +141,254 @@ end
 end
 
 function entry = selectEntry(entries, mode, form)
-%SELECTENTRY Return one saved run by controller mode and C-factorization.
+%SELECTENTRY Return one unambiguous mode/factorization result.
 
 matches = find([entries.mode] == mode & [entries.coriolis] == form);
-if numel(matches) ~= 1
-    entry = [];
-else
-    entry = entries(matches);
+if numel(matches) ~= 1, entry = []; else, entry = entries(matches); end
+end
+
+function output = exportRunDiagnostics(entry, variant, directory, options)
+%EXPORTRUNDIAGNOSTICS Export readable figures for exactly one saved run.
+
+output = struct('name', {}, 'directory', {}, 'files', {});
+signal = diagnostics(entry);
+specification = [ ...
+    struct('name', 'trajectory_3d', 'draw', @() plotTrajectory(entry)); ...
+    struct('name', 'trajectory_xy', 'draw', @() plotXY(entry)); ...
+    struct('name', 'altitude', 'draw', @() plotChannels(entry, signal.position(:,3), signal.desiredPosition(:,3), 'Altitude', 'z (m)', {'z'})); ...
+    struct('name', 'position', 'draw', @() plotChannels(entry, signal.position, signal.desiredPosition, 'Cartesian position', 'p (m)', {'x', 'y', 'z'})); ...
+    struct('name', 'attitude', 'draw', @() plotChannels(entry, signal.rpy, signal.desiredRpy, 'Attitude', 'angle (rad)', {'roll', 'pitch', 'yaw'})); ...
+    struct('name', 'linear_velocity', 'draw', @() plotChannels(entry, entry.run.V(:,4:6), entry.run.Vdesired(:,4:6), 'Body linear velocity', 'v (m/s)', {'v_x', 'v_y', 'v_z'})); ...
+    struct('name', 'angular_velocity', 'draw', @() plotChannels(entry, entry.run.V(:,1:3), entry.run.Vdesired(:,1:3), 'Body angular velocity', 'omega (rad/s)', {'omega_x', 'omega_y', 'omega_z'})); ...
+    struct('name', 'wrench_force', 'draw', @() plotWrench(entry, 4:6, 'Control force', 'force (N)', {'F_x', 'F_y', 'F_z'})); ...
+    struct('name', 'wrench_torque', 'draw', @() plotWrench(entry, 1:3, 'Control torque', 'torque (Nm)', {'tau_x', 'tau_y', 'tau_z'})); ...
+    struct('name', 'sliding_norm', 'draw', @() plotSignal(entry, signal.slidingNorm, 'Sliding residual', '||s||_{Lambda^{-1}}', true)); ...
+    struct('name', 'potential', 'draw', @() plotSignal(entry, entry.run.Psi, 'Configuration potential', 'Psi', false)); ...
+    struct('name', 'transverse_energy', 'draw', @() plotSignal(entry, entry.run.Vs, 'Transverse energy', 'V_s', true))];
+
+if entry.mode ~= "nominal"
+    adaptive = [ ...
+        struct('name', 'parameter_error', 'draw', @() plotSignal(entry, signal.parameterError, 'Parameter error', 'normalized ||piHat-pi||', false)); ...
+        struct('name', 'pseudo_inertia_margin', 'draw', @() plotPseudoMargin(entry, signal.pseudoMargin)); ...
+        struct('name', 'mass', 'draw', @() plotEstimate(entry, signal.estimatePi(:,1), entry.scenario.plantPi(1), 'Mass estimate', 'mass (kg)', {'estimate', 'true'})); ...
+        struct('name', 'cog', 'draw', @() plotCog(entry, signal)); ...
+        struct('name', 'inertia_principal', 'draw', @() plotInertia(entry, signal, 1:3, 'Principal inertia', 'inertia (kg m^2)', {'I_{xx}', 'I_{yy}', 'I_{zz}'})); ...
+        struct('name', 'inertia_off_diagonal', 'draw', @() plotInertia(entry, signal, 4:6, 'Off-diagonal inertia', 'inertia (kg m^2)', {'I_{xy}', 'I_{xz}', 'I_{yz}'}))];
+    specification = [specification, adaptive];
+end
+
+for k = 1:numel(specification)
+    output(end + 1) = savePlot([variant '_' specification(k).name], directory, options, specification(k).draw); %#ok<AGROW>
 end
 end
 
-function figureHandle = drawTrajectory(entries, modes, forms, visible)
-figureHandle = newFigure('Trajectory tracking', visible);
-layout = tiledlayout(1, numel(modes), 'TileSpacing', 'compact', 'Padding', 'compact');
-for k = 1:numel(modes)
-    ax = nexttile(layout); hold(ax, 'on'); grid(ax, 'on'); axis(ax, 'equal'); view(ax, 3);
-    first = selectEntry(entries, modes(k), forms(1));
-    desired = positions(first.run.Hdesired);
-    plot3(ax, desired(:,1), desired(:,2), desired(:,3), 'k--', 'LineWidth', 1.2, 'DisplayName', 'desired');
-    for form = forms
-        entry = selectEntry(entries, modes(k), form);
-        actual = positions(entry.run.H);
-        plot3(ax, actual(:,1), actual(:,2), actual(:,3), lineSpec(modes(k), form), ...
-            'Color', modeColor(modes(k)), 'LineWidth', 1.5, 'DisplayName', upper(form));
-    end
-    title(ax, capitalize(modes(k))); xlabel(ax, 'x (m)'); ylabel(ax, 'y (m)'); zlabel(ax, 'z (m)');
-    legend(ax, 'Location', 'best');
-end
+function output = savePlot(name, directory, options, draw)
+%SAVEPLOT Render one scientific claim and export it as PNG and vector PDF.
+
+figureHandle = draw();
+set(figureHandle, 'Visible', onOff(options.visible));
+output = exportStatic(figureHandle, name, directory);
+close(figureHandle);
 end
 
-function figureHandle = drawTracking(entries, modes, forms, visible)
-figureHandle = newFigure('Tracking errors', visible);
-layout = tiledlayout(numel(modes), 2, 'TileSpacing', 'compact', 'Padding', 'compact');
-for k = 1:numel(modes)
-    axPosition = nexttile(layout); hold(axPosition, 'on'); grid(axPosition, 'on');
-    axAttitude = nexttile(layout); hold(axAttitude, 'on'); grid(axAttitude, 'on');
-    for form = forms
-        entry = selectEntry(entries, modes(k), form);
-        signal = runSignals(entry);
-        plot(axPosition, entry.run.t, signal.positionError, lineSpec(modes(k), form), ...
-            'Color', modeColor(modes(k)), 'LineWidth', 1.4, 'DisplayName', upper(form));
-        plot(axAttitude, entry.run.t, signal.attitudeError, lineSpec(modes(k), form), ...
-            'Color', modeColor(modes(k)), 'LineWidth', 1.4, 'DisplayName', upper(form));
-    end
-    title(axPosition, sprintf('%s: position', capitalize(modes(k)))); ylabel(axPosition, '||p-p_d|| (m)');
-    title(axAttitude, sprintf('%s: attitude', capitalize(modes(k)))); ylabel(axAttitude, 'theta_R (rad)');
-    if k == numel(modes), xlabel(axPosition, 'time (s)'); xlabel(axAttitude, 'time (s)'); end
-    legend(axPosition, 'Location', 'best'); legend(axAttitude, 'Location', 'best');
-end
+function figureHandle = plotTrajectoryComparison(c1, c2)
+figureHandle = newFigure('C1/C2 trajectory comparison'); ax = axes(figureHandle); hold(ax, 'on');
+desired = diagnostics(c1).desiredPosition;
+plot3(ax, desired(:,1), desired(:,2), desired(:,3), 'k--', 'LineWidth', 1.3, 'DisplayName', 'desired');
+plot3(ax, diagnostics(c1).position(:,1), diagnostics(c1).position(:,2), diagnostics(c1).position(:,3), '--', 'Color', formColor("c1"), 'LineWidth', 1.5, 'DisplayName', 'C1');
+plot3(ax, diagnostics(c2).position(:,1), diagnostics(c2).position(:,2), diagnostics(c2).position(:,3), '-', 'Color', formColor("c2"), 'LineWidth', 1.5, 'DisplayName', 'C2');
+style3D(ax, 'Trajectory tracking');
 end
 
-function figureHandle = drawTransverse(entries, modes, forms, visible)
-figureHandle = newFigure('Transverse convergence', visible);
-layout = tiledlayout(numel(modes), 2, 'TileSpacing', 'compact', 'Padding', 'compact');
-for k = 1:numel(modes)
-    axS = nexttile(layout); hold(axS, 'on'); grid(axS, 'on');
-    axVs = nexttile(layout); hold(axVs, 'on'); grid(axVs, 'on');
-    for form = forms
-        entry = selectEntry(entries, modes(k), form);
-        signal = runSignals(entry);
-        semilogy(axS, entry.run.t, floorPositive(signal.slidingNorm), lineSpec(modes(k), form), ...
-            'Color', modeColor(modes(k)), 'LineWidth', 1.4, 'DisplayName', upper(form));
-        semilogy(axVs, entry.run.t, floorPositive(entry.run.Vs), lineSpec(modes(k), form), ...
-            'Color', modeColor(modes(k)), 'LineWidth', 1.4, 'DisplayName', upper(form));
-    end
-    title(axS, sprintf('%s: sliding residual', capitalize(modes(k)))); ylabel(axS, '||s||_{Lambda^{-1}}');
-    title(axVs, sprintf('%s: transverse energy', capitalize(modes(k)))); ylabel(axVs, 'V_s');
-    if k == numel(modes), xlabel(axS, 'time (s)'); xlabel(axVs, 'time (s)'); end
-    legend(axS, 'Location', 'best'); legend(axVs, 'Location', 'best');
-end
+function figureHandle = plotScalarComparison(c1, c2, field, titleText, ylabelText, useLog)
+figureHandle = newFigure(titleText); ax = axes(figureHandle); hold(ax, 'on');
+s1 = diagnostics(c1); s2 = diagnostics(c2);
+plotScalar(ax, c1.run.t, s1.(field), '--', formColor("c1"), 'C1', useLog);
+plotScalar(ax, c2.run.t, s2.(field), '-', formColor("c2"), 'C2', useLog);
+styleTime(ax, titleText, ylabelText);
 end
 
-function figureHandle = drawAdaptiveComparison(entries, forms, visible)
-figureHandle = newFigure('Euclidean versus Bregman adaptation', visible);
-layout = tiledlayout(2, numel(forms), 'TileSpacing', 'compact', 'Padding', 'compact');
-for k = 1:numel(forms)
-    axTracking = nexttile(layout); hold(axTracking, 'on'); grid(axTracking, 'on');
-    axSliding = nexttile(layout); hold(axSliding, 'on'); grid(axSliding, 'on');
-    for mode = ["euclidean", "bregman"]
-        entry = selectEntry(entries, mode, forms(k));
-        signal = runSignals(entry);
-        plot(axTracking, entry.run.t, signal.positionError, '-', 'Color', modeColor(mode), ...
-            'LineWidth', 1.5, 'DisplayName', capitalize(mode));
-        semilogy(axSliding, entry.run.t, floorPositive(signal.slidingNorm), '-', 'Color', modeColor(mode), ...
-            'LineWidth', 1.5, 'DisplayName', capitalize(mode));
-    end
-    title(axTracking, sprintf('%s: tracking', upper(forms(k)))); ylabel(axTracking, '||p-p_d|| (m)');
-    title(axSliding, sprintf('%s: sliding', upper(forms(k)))); ylabel(axSliding, '||s||_{Lambda^{-1}}'); xlabel(axSliding, 'time (s)');
-    legend(axTracking, 'Location', 'best'); legend(axSliding, 'Location', 'best');
-end
+function figureHandle = plotAdaptiveComparison(euclidean, bregman, field, titleText, ylabelText, useLog)
+figureHandle = newFigure(titleText); ax = axes(figureHandle); hold(ax, 'on');
+se = diagnostics(euclidean); sb = diagnostics(bregman);
+plotScalar(ax, euclidean.run.t, se.(field), '-', modeColor("euclidean"), 'Euclidean', useLog);
+plotScalar(ax, bregman.run.t, sb.(field), '-', modeColor("bregman"), 'Bregman', useLog);
+if strcmp(field, 'pseudoMargin'), yline(ax, 0, 'k:', 'zero boundary'); end
+styleTime(ax, titleText, ylabelText);
 end
 
-function figureHandle = drawPerformance(entries, modes, forms, visible)
-figureHandle = newFigure('Performance summary', visible);
-layout = tiledlayout(1, 3, 'TileSpacing', 'compact', 'Padding', 'compact');
+function figureHandle = plotMetricSummary(entries, modes, forms, field, titleText, ylabelText)
+%PLOTMETRICSUMMARY Export one batch metric without combining units.
+
 labels = strings(1, numel(modes) * numel(forms));
-position = zeros(size(labels)); attitude = zeros(size(labels)); effort = zeros(size(labels)); colors = zeros(numel(labels), 3);
+values = zeros(size(labels));
+colors = zeros(numel(labels), 3);
 index = 0;
 for mode = modes
     for form = forms
         index = index + 1;
         entry = selectEntry(entries, mode, form);
-        labels(index) = capitalize(mode) + " " + upper(form);
-        position(index) = entry.metrics.positionRMSE;
-        attitude(index) = entry.metrics.attitudeRMSE;
-        effort(index) = entry.metrics.wrenchRMS;
+        labels(index) = upper(mode) + " " + upper(form);
+        values(index) = entry.metrics.(field);
         colors(index,:) = modeColor(mode);
     end
 end
-drawBars(nexttile(layout), position, labels, colors, 'Position RMSE (m)');
-drawBars(nexttile(layout), attitude, labels, colors, 'Attitude RMSE (rad)');
-drawBars(nexttile(layout), effort, labels, colors, 'Wrench RMS');
+figureHandle = newFigure(titleText); ax = axes(figureHandle);
+bars = bar(ax, values, 0.75); bars.FaceColor = 'flat'; bars.CData = colors;
+grid(ax, 'on'); box(ax, 'on'); ylabel(ax, ylabelText); title(ax, titleText);
+xticks(ax, 1:numel(labels)); xticklabels(ax, labels); xtickangle(ax, 25);
 end
 
-function figureHandle = drawAdaptation(entries, forms, visible)
-figureHandle = newFigure('Adaptive estimator behavior', visible);
-layout = tiledlayout(1, 3, 'TileSpacing', 'compact', 'Padding', 'compact');
-axEuclidean = nexttile(layout); hold(axEuclidean, 'on'); grid(axEuclidean, 'on');
-axBregman = nexttile(layout); hold(axBregman, 'on'); grid(axBregman, 'on');
-axSPD = nexttile(layout); hold(axSPD, 'on'); grid(axSPD, 'on');
-for form = forms
-    euclidean = selectEntry(entries, "euclidean", form);
-    bregman = selectEntry(entries, "bregman", form);
-    eSignal = runSignals(euclidean);
-    bSignal = runSignals(bregman);
-    plot(axEuclidean, euclidean.run.t, eSignal.parameterMismatch, lineSpec("euclidean", form), ...
-        'Color', modeColor("euclidean"), 'LineWidth', 1.4, 'DisplayName', upper(form));
-    plot(axBregman, bregman.run.t, bSignal.parameterMismatch, lineSpec("bregman", form), ...
-        'Color', modeColor("bregman"), 'LineWidth', 1.4, 'DisplayName', upper(form));
-    semilogy(axSPD, bregman.run.t, floorPositive(bregman.run.minPseudoEigenvalue), lineSpec("bregman", form), ...
-        'Color', modeColor("bregman"), 'LineWidth', 1.4, 'DisplayName', upper(form));
-end
-title(axEuclidean, 'Euclidean mismatch'); ylabel(axEuclidean, 'normalized ||piHat-pi||'); xlabel(axEuclidean, 'time (s)'); legend(axEuclidean, 'Location', 'best');
-title(axBregman, 'Bregman mismatch'); ylabel(axBregman, 'normalized ||piHat-pi||'); xlabel(axBregman, 'time (s)'); legend(axBregman, 'Location', 'best');
-title(axSPD, 'Bregman SPD margin'); ylabel(axSPD, 'min eig(JHat)'); xlabel(axSPD, 'time (s)'); yline(axSPD, eps, 'k:', 'positive boundary'); legend(axSPD, 'Location', 'best');
+function figureHandle = plotTrajectory(entry)
+figureHandle = newFigure('Trajectory tracking'); ax = axes(figureHandle); hold(ax, 'on');
+signal = diagnostics(entry);
+plot3(ax, signal.desiredPosition(:,1), signal.desiredPosition(:,2), signal.desiredPosition(:,3), 'k--', 'LineWidth', 1.3, 'DisplayName', 'desired');
+plot3(ax, signal.position(:,1), signal.position(:,2), signal.position(:,3), '-', 'Color', modeColor(entry.mode), 'LineWidth', 1.5, 'DisplayName', 'actual');
+style3D(ax, sprintf('%s %s trajectory', upper(entry.mode), upper(entry.coriolis)));
 end
 
-function signal = runSignals(entry)
-%RUNSIGNALS Derive plot-ready paper diagnostics from a saved run.
+function figureHandle = plotXY(entry)
+figureHandle = newFigure('XY tracking'); ax = axes(figureHandle); hold(ax, 'on');
+signal = diagnostics(entry);
+plot(ax, signal.desiredPosition(:,1), signal.desiredPosition(:,2), 'k--', 'LineWidth', 1.3, 'DisplayName', 'desired');
+plot(ax, signal.position(:,1), signal.position(:,2), '-', 'Color', modeColor(entry.mode), 'LineWidth', 1.5, 'DisplayName', 'actual');
+axis(ax, 'equal'); grid(ax, 'on'); xlabel(ax, 'x (m)'); ylabel(ax, 'y (m)'); title(ax, 'XY trajectory tracking'); legend(ax, 'Location', 'best');
+end
+
+function figureHandle = plotChannels(entry, actual, desired, titleText, ylabelText, labels)
+figureHandle = newFigure(titleText); ax = axes(figureHandle); hold(ax, 'on');
+colors = lines(size(actual,2));
+for k = 1:size(actual,2)
+    plot(ax, entry.run.t, actual(:,k), '-', 'Color', colors(k,:), 'LineWidth', 1.4, 'DisplayName', labels{k});
+    plot(ax, entry.run.t, desired(:,k), '--', 'Color', colors(k,:), 'LineWidth', 1.1, 'DisplayName', [labels{k} ' desired']);
+end
+styleTime(ax, titleText, ylabelText);
+end
+
+function figureHandle = plotWrench(entry, index, titleText, ylabelText, labels)
+figureHandle = newFigure(titleText); ax = axes(figureHandle); hold(ax, 'on');
+colors = lines(numel(index));
+for k = 1:numel(index)
+    plot(ax, entry.run.t, entry.run.wrench(:,index(k)), 'Color', colors(k,:), 'LineWidth', 1.4, 'DisplayName', labels{k});
+end
+styleTime(ax, titleText, ylabelText);
+end
+
+function figureHandle = plotSignal(entry, values, titleText, ylabelText, useLog)
+figureHandle = newFigure(titleText); ax = axes(figureHandle); hold(ax, 'on');
+plotScalar(ax, entry.run.t, values, '-', modeColor(entry.mode), upper(entry.coriolis), useLog);
+styleTime(ax, titleText, ylabelText);
+end
+
+function figureHandle = plotPseudoMargin(entry, values)
+figureHandle = newFigure('Pseudo-inertia margin'); ax = axes(figureHandle); hold(ax, 'on');
+plot(ax, entry.run.t, values, '-', 'Color', modeColor(entry.mode), 'LineWidth', 1.4, 'DisplayName', 'min eig(JHat)');
+yline(ax, 0, 'k:', 'zero boundary'); styleTime(ax, 'Pseudo-inertia margin', 'min eig(JHat)');
+end
+
+function figureHandle = plotEstimate(entry, estimate, truth, titleText, ylabelText, labels)
+figureHandle = newFigure(titleText); ax = axes(figureHandle); hold(ax, 'on');
+plot(ax, entry.run.t, estimate, '-', 'Color', modeColor(entry.mode), 'LineWidth', 1.4, 'DisplayName', labels{1});
+yline(ax, truth, 'k--', labels{2}); styleTime(ax, titleText, ylabelText);
+end
+
+function figureHandle = plotCog(entry, signal)
+figureHandle = newFigure('Center-of-mass estimate'); ax = axes(figureHandle); hold(ax, 'on');
+colors = lines(3); names = 'xyz';
+for k = 1:3
+    plot(ax, entry.run.t, signal.cog(:,k), '-', 'Color', colors(k,:), 'LineWidth', 1.4, 'DisplayName', sprintf('c_%s', names(k)));
+    yline(ax, signal.trueCog(k), '--', 'Color', colors(k,:), 'DisplayName', sprintf('c_%s true', names(k)));
+end
+styleTime(ax, 'Center-of-mass estimate', 'c_m (m)');
+end
+
+function figureHandle = plotInertia(entry, signal, index, titleText, ylabelText, labels)
+figureHandle = newFigure(titleText); ax = axes(figureHandle); hold(ax, 'on');
+colors = lines(numel(index));
+for k = 1:numel(index)
+    parameter = index(k) + 4;
+    plot(ax, entry.run.t, signal.estimatePi(:,parameter), '-', 'Color', colors(k,:), 'LineWidth', 1.4, 'DisplayName', labels{k});
+    yline(ax, entry.scenario.plantPi(parameter), '--', 'Color', colors(k,:), 'DisplayName', [labels{k} ' true']);
+end
+styleTime(ax, titleText, ylabelText);
+end
+
+function signal = diagnostics(entry)
+%DIAGNOSTICS Derive all plot signals from the immutable saved run.
 
 run = entry.run;
 n = numel(run.t);
-positionError = zeros(n,1);
-attitudeError = zeros(n,1);
+position = squeeze(run.H(1:3,4,:)).';
+desiredPosition = squeeze(run.Hdesired(1:3,4,:)).';
+rpy = zeros(n,3); desiredRpy = zeros(n,3); attitudeError = zeros(n,1);
 for k = 1:n
-    H = run.H(:,:,k); Hd = run.Hdesired(:,:,k);
-    positionError(k) = norm(H(1:3,4) - Hd(1:3,4));
-    Re = Hd(1:3,1:3).' * H(1:3,1:3);
+    rpy(k,:) = fliplr(rotm2eul(run.H(1:3,1:3,k), 'ZYX'));
+    desiredRpy(k,:) = fliplr(rotm2eul(run.Hdesired(1:3,1:3,k), 'ZYX'));
+    Re = run.Hdesired(1:3,1:3,k).' * run.H(1:3,1:3,k);
     attitudeError(k) = acos(max(-1, min(1, (trace(Re) - 1) / 2)));
 end
-
+LambdaInverse = eye(6);
 if isfield(entry.scenario, 'controller') && isfield(entry.scenario.controller, 'Lambda')
     LambdaInverse = entry.scenario.controller.Lambda \ eye(6);
+end
+piTrue = entry.scenario.plantPi(:).'; estimatePi = run.estimatePi;
+pseudoMargin = zeros(n,1);
+for k = 1:n, pseudoMargin(k) = min(eig(agc.math.pseudoFromPi(estimatePi(k,:)))); end
+% A global scale avoids making numerically negligible true parameters
+% dominate the plot through component-wise division.
+parameterError = vecnorm(estimatePi - piTrue, 2, 2) / max(norm(piTrue), 1);
+signal = struct('position', position, 'desiredPosition', desiredPosition, ...
+    'rpy', rpy, 'desiredRpy', desiredRpy, ...
+    'positionError', vecnorm(position - desiredPosition, 2, 2), ...
+    'attitudeError', attitudeError, ...
+    'slidingNorm', sqrt(max(0, sum((run.s * LambdaInverse) .* run.s, 2))), ...
+    'Vs', run.Vs, 'wrenchNorm', vecnorm(run.wrench, 2, 2), ...
+    'estimatePi', estimatePi, ...
+    'parameterError', parameterError, ...
+    'pseudoMargin', pseudoMargin, ...
+    'cog', estimatePi(:,2:4) ./ estimatePi(:,1), ...
+    'trueCog', piTrue(2:4) ./ piTrue(1));
+end
+
+function plotScalar(ax, time, values, style, color, label, useLog)
+if useLog
+    semilogy(ax, time, max(values, 1e-12), style, 'Color', color, 'LineWidth', 1.4, 'DisplayName', label);
 else
-    LambdaInverse = eye(6);
+    plot(ax, time, values, style, 'Color', color, 'LineWidth', 1.4, 'DisplayName', label);
 end
-slidingNorm = sqrt(max(0, sum((run.s * LambdaInverse) .* run.s, 2)));
-
-piTrue = entry.scenario.plantPi(:).';
-scale = max(abs(piTrue), 1e-6 * max(1, max(abs(piTrue))));
-parameterMismatch = sqrt(mean(((run.estimatePi - piTrue) ./ scale).^2, 2));
-
-signal = struct('positionError', positionError, 'attitudeError', attitudeError, ...
-    'slidingNorm', slidingNorm, 'parameterMismatch', parameterMismatch);
 end
 
-function drawBars(ax, values, labels, colors, ylabelText)
-barHandle = bar(ax, values, 0.75);
-barHandle.FaceColor = 'flat';
-barHandle.CData = colors;
-grid(ax, 'on'); ylabel(ax, ylabelText); xticks(ax, 1:numel(labels));
-xticklabels(ax, labels); xtickangle(ax, 35);
+function style3D(ax, titleText)
+grid(ax, 'on'); axis(ax, 'equal'); view(ax, 3); xlabel(ax, 'x (m)'); ylabel(ax, 'y (m)'); zlabel(ax, 'z (m)'); title(ax, titleText); legend(ax, 'Location', 'best');
+end
+
+function styleTime(ax, titleText, ylabelText)
+grid(ax, 'on'); box(ax, 'on'); xlabel(ax, 'time (s)'); ylabel(ax, ylabelText); title(ax, titleText); legend(ax, 'Location', 'best');
 end
 
 function output = exportStatic(figureHandle, name, directory)
-pngFile = fullfile(directory, [name, '.png']);
-pdfFile = fullfile(directory, [name, '.pdf']);
+pngFile = fullfile(directory, [name '.png']); pdfFile = fullfile(directory, [name '.pdf']);
 exportgraphics(figureHandle, pngFile, 'Resolution', 300);
 exportgraphics(figureHandle, pdfFile, 'ContentType', 'vector');
 output = struct('name', name, 'directory', directory, 'files', struct('png', pngFile, 'pdf', pdfFile));
 end
 
-function figureHandle = newFigure(name, visible)
-visibility = 'off';
-if visible, visibility = 'on'; end
-figureHandle = figure('Name', name, 'Color', 'w', 'Visible', visibility, 'Position', [100, 100, 1300, 720]);
+function figureHandle = newFigure(name)
+figureHandle = figure('Name', name, 'Color', 'w', 'Visible', 'off', 'Position', [100, 100, 900, 550]);
 end
 
-function values = positions(H)
-values = squeeze(H(1:3,4,:)).';
-end
-
-function value = floorPositive(value)
-value = max(value, 1e-12);
+function color = formColor(form)
+if form == "c1", color = [0.00, 0.45, 0.74]; else, color = [0.85, 0.33, 0.10]; end
 end
 
 function color = modeColor(mode)
 switch lower(string(mode))
-    case "nominal"
-        color = [0.00, 0.45, 0.74];
-    case "euclidean"
-        color = [0.85, 0.33, 0.10];
-    case "bregman"
-        color = [0.49, 0.18, 0.56];
+    case "nominal", color = [0.00, 0.45, 0.74];
+    case "euclidean", color = [0.85, 0.33, 0.10];
+    case "bregman", color = [0.49, 0.18, 0.56];
 end
 end
 
-function style = lineSpec(~, form)
-if strcmpi(form, 'c1'), style = '--'; else, style = '-'; end
-end
-
-function value = capitalize(value)
-value = char(string(value));
-value(1) = upper(value(1));
+function value = onOff(condition)
+if condition, value = 'on'; else, value = 'off'; end
 end

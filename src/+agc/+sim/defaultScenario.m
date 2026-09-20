@@ -21,14 +21,12 @@ controller = struct('mode', char(mode), 'coriolis', char(coriolis), ...
     'kd', gains.kd, 'ks', gains.ks, 'alpha', gains.alpha, 'gravity', [0; 0; 9.81], ...
     'gammaE', gains.gammaE, 'gammaB', gains.gammaB);
 
-% All adaptive variants start from the same nearby physical estimate. The
-% affine-invariant perturbation preserves SPD before Euclidean/Bregman
-% choose their respective parameter representations.
+% Every controller starts from the same nearby physical estimate. The
+% affine-invariant perturbation preserves SPD before Euclidean and nominal
+% use pi coordinates, while Bregman retains pseudo-inertia coordinates.
 [estimatePi, estimateJ] = adaptiveInitialEstimate(pi);
-estimate = pi;
-if strcmpi(mode, 'euclidean')
-    estimate = estimatePi;
-elseif strcmpi(mode, 'bregman')
+estimate = estimatePi;
+if strcmpi(mode, 'bregman')
     estimate = estimateJ;
 end
 scenario = struct('plantPi', pi, 'initial', struct('H', initialH, 'V', desired0.V), ...
