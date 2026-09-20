@@ -26,6 +26,31 @@ classdef TestScenarioRunner < matlab.unittest.TestCase
             testCase.verifyEqual(run.estimatePi(end,:).', ...
                 agc.math.piFromPseudo(run.finalEstimate), 'AbsTol', 1e-12);
         end
+
+        function payloadDropSwitchesPlantWithoutResettingNominalEstimate(testCase)
+            scenario = localScenario('nominal');
+            payload = struct('mass', 0.2, 'dimensions', [0.1; 0.08; 0.06], ...
+                'center', [0.1; 0; -0.05]);
+            loadedPi = agc.plant.compoundPi(scenario.plantPi, payload);
+            scenario.duration = 0.04;
+            scenario.dtControl = 0.01;
+            scenario.dtAdaptation = 0.01;
+            scenario.initialEstimate = loadedPi;
+            scenario.payloadDrop = struct('releaseTime', 0.02, ...
+                'barePi', scenario.plantPi, 'loadedPi', loadedPi, 'payload', payload);
+
+            loadedOnly = scenario;
+            loadedOnly = rmfield(loadedOnly, 'payloadDrop');
+            loadedOnly.plantPi = loadedPi;
+            dropRun = agc.sim.runScenario(scenario);
+            loadedRun = agc.sim.runScenario(loadedOnly);
+
+            testCase.verifyEqual(dropRun.activePlantPi(1:2,:), repmat(loadedPi.', 2, 1), 'AbsTol', 1e-12);
+            testCase.verifyEqual(dropRun.activePlantPi(3:end,:), repmat(scenario.plantPi.', 3, 1), 'AbsTol', 1e-12);
+            testCase.verifyEqual(dropRun.estimatePi, repmat(loadedPi.', 5, 1), 'AbsTol', 1e-12);
+            testCase.verifyEqual(dropRun.H(:,:,3), loadedRun.H(:,:,3), 'AbsTol', 1e-12);
+            testCase.verifyEqual(dropRun.V(3,:), loadedRun.V(3,:), 'AbsTol', 1e-12);
+        end
     end
 end
 

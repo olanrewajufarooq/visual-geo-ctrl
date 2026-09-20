@@ -30,5 +30,44 @@ classdef TestOptimization < matlab.unittest.TestCase
 
             testCase.verifyEqual(variants, {'bregman', 'c2'; 'euclidean', 'c2'});
         end
+
+        function gainBlocksCoverAndPartitionAdaptiveControllers(testCase)
+            allIndices = agc.opt.gainBlockIndices('euclidean', 'all');
+            nonadaptive = agc.opt.gainBlockIndices('euclidean', 'nonadaptive');
+            adaptive = agc.opt.gainBlockIndices('euclidean', 'adaptive');
+
+            testCase.verifyEqual(allIndices, 1:25);
+            testCase.verifyEqual(nonadaptive, 1:15);
+            testCase.verifyEqual(adaptive, 16:25);
+            testCase.verifyEmpty(intersect(nonadaptive, adaptive));
+        end
+
+        function bregmanGridIncludesBoundsAndSeedValues(testCase)
+            grid = agc.opt.bregmanGammaGrid([1e-3, 3e-4, 1e-5]);
+
+            testCase.verifyEqual(grid(1), -5, 'AbsTol', 1e-14);
+            testCase.verifyEqual(grid(end), -1, 'AbsTol', 1e-14);
+            testCase.verifyTrue(any(abs(grid - log10(3e-4)) < 1e-14));
+            testCase.verifyEqual(numel(grid), numel(unique(grid)));
+        end
+
+        function incumbentSelectionRetainsFeasibleLowerCostCandidate(testCase)
+            incumbent = struct('candidate', [1, 2], 'cost', 4, 'failed', false, 'label', 'incumbent');
+            worse = struct('candidate', [3, 4], 'cost', 5, 'failed', false, 'label', 'stage');
+            failed = struct('candidate', [5, 6], 'cost', 1, 'failed', true, 'label', 'stage');
+            better = struct('candidate', [7, 8], 'cost', 3, 'failed', false, 'label', 'stage');
+
+            testCase.verifyEqual(agc.opt.bestFeasibleCandidate(incumbent, worse), incumbent);
+            testCase.verifyEqual(agc.opt.bestFeasibleCandidate(incumbent, failed), incumbent);
+            testCase.verifyEqual(agc.opt.bestFeasibleCandidate(incumbent, better), better);
+        end
+
+        function stagedScheduleUsesJointSearchBlockSweepAndFinalPolish(testCase)
+            testCase.verifyEqual(agc.opt.gainOptimizationStages('nominal'), {'all'});
+            testCase.verifyEqual(agc.opt.gainOptimizationStages('euclidean'), ...
+                {'all', 'nonadaptive', 'adaptive', 'all'});
+            testCase.verifyEqual(agc.opt.gainOptimizationStages('bregman'), ...
+                {'all', 'nonadaptive', 'adaptive', 'all'});
+        end
     end
 end
