@@ -1,66 +1,10 @@
 # Run scripts
 
-The MATLAB files in this directory are grouped by purpose. Run them from the
-repository root after the project paths have been initialized by the script's
-`startup` call.
+Every `.m` file here is a MATLAB script. Edit its settings at the top, then run it from the repository root after `startup`.
 
-## `nominal_*`
-
-Nominal-controller demonstrations and comparisons. These scripts run the
-controller without online adaptation and are useful for checking baseline
-tracking behavior and comparing Coriolis-model choices.
-
-Examples:
-
-- `nominal_demo.m`
-- `nominal_coriolis_comparison.m`
-
-## `adaptive_*`
-
-Adaptive-controller demonstrations, reproductions, and comparisons. These
-scripts configure Euclidean or Bregman adaptation, payload conditions, and
-replay trajectories for evaluating adaptive behavior.
-
-Examples:
-
-- `adaptive_demo.m`
-- `adaptive_gain_comparison.m`
-- `adaptive_coriolis_comparison.m`
-- `adaptive_reproduce.m`
-
-## `plot_*`
-
-Plotting and replay-analysis scripts. They load or generate trajectory data
-and produce visualizations; they do not perform gain optimization.
-
-Examples:
-
-- `plot_analytic_trajectories.m`
-- `plot_replay_trajectories.m`
-
-## `optimize_*`
-
-Gain-tuning workflows using MATLAB's Global Optimization Toolbox. The general
-workflow is `optimize_gains.m`, which optimizes the full controller/adaptation
-gain vector for the selected scenarios and writes reports under
-`results/tuning/`.
-
-The Gamma-only workflows reuse completed general-run gains for fixed `Kp`,
-`Kd`, and `lambda` values:
-
-- `optimize_bregmann_gamma_gain.m` optimizes scalar Bregman Gamma.
-- `optimize_euclidean_gamma_gains.m` optimizes the ten Euclidean Gamma values.
-
-The Gamma scripts configure their options through `opt` and delegate the
-workflow internally. By default, the newest matching general-run report is
-selected automatically. See `docs/gain_tuning_data_output.md` for report
-files, search-bound overrides, and direct fixed-gain configuration.
-
-## Common notes
-
-- Use `clearCache = true` when a fresh optimization is required; otherwise a
-  matching incomplete run can resume from its checkpoint.
-- Optimization scripts require Global Optimization Toolbox. Parallel runs
-  also require Parallel Computing Toolbox.
-- Generated simulation and optimization data is written below `results/`,
-  which is intentionally excluded from version control.
+- `run_theory_suite.m` runs nominal, Euclidean, and Bregman variants for both `C1` and `C2` over a 30 s replay segment; each result is saved under `results/<timestamp>/`.
+- `run_batch.m` runs the same matrix with parallel workers by default, saves every successful run, and exports figures after a complete suite. It writes paired comparisons to `results/<timestamp>/comparisons/{nominal,euclidean,bregman,euclidean_v_bregman,performance}/` and standalone diagnostics beside each `run.mat` at `results/<timestamp>/<mode>_<coriolis>/figures/`.
+- `optimize_gains.m` uses Global Optimization Toolbox to tune all controller gains and promotes each winner into `config/optimized_gains.m`. Set either selector to `''` for all supported values, or pass a cell array such as `{'bregman','euclidean'}`.
+- `replay_run.m` visualizes a saved result and can export an MP4.
+- `plot_trajectories.m` plots one recorded artifact from `trajectories/processed/`; it does not run a simulation.
+- `generate_paper_figures.m` re-exports the paired comparisons and every standalone diagnostic from one saved suite, or the newest complete suite when given `results`.
