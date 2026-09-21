@@ -1,0 +1,148 @@
+"""Replay a saved simulation run in PyBullet 3D GUI with advanced visualization."""
+
+import sys
+import time
+from pathlib import Path
+import numpy as np
+import pybullet as p
+import pybullet_data
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from agc.io.persistence import load_run
+from agc.math.se3 import rotm_to_quat
+from agc.plant.suppress import suppress_c_stdout
+
+
+def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
+    """Replay saved run poses in interactive PyBullet GUI with full multicopter visuals."""
+    run = load_run(run_dir)
+    t = run["t"]
+    H_actual = run["H"]
+    H_desired = run["Hdesired"]
+    n = len(t)
+    dt_step = (t[frame_stride] - t[0]) if n > frame_stride else 0.01
+
+    client_id = p.connect(p.GUI)
+    p.setAdditionalSearchPath(pybullet_data.getDataPath())
+    p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+    p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
+
+    ground_z = -1.5
+    with suppress_c_stdout():
+        p.loadURDF("plane.urdf", [0, 0, ground_z])
+
+    # Draw coordinate ground grid
+    size = 8.0
+    step = 1.0
+    coords = np.arange(-size, size + step * 0.5, step)
+    for x in coords:
+        p.addUserDebugLine([float(x), -size, ground_z], [float(x), size, ground_z], [0.35, 0.38, 0.42], 1.0)
+    for y in coords:
+        p.addUserDebugLine([-size, float(y), ground_z], [size, float(y), ground_z], [0.35, 0.38, 0.42], 1.0)
+
+    # Load high-detail multicopter URDF
+    urdf_path = str(REPO_ROOT / "assets" / "hexacopter.urdf")
+    with suppress_c_stdout():
+        uav = p.loadURDF(urdf_path, [0, 0, 0], [0, 0, 0, 1], flags=p.URDF_MERGE_FIXED_LINKS)
+
+    # Attach local body triad (Red=X forward, Green=Y left, Blue=Z up)
+    p.addUserDebugLine([0, 0, 0], [0.35, 0, 0], [1.0, 0.1, 0.1], 3.0, parentObjectUniqueId=uav)
+    p.addUserDebugLine([0, 0, 0], [0, 0.35, 0], [0.1, 0.95, 0.2], 3.0, parentObjectUniqueId=uav)
+    p.addUserDebugLine([0, 0, 0], [0, 0, 0.35], [0.15, 0.45, 1.0], 3.0, parentObjectUniqueId=uav)
+
+    # Pre-render desired reference trajectory in sky-cyan
+    des_pts = H_desired[:, 0:3, 3]
+    for i in range(0, len(des_pts) - 10, 10):
+        p.addUserDebugLine(des_pts[i].tolist(), des_pts[i + 10].tolist(), [0.1, 0.75, 1.0], lineWidth=2.5)
+
+    print("=" * 60)
+    print(f"Replaying {run_dir} in PyBullet 3D GUI at {playback_speed:.1f}x speed.")
+    print("Use mouse left-click/drag to orbit, right-click/drag to pan, scroll to zoom.")
+    print("Press Ctrl+C in terminal to stop.")
+    print("=" * 60)
+
+    cam_target = np.array(H_actual[0, 0:3, 3], dtype=float)
+    prev_trail_pos = None
+    drop_line_id = None
+    hud_id = None
+
+    t_wall_start = time.perf_counter()
+
+    try:
+        for k in range(0, n, frame_stride):
+            curr_t = float(t[k])
+            pos = H_actual[k, 0:3, 3]
+            R = H_actual[k, 0:3, 0:3]
+            quat = rotm_to_quat(R).tolist()
+            pos_list = pos.tolist()
+
+            p.resetBasePositionAndOrientation(uav, pos_list, quat)
+
+            # Smooth camera tracking (preserves user mouse orbit/zoom)
+            alpha = 0.08
+            cam_target = (1.0 - alpha) * cam_target + alpha * pos
+            cam_info = p.getDebugVisualizerCamera()
+            if cam_info is not None and len(cam_info) >= 11:
+                u_yaw, u_pitch, u_dist = cam_info[8], cam_info[9], cam_info[10]
+            else:
+                u_yaw, u_pitch, u_dist = 45.0, -25.0, 2.8
+
+            p.resetDebugVisualizerCamera(
+                cameraDistance=u_dist,
+                cameraYaw=u_yaw,
+                cameraPitch=u_pitch,
+                cameraTargetPosition=cam_target.tolist(),
+            )
+
+            # Flown trajectory trail (amber/gold, decimated)
+            if prev_trail_pos is None:
+                prev_trail_pos = pos
+            elif np.linalg.norm(pos - prev_trail_pos) >= 0.03:
+                p.addUserDebugLine(prev_trail_pos.tolist(), pos_list, [1.0, 0.78, 0.15], lineWidth=2.0)
+                prev_trail_pos = pos
+
+            # Ground drop shadow line
+            drop_line_id = p.addUserDebugLine(
+                pos_list,
+                [pos[0], pos[1], ground_z],
+                [0.3, 0.3, 0.3],
+                lineWidth=1.0,
+                replaceItemUniqueId=drop_line_id if drop_line_id is not None else -1,
+            )
+
+            # HUD overlay
+            if k % (frame_stride * 5) == 0:
+                pos_err = np.linalg.norm(pos - H_desired[k, 0:3, 3])
+                hud_text = f"T = {curr_t:5.2f}s | Speed: {playback_speed:.1f}x\n||e_p|| = {pos_err:.3f} m"
+                hud_id = p.addUserDebugText(
+                    hud_text,
+                    [pos[0], pos[1], pos[2] + 0.45],
+                    textColorRGB=[1.0, 1.0, 0.3],
+                    textSize=1.1,
+                    replaceItemUniqueId=hud_id if hud_id is not None else -1,
+                )
+
+            # Wall-clock pacing
+            t_target = curr_t / playback_speed
+            t_elapsed = time.perf_counter() - t_wall_start
+            sleep_dt = t_target - t_elapsed
+            if sleep_dt > 0.001:
+                time.sleep(sleep_dt)
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        p.disconnect()
+
+
+if __name__ == "__main__":
+    run_dir = str(REPO_ROOT / "results" / "pybullet" / "bregman_c1")
+    speed = 1.0
+    if len(sys.argv) > 1:
+        run_dir = sys.argv[1]
+    if len(sys.argv) > 2:
+        speed = float(sys.argv[2])
+    replay_3d(run_dir, playback_speed=speed)

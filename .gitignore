@@ -7,3 +7,7 @@ opencode.jsonc
 trajectories/archive/
 trajectories/autonomous/
 trajectories/piloted/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/

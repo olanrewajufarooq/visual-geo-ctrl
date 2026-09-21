@@ -1,0 +1,16 @@
+name: agc
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - pybullet
+  - pip:
+      - numpy==1.26.0
+      - opencv-python==4.10.0.82
+      - pillow==11.3.0
+      - pygame==2.6.1
+      - scipy
+      - matplotlib
+      - pytest

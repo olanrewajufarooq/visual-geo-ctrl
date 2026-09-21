@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agc"
+version = "0.1.0"
+description = "Adaptive Geometric Control on SE(3) in Python and PyBullet"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26.0",
+    "scipy>=1.12.0",
+    "matplotlib>=3.8.0",
+    "pybullet>=3.2.5",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
