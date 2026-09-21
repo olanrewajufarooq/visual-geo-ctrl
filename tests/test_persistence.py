@@ -13,13 +13,23 @@ from agc.io.persistence import (
     load_run,
     save_batch_suite,
     resolve_result_suite,
+    default_simulation_results_root,
     default_results_root,
     save_best_gain,
     load_best_gain,
 )
 
 
-def test_default_result_roots_use_best_gain_inplace_and_timestamped_layouts():
+def test_default_simulation_result_roots_use_inplace_and_timestamped_layouts():
+    repo_root = "/repo"
+    assert default_simulation_results_root(repo_root) == Path(repo_root) / "results" / "inplace"
+    assert default_simulation_results_root(repo_root, inplace_save=True) == Path(repo_root) / "results" / "inplace"
+    assert default_simulation_results_root(repo_root, inplace_save=False, timestamp="20260922_143000") == (
+        Path(repo_root) / "results" / "timestamped" / "20260922_143000"
+    )
+
+
+def test_default_optimization_result_roots_use_best_gain_inplace_and_timestamped_layouts():
     repo_root = "/repo"
 
     assert default_results_root(repo_root) == Path(repo_root) / "results" / "optimization" / "best-gain"

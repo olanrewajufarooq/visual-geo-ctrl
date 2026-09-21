@@ -1,6 +1,6 @@
 # Simulation Outputs
 
-Simulation runs and batch comparison suites write structured results under `results/inplace/` by default, or `results/timestamped/<timestamp>/` when `--timestamped-save` is used.
+Simulation runs and batch comparison suites write structured results under `results/inplace/` by default, or `results/timestamped/<timestamp>/` when `--timestamped-save` is used. Gain optimization checkpoints use the separate `results/optimization/best-gain/` and `results/optimization/timestamped/<timestamp>/` trees.
 
 ## Directory Hierarchy
 

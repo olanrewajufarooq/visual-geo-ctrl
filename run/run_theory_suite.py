@@ -13,7 +13,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from agc.sim.default_scenario import default_scenario
 from agc.sim.run_scenario import run_scenario
 from agc.sim.metrics import compute_metrics
-from agc.io.persistence import save_run, default_results_root
+from agc.io.persistence import save_run, default_simulation_results_root
 from agc.viz.paper_figures import export_run_figures
 
 
@@ -64,7 +64,7 @@ def main():
     if args.output_dir is not None:
         results_dir = Path(args.output_dir)
     else:
-        results_dir = default_results_root(
+        results_dir = default_simulation_results_root(
             str(REPO_ROOT), inplace_save=args.inplace_save
         ) / f"{args.mode}_{args.coriolis}"
     os.makedirs(results_dir, exist_ok=True)
@@ -94,7 +94,7 @@ def main():
     else:
         print(f"\nSimulation Failed at t = {failure['time']:.3f} s: {failure['message']}")
         metrics = {"failed_time": failure["time"]}
-        save_run(str(results_dir), run, metrics, scenario)
+        save_run(str(results_dir), run, metrics, scenario, failure=failure)
 
 
 if __name__ == "__main__":

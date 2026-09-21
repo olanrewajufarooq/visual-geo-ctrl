@@ -13,12 +13,25 @@ def default_results_root(
     inplace_save: bool = True,
     timestamp: Optional[str] = None,
 ) -> Path:
-    """Return the optimizer result root for in-place or timestamped output."""
+    """Return the optimization result root for in-place or timestamped output."""
     root = Path(repository_root) if repository_root is not None else Path(__file__).resolve().parent.parent.parent.parent
     if inplace_save:
         return root / "results" / "optimization" / "best-gain"
     stamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
     return root / "results" / "optimization" / "timestamped" / stamp
+
+
+def default_simulation_results_root(
+    repository_root: Optional[str] = None,
+    inplace_save: bool = True,
+    timestamp: Optional[str] = None,
+) -> Path:
+    """Return the simulation result root for in-place or timestamped output."""
+    root = Path(repository_root) if repository_root is not None else Path(__file__).resolve().parent.parent.parent.parent
+    if inplace_save:
+        return root / "results" / "inplace"
+    stamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+    return root / "results" / "timestamped" / stamp
 
 
 def save_best_gain(
@@ -211,8 +224,8 @@ def save_batch_suite(
 def resolve_result_suite(path: Optional[str] = None) -> Path:
     """Resolve a results directory or latest suite directory containing manifest.json or run.npz."""
     root = Path(__file__).resolve().parent.parent.parent.parent
-    timestamped_results = root / "results" / "optimization" / "timestamped"
-    inplace_results = root / "results" / "optimization" / "best-gain"
+    timestamped_results = root / "results" / "timestamped"
+    inplace_results = root / "results" / "inplace"
 
     if path:
         p = Path(path)

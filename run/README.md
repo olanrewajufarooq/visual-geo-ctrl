@@ -88,7 +88,7 @@ python run/optimize_gains.py --mode euclidean --coriolis c2 --method de --polish
 - `--no-parallel`: Disable multi-core particle evaluations.
 - `--no-promote`: Do not update the gain registries if incumbent improves.
 - `--output-dir`: Custom output directory for checkpoints and logs.
-- `--timestamped-save`: Save checkpoints under `results/timestamped/<timestamp>/optimization/` instead of the default in-place directory.
+- `--timestamped-save`: Save checkpoints under `results/optimization/timestamped/<timestamp>/` instead of the default in-place directory.
 
 ---
 

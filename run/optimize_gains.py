@@ -103,13 +103,13 @@ def main():
         dest="inplace_save",
         action="store_true",
         default=True,
-        help="Save optimization checkpoints under results/inplace (default)",
+        help="Save optimization checkpoints under results/optimization/best-gain (default)",
     )
     parser.add_argument(
         "--timestamped-save",
         dest="inplace_save",
         action="store_false",
-        help="Save optimization checkpoints under results/timestamped/<timestamp>",
+        help="Save optimization checkpoints under results/optimization/timestamped/<timestamp>",
     )
     args = parser.parse_args()
 
