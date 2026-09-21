@@ -12,10 +12,19 @@ classdef TestOptimization < matlab.unittest.TestCase
             weights = agc.opt.objectiveWeights();
             options = agc.opt.optimizationOptions(struct());
 
-            testCase.verifyEqual(weights, struct('position', 1, 'attitude', 1, ...
-                'linVel', 1, 'angVel', 1, 'effort', 0.01, ...
-                'estimation', 0.1, 'failure', 1e6));
+            testCase.verifyEqual(weights, struct('position', 2, 'attitude', 2, ...
+                'mass', 2.5, 'cog', 2.5, 'linVel', 0.5, 'angVel', 0.5, 'inertia', 1.5, ...
+                'effort', 0.01, 'failure', 1e6));
             testCase.verifyEqual(options.weights, weights);
+        end
+
+        function optimizerUsesExplicitPhysicalErrorScales(testCase)
+            scales = agc.opt.objectiveScales();
+
+            testCase.verifyEqual(scales, struct('position', 0.05, 'attitude', 0.05, ...
+                'mass', 0.05, 'cog', 0.01, 'linVel', 0.20, 'angVel', 0.50, ...
+                'inertia', 0.05, 'effort', 50));
+            testCase.verifyEqual(agc.opt.optimizationOptions(struct()).scales, scales);
         end
 
         function suppliedConvergenceSettingsOverrideDefaults(testCase)

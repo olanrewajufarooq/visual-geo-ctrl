@@ -33,16 +33,33 @@ classdef TestWorkflow < matlab.unittest.TestCase
             testCase.verifyFalse(detail.batch.parallel);
         end
 
-        function objectiveCanWeightNormalizedParameterEstimationRmse(testCase)
+        function objectiveCanWeightSeparateMassAndInertiaEstimation(testCase)
             scenario = makeScenario();
             scenario.initialEstimate(1) = 1.1 * scenario.plantPi(1);
             weights = struct('position', 0, 'attitude', 0, 'linVel', 0, ...
-                'angVel', 0, 'effort', 0, 'estimation', 1, 'failure', 1e6);
+                'angVel', 0, 'effort', 0, 'mass', 1, 'cog', 0, 'inertia', 2, 'failure', 1e6);
 
             [cost, detail] = agc.opt.objective(0, {scenario}, @(~, base) base, weights, false);
 
-            testCase.verifyGreaterThan(detail.batch.metrics{1}.parameterEstimationRMSE, 0);
-            testCase.verifyEqual(cost, detail.batch.metrics{1}.parameterEstimationRMSE, 'AbsTol', 1e-12);
+            metrics = detail.batch.metrics{1};
+            scales = agc.opt.objectiveScales();
+            testCase.verifyEqual(cost, (metrics.massEstimationRMSE / scales.mass)^2 + ...
+                2 * (metrics.inertiaEstimationRMSE / scales.inertia)^2, 'AbsTol', 1e-12);
+        end
+
+        function metricsSplitMassCogAndInertiaEstimation(testCase)
+            run = velocityMetricRun();
+            run.activePlantPi = repmat([2, 0.2, 0, 0, 1, 1, 1, 0, 0, 0], 2, 1);
+            run.estimatePi = repmat([2.2, 0.24, 0, 0, 1.5, 1, 1, 0, 0, 0], 2, 1);
+
+            metrics = agc.sim.metrics(run);
+
+            testCase.verifyEqual(metrics.massEstimationRMSE, 0.1, 'AbsTol', 1e-12);
+            testCase.verifyEqual(metrics.centerOfMassEstimationRMSE, ...
+                abs(0.24 / 2.2 - 0.1) / 0.1, 'AbsTol', 1e-12);
+            testCase.verifyGreaterThan(metrics.massCogEstimationRMSE, 0);
+            testCase.verifyEqual(metrics.inertiaEstimationRMSE, ...
+                0.5 / sqrt(3), 'AbsTol', 1e-12);
         end
 
         function metricsReportSeparateBodyVelocityRmse(testCase)
@@ -58,13 +75,14 @@ classdef TestWorkflow < matlab.unittest.TestCase
             scenario = makeScenario();
             scenario.initial.V = [1; 2; 3; 4; 5; 6];
             weights = struct('position', 0, 'attitude', 0, 'linVel', 1, 'angVel', 2, ...
-                'effort', 0, 'estimation', 0, 'failure', 1e6);
+                'effort', 0, 'mass', 0, 'cog', 0, 'inertia', 0, 'failure', 1e6);
 
             [cost, detail] = agc.opt.objective(0, {scenario}, @(~, base) base, weights, false);
             metrics = detail.batch.metrics{1};
 
-            testCase.verifyEqual(cost, metrics.linearVelocityRMSE + ...
-                2 * metrics.angularVelocityRMSE, 'AbsTol', 1e-12);
+            scales = agc.opt.objectiveScales();
+            testCase.verifyEqual(cost, (metrics.linearVelocityRMSE / scales.linVel)^2 + ...
+                2 * (metrics.angularVelocityRMSE / scales.angVel)^2, 'AbsTol', 1e-12);
         end
 
         function defaultScenarioUsesPreservedReplayArtifact(testCase)
