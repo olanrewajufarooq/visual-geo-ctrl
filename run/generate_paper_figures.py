@@ -15,6 +15,7 @@ from agc.viz.paper_figures import export_run_figures, export_suite_comparison_fi
 def main():
     parser = argparse.ArgumentParser(description="Generate publication figures from simulation results or suite.")
     parser.add_argument("suite_dir", nargs="?", default=None, help="Path to result run or suite directory")
+    parser.add_argument("--show-figures", action="store_true", help="Show generated Matplotlib figures")
     args = parser.parse_args()
 
     try:
@@ -26,9 +27,9 @@ def main():
     print(f"Generating figures for suite: {suite_path}")
 
     # Generate suite-level comparisons if multiple variants exist
-    comp_figs = export_suite_comparison_figures(str(suite_path))
-    for f in comp_figs:
-        print(f"  -> Generated comparison figure: {f}")
+    comp_figs = export_suite_comparison_figures(str(suite_path), visible=args.show_figures)
+    for record in comp_figs:
+        print(f"  -> Generated comparison figure: {record['files']['png']}")
 
     # Generate per-variant figures
     variants = [d for d in suite_path.iterdir() if d.is_dir() and (d / "run.npz").is_file()]
@@ -36,9 +37,9 @@ def main():
         print(f"Generating run figures for {v_dir.name}...")
         try:
             run = load_run(str(v_dir))
-            figs = export_run_figures(run, str(v_dir))
-            for f in figs:
-                print(f"    -> Wrote {Path(f).name}")
+            figs = export_run_figures(run, str(v_dir), visible=args.show_figures)
+            for record in figs:
+                print(f"    -> Wrote {Path(record['files']['png']).name}")
         except Exception as exc:
             print(f"    -> Skipped {v_dir.name}: {exc}")
 
