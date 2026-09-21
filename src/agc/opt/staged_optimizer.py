@@ -159,7 +159,7 @@ def run_staged_optimization(
     promote: bool = True,
     output_dir: Optional[str] = None,
     seed: Optional[int] = None,
-    inplace_save: bool = False,
+    inplace_save: bool = True,
 ) -> Dict[str, Any]:
     """Execute staged block-coordinate optimization for selected scenarios."""
     variants = expand_scenario_selection(mode, coriolis)

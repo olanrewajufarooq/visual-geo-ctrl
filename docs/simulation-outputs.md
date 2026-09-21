@@ -1,6 +1,6 @@
 # Simulation Outputs
 
-Simulation runs and batch comparison suites write structured results under `results/timestamped/<timestamp>/` by default, or `results/inplace/` when `--inplace-save` is used.
+Simulation runs and batch comparison suites write structured results under `results/inplace/` by default, or `results/timestamped/<timestamp>/` when `--timestamped-save` is used.
 
 ## Directory Hierarchy
 

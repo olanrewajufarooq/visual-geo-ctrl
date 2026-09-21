@@ -10,7 +10,7 @@ import numpy as np
 
 def default_results_root(
     repository_root: Optional[str] = None,
-    inplace_save: bool = False,
+    inplace_save: bool = True,
     timestamp: Optional[str] = None,
 ) -> Path:
     """Return the default result root for an in-place or timestamped run."""

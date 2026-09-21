@@ -19,33 +19,33 @@ No images, labels, ROS bags, or quadrotor assets are stored here.
 
 ## Download
 
-From the repository root on Windows:
+Cross-platform download using Python:
 
-```bat
-.\trajectories\download_ratm_trajectories.cmd
+```powershell
+python trajectories/download_ratm_trajectories.py
 ```
 
 To fetch only the autonomous set:
 
-```bat
-.\trajectories\download_ratm_trajectories.cmd autonomous
+```powershell
+python trajectories/download_ratm_trajectories.py autonomous
 ```
 
 To fetch only the piloted set:
 
-```bat
-.\trajectories\download_ratm_trajectories.cmd piloted
+```powershell
+python trajectories/download_ratm_trajectories.py piloted
 ```
 
 If an interrupted run leaves partial files behind, retry with explicit cleanup:
 
-```bat
-.\trajectories\download_ratm_trajectories.cmd autonomous force-clean
+```powershell
+python trajectories/download_ratm_trajectories.py autonomous --force-clean
 ```
 
-The downloader always writes CSVs into `.\trajectories\autonomous` and `.\trajectories\piloted`, and keeps downloaded chunks plus rebuilt ZIPs in `.\trajectories\archive`.
+The downloader always writes CSVs into `trajectories/autonomous` and `trajectories/piloted`, and keeps downloaded chunks plus rebuilt ZIPs in `trajectories/archive`.
 
-The default second argument is `safe`, which reuses cached downloads but refuses to overwrite non-empty target folders.
+The default behavior reuses cached downloads and protects non-empty target folders unless `--force-clean` is passed.
 
 ## Trajectory Datasets & Preprocessing
 

@@ -24,7 +24,19 @@ def main():
     parser.add_argument("--parallel", action="store_true", help="Run scenarios in parallel using worker processes")
     parser.add_argument("--output-dir", type=str, default=None, help="Custom output directory for suite results")
     parser.add_argument("--no-figures", action="store_true", help="Skip figure generation")
-    parser.add_argument("--inplace-save", action="store_true", help="Save under results/inplace instead of a timestamped directory")
+    parser.add_argument(
+        "--inplace-save",
+        dest="inplace_save",
+        action="store_true",
+        default=True,
+        help="Save under results/inplace (default)",
+    )
+    parser.add_argument(
+        "--timestamped-save",
+        dest="inplace_save",
+        action="store_false",
+        help="Save under results/timestamped/<timestamp>",
+    )
     args = parser.parse_args()
 
     # Determine parallelism

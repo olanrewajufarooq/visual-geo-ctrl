@@ -46,7 +46,7 @@ python run/run_theory_suite.py --mode bregman --coriolis c1 --duration 30 --save
 ```
 
 The results and figures will be saved in `results/timestamped/<timestamp>/bregman_c1/`.
-Use `--inplace-save` to save under `results/inplace/bregman_c1/` instead.
+Use `--timestamped-save` to save under `results/timestamped/<timestamp>/bregman_c1/` instead.
 
 ---
 

@@ -1,4 +1,6 @@
-"""Optimized per-scenario gain registry."""
+"""Optimized per-scenario gain registry.
+Last promotion: 2026-09-22 00:30:47 (Stage: tracking, Cost: 2755.28)
+"""
 
 import numpy as np
 
@@ -8,13 +10,13 @@ def optimized_gains(mode: str, coriolis: str) -> dict:
     key = f"{mode.lower()}_{coriolis.lower()}"
     registry = {
         "nominal_c1": {
-            "KRdiag": np.array([2.006, 0.3173, 3.523]),
-            "Kxidiag": np.array([25.06, 6.507, 7.744]),
-            "LambdaDiag": np.array([7.061, 8.789, 2.883, 0.1834, 3.764, 2.272]),
-            "kd": 0.7041,
-            "ks": 13.84,
-            "alpha": 0.8554,
-            "gammaE": 0.001 * np.ones(10),
+            "KRdiag": np.array([7.621, 7.179, 1.906]),
+            "Kxidiag": np.array([61.84, 75.45, 61.86]),
+            "LambdaDiag": np.array([18.39, 8.303, 5.287, 0.1113, 0.1694, 0.1828]),
+            "kd": 3.42,
+            "ks": 24.27,
+            "alpha": 0.8038,
+            "gammaE": np.array([0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]),
             "gammaB": 0.001,
         },
         "nominal_c2": {
@@ -24,7 +26,7 @@ def optimized_gains(mode: str, coriolis: str) -> dict:
             "kd": 24.6,
             "ks": 1.651,
             "alpha": 0.1439,
-            "gammaE": 0.001 * np.ones(10),
+            "gammaE": np.array([0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]),
             "gammaB": 0.001,
         },
         "euclidean_c1": {
@@ -34,17 +36,17 @@ def optimized_gains(mode: str, coriolis: str) -> dict:
             "kd": 6.38,
             "ks": 13.01,
             "alpha": 0.5104,
-            "gammaE": np.array([1.0, 0.3032, 0.2151, 0.1401, 1e-05, 1.046e-05, 0.03055, 1.319e-05, 0.001107, 0.001085]),
+            "gammaE": np.array([1.0, 0.3032, 0.2151, 0.1401, 1e-05, 1e-05, 0.03055, 1.3e-05, 0.001107, 0.001085]),
             "gammaB": 0.001,
         },
         "euclidean_c2": {
             "KRdiag": np.array([4.0, 5.0, 6.0]),
             "Kxidiag": np.array([3.0, 3.0, 4.0]),
             "LambdaDiag": np.array([2.0, 2.0, 2.0, 2.0, 2.0, 2.0]),
-            "kd": 1.0,
+            "kd": 1,
             "ks": 0.5,
             "alpha": 0.5,
-            "gammaE": 0.001 * np.ones(10),
+            "gammaE": np.array([0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]),
             "gammaB": 0.001,
         },
         "bregman_c1": {
@@ -54,7 +56,7 @@ def optimized_gains(mode: str, coriolis: str) -> dict:
             "kd": 6.108,
             "ks": 12.93,
             "alpha": 0.4534,
-            "gammaE": 0.001 * np.ones(10),
+            "gammaE": np.array([0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]),
             "gammaB": 0.09003,
         },
         "bregman_c2": {
@@ -64,11 +66,10 @@ def optimized_gains(mode: str, coriolis: str) -> dict:
             "kd": 16.66,
             "ks": 0.001917,
             "alpha": 0.1386,
-            "gammaE": 0.001 * np.ones(10),
+            "gammaE": np.array([0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]),
             "gammaB": 0.08016,
         },
     }
-
     if key not in registry:
-        raise KeyError(f"Unknown scenario key: '{key}'.")
+        raise ValueError(f"Unknown mode/coriolis combination: {mode}/{coriolis}")
     return registry[key]

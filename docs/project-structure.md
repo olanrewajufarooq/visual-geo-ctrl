@@ -99,6 +99,7 @@ adaptive-geo-ctrl-pybullet/
 |   |-- test_validation.py
 |   `-- test_workflow.py
 |-- trajectories/
+|   |-- download_ratm_trajectories.py
 |   |-- process_trajectories.py
 |   |-- processed/
 |   |   |-- ellipse_01_auto.npz

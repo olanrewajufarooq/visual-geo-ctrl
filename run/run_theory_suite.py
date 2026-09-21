@@ -28,7 +28,19 @@ def main():
     parser.add_argument("--no-pacing", action="store_true", help="Disable wall-clock real-time pacing")
     parser.add_argument("--save-figures", action="store_true", default=True, help="Export paper figures")
     parser.add_argument("--output-dir", type=str, default=None, help="Custom output directory")
-    parser.add_argument("--inplace-save", action="store_true", help="Save under results/inplace instead of a timestamped directory")
+    parser.add_argument(
+        "--inplace-save",
+        dest="inplace_save",
+        action="store_true",
+        default=True,
+        help="Save under results/inplace (default)",
+    )
+    parser.add_argument(
+        "--timestamped-save",
+        dest="inplace_save",
+        action="store_false",
+        help="Save under results/timestamped/<timestamp>",
+    )
     args = parser.parse_args()
 
     print("=" * 60)

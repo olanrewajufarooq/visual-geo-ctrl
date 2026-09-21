@@ -36,7 +36,7 @@ python run/run_theory_suite.py --mode bregman --coriolis c1 --save-figures
 - `--no-pacing`: Run as fast as possible without real-time wall-clock sleep.
 - `--save-figures`: Generate and save tracking/estimation figures.
 - `--output-dir`: Custom output directory.
-- `--inplace-save`: Save under `results/inplace/<mode>_<coriolis>/` instead of a timestamped directory.
+- `--timestamped-save`: Save under `results/timestamped/<timestamp>/<mode>_<coriolis>/` instead of the default in-place directory.
 
 ---
 
@@ -57,7 +57,7 @@ python run/run_batch.py --serial --duration 10.0
 - `--serial`: Execute scenarios sequentially in a single process.
 - `--parallel`: Execute scenarios across multi-core worker processes (default).
 - `--output-dir`: Custom output directory for the suite.
-- `--inplace-save`: Save under `results/inplace/` instead of a timestamped directory.
+- `--timestamped-save`: Save under `results/timestamped/<timestamp>/` instead of the default in-place directory.
 - `--no-figures`: Skip figure generation.
 
 ---
@@ -88,7 +88,7 @@ python run/optimize_gains.py --mode euclidean --coriolis c2 --method de --polish
 - `--no-parallel`: Disable multi-core particle evaluations.
 - `--no-promote`: Do not update the gain registries if incumbent improves.
 - `--output-dir`: Custom output directory for checkpoints and logs.
-- `--inplace-save`: Save checkpoints under `results/inplace/optimization/` instead of a timestamped directory.
+- `--timestamped-save`: Save checkpoints under `results/timestamped/<timestamp>/optimization/` instead of the default in-place directory.
 
 ---
 

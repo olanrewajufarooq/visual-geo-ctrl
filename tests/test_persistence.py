@@ -20,8 +20,9 @@ from agc.io.persistence import (
 def test_default_result_roots_split_inplace_and_timestamped_layouts():
     repo_root = "/repo"
 
+    assert default_results_root(repo_root) == Path(repo_root) / "results" / "inplace"
     assert default_results_root(repo_root, inplace_save=True) == Path(repo_root) / "results" / "inplace"
-    assert default_results_root(repo_root, timestamp="20260922_143000") == (
+    assert default_results_root(repo_root, inplace_save=False, timestamp="20260922_143000") == (
         Path(repo_root) / "results" / "timestamped" / "20260922_143000"
     )
 

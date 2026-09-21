@@ -12,7 +12,7 @@ This is a paper-aligned Python/PyBullet simulator for a fully actuated UAV on `S
 - Pure numerical modules (`agc.math`, `agc.paper`, `agc.opt.bounds`) must remain importable without PyBullet.
 - Keep controller equations in `agc.paper`; `C1(V)U` is `-ad(U)'*(I*V)`.
 - Add a failing pytest unit test before production behavior changes.
-- Preserve `trajectories/` and `assets/`; normal results are saved to `results/timestamped/<timestamp>/`, or `results/inplace/` with `--inplace-save`.
+- Preserve `trajectories/` and `assets/`; normal results are saved to `results/inplace/` by default, or `results/timestamped/<timestamp>/` with `--timestamped-save`.
 - No Python code reads or writes `.m` files; gain promotion updates `config/optimized_gains.py`.
 
 ## Commands

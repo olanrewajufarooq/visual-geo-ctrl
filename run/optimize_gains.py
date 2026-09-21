@@ -100,8 +100,16 @@ def main():
     )
     parser.add_argument(
         "--inplace-save",
+        dest="inplace_save",
         action="store_true",
-        help="Save optimization checkpoints under results/inplace instead of a timestamped directory",
+        default=True,
+        help="Save optimization checkpoints under results/inplace (default)",
+    )
+    parser.add_argument(
+        "--timestamped-save",
+        dest="inplace_save",
+        action="store_false",
+        help="Save optimization checkpoints under results/timestamped/<timestamp>",
     )
     args = parser.parse_args()
 
