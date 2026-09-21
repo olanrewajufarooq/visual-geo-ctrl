@@ -13,7 +13,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from agc.sim.default_scenario import default_scenario
 from agc.batch.run_batch import run_batch
 from agc.io.persistence import save_batch_suite
-from agc.viz.paper_figures import export_run_figures
+from agc.viz.paper_figures import export_run_figures, export_suite_comparison_figures
 
 
 def main():
@@ -92,6 +92,11 @@ def main():
                 export_run_figures(run, str(latest_base / name))
         else:
             print(f"{name:15s} | FAILED at t = {failure['time']:.3f} s: {failure['message']}")
+
+    if not args.no_figures:
+        print("\nExporting suite-level comparison figures...")
+        export_suite_comparison_figures(str(suite_dir))
+        export_suite_comparison_figures(str(latest_base))
 
 
 if __name__ == "__main__":
