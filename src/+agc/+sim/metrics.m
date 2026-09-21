@@ -12,6 +12,9 @@ end
 metrics = struct();
 metrics.positionRMSE = sqrt(mean(sum(positionError.^2, 2)));
 metrics.attitudeRMSE = sqrt(mean(attitudeError.^2));
+velocityError = run.V - run.Vdesired;
+metrics.angularVelocityRMSE = sqrt(mean(sum(velocityError(:,1:3).^2, 2)));
+metrics.linearVelocityRMSE = sqrt(mean(sum(velocityError(:,4:6).^2, 2)));
 metrics.maxPositionError = max(vecnorm(positionError, 2, 2));
 metrics.wrenchRMS = sqrt(mean(sum(run.wrench.^2, 2)));
 % Use one initial true-parameter scale so all ten inertial coordinates enter

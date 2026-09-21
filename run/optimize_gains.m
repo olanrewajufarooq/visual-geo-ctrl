@@ -19,11 +19,11 @@ useParallel = true;
 
 swarmSize = 50;
 
-maxIterations = 100;
+maxIterations = 20;
 
 functionTolerance = 1e-3;
 
-maxStallIterations = 25;
+maxStallIterations = 10;
 
 promoteBest = true;
 
@@ -33,8 +33,7 @@ startup;
 
 variants = agc.opt.expandScenarioSelection(mode, coriolis);
 
-weights = struct('position', 1, 'attitude', 1, 'effort', 1e-3, ...
-    'estimation', 0.1, 'failure', 1e6);
+weights = agc.opt.objectiveWeights();
 
 root = agc.io.repositoryRoot();
 

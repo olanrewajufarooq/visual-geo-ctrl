@@ -36,17 +36,20 @@ classdef TestVisualization < matlab.unittest.TestCase
             testCase.verifyTrue(all(ismember(diagnostics, names)));
 
             nominalDiagnostic = output(names == "nominal_c1_position");
-            testCase.verifyEqual(nominalDiagnostic.directory, ...
-                fullfile(suiteDirectory, 'nominal_c1', 'figures'));
+            testCase.verifyEqual(string({nominalDiagnostic.directory}), [ ...
+                string(fullfile(suiteDirectory, 'nominal_c1', 'figures', 'total-sim')), ...
+                string(fullfile(suiteDirectory, 'nominal_c1', 'figures', 'from-drop'))]);
             comparison = output(names == "nominal_position_error_c1_c2");
-            testCase.verifyEqual(comparison.directory, ...
-                fullfile(suiteDirectory, 'comparisons', 'nominal'));
+            testCase.verifyEqual(string({comparison.directory}), [ ...
+                string(fullfile(suiteDirectory, 'comparisons', 'total-sim', 'nominal')), ...
+                string(fullfile(suiteDirectory, 'comparisons', 'from-drop', 'nominal'))]);
             adaptiveComparison = output(names == "euclidean_vs_bregman_position_error_c1");
-            testCase.verifyEqual(adaptiveComparison.directory, ...
-                fullfile(suiteDirectory, 'comparisons', 'euclidean_v_bregman'));
+            testCase.verifyEqual(string({adaptiveComparison.directory}), [ ...
+                string(fullfile(suiteDirectory, 'comparisons', 'total-sim', 'euclidean_v_bregman')), ...
+                string(fullfile(suiteDirectory, 'comparisons', 'from-drop', 'euclidean_v_bregman'))]);
             performance = output(names == "performance_position_rmse");
             testCase.verifyEqual(performance.directory, ...
-                fullfile(suiteDirectory, 'comparisons', 'performance'));
+                fullfile(suiteDirectory, 'comparisons', 'total-sim', 'performance'));
 
             for item = output
                 testCase.verifyTrue(isfile(item.files.png));
@@ -75,6 +78,25 @@ classdef TestVisualization < matlab.unittest.TestCase
             testCase.verifyFalse(any(contains(names, "_c1_c2")));
         end
 
+        function paperFiguresExportFinitePrefixFromFailedRun(testCase)
+            suiteDirectory = tempname;
+            cleanup = onCleanup(@() removeDirectory(suiteDirectory)); %#ok<NASGU>
+            resultDirectory = fullfile(suiteDirectory, 'nominal_c2');
+            [scenario, run, metrics] = fixture('nominal', 'c2');
+            run = truncateRun(run, 2);
+            failure = struct('identifier', 'agc:test:failure', 'message', 'failed after release');
+            agc.io.saveRun(resultDirectory, scenario, run, metrics, failure);
+
+            output = agc.viz.paperFigures(suiteDirectory, ...
+                struct('visible', false, 'exportComparisons', false));
+            names = string({output.name});
+            position = output(names == "nominal_c2_position");
+
+            testCase.verifyEqual(string({position.directory}), [ ...
+                string(fullfile(resultDirectory, 'figures', 'total-sim')), ...
+                string(fullfile(resultDirectory, 'figures', 'from-drop'))]);
+        end
+
         function paperFiguresCanPreserveExistingComparisonDirectory(testCase)
             suiteDirectory = tempname;
             cleanup = onCleanup(@() removeDirectory(suiteDirectory)); %#ok<NASGU>
@@ -92,6 +114,26 @@ classdef TestVisualization < matlab.unittest.TestCase
             testCase.verifyTrue(isfile(comparisonFile));
             testCase.verifyTrue(any(string({output.name}) == "nominal_c2_position"));
             testCase.verifyFalse(any(contains(string({output.directory}), "comparisons")));
+        end
+
+        function traceHelpersBoundContinuousSamplesAndPreserveZohChanges(testCase)
+            time = (0:0.002:30).';
+            signal = [sin(time), cos(time)];
+            wrench = zeros(numel(time), 1);
+            wrench(time >= 10) = 2;
+            wrench(time >= 20) = -1;
+
+            [sampleTime, sampleSignal] = agc.viz.decimateTrace(time, signal, 2000);
+            [stepTime, stepWrench] = agc.viz.zohTrace(time, wrench);
+            logSignal = agc.viz.logTrace([1; 0; 1e-14; -1]);
+
+            testCase.verifyLessThanOrEqual(numel(sampleTime), 2000);
+            testCase.verifyEqual(sampleTime([1, end]), time([1, end]));
+            testCase.verifyEqual(sampleSignal([1, end],:), signal([1, end],:));
+            testCase.verifyEqual(stepTime, [0; 10; 20; 30], 'AbsTol', 1e-12);
+            testCase.verifyEqual(stepWrench, [0; 2; -1; -1]);
+            testCase.verifyTrue(isnan(logSignal(2)));
+            testCase.verifyTrue(isnan(logSignal(4)));
         end
     end
 end
@@ -128,6 +170,21 @@ end
 
 function value = ternary(condition, trueValue, falseValue)
 if condition, value = trueValue; else, value = falseValue; end
+end
+
+function run = truncateRun(run, count)
+run.t = run.t(1:count);
+run.H = run.H(:,:,1:count);
+run.V = run.V(1:count,:);
+run.Hdesired = run.Hdesired(:,:,1:count);
+run.Vdesired = run.Vdesired(1:count,:);
+run.wrench = run.wrench(1:count,:);
+run.s = run.s(1:count,:);
+run.Psi = run.Psi(1:count);
+run.Vs = run.Vs(1:count);
+run.estimatePi = run.estimatePi(1:count,:);
+run.activePlantPi = run.activePlantPi(1:count,:);
+run.minPseudoEigenvalue = run.minPseudoEigenvalue(1:count);
 end
 
 function removeDirectory(directory)

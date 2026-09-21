@@ -1,21 +1,27 @@
 classdef TestBatchPersistence < matlab.unittest.TestCase
     methods (Test)
-        function savesEverySuccessfulVariantInNamedDirectories(testCase)
+        function savesSuccessfulRunsAndFailedFinitePrefixesInNamedDirectories(testCase)
             suiteDirectory = tempname;
             cleanup = onCleanup(@() removeDirectory(suiteDirectory)); %#ok<NASGU>
             scenarios = {fixture('nominal', 'c1'), fixture('bregman', 'c2')};
             batch = struct('runs', {{struct('id', 1), struct('id', 2)}}, ...
                 'metrics', {{struct('cost', 3), struct('cost', 4)}}, ...
-                'failures', {{[], struct('message', 'failed')}});
+                'failures', {{[], struct('identifier', 'agc:test:failure', 'message', 'failed')}});
 
             saved = agc.io.saveBatchSuite(suiteDirectory, scenarios, batch);
 
             testCase.verifyEqual(string({saved.name}), ["nominal_c1", "bregman_c2"]);
             testCase.verifyTrue(saved(1).saved);
-            testCase.verifyFalse(saved(2).saved);
+            testCase.verifyTrue(saved(1).successful);
+            testCase.verifyTrue(saved(2).saved);
+            testCase.verifyFalse(saved(2).successful);
             testCase.verifyTrue(isfile(fullfile(suiteDirectory, 'nominal_c1', 'run.mat')));
+            testCase.verifyTrue(isfile(fullfile(suiteDirectory, 'bregman_c2', 'run.mat')));
             payload = agc.io.loadRun(fullfile(suiteDirectory, 'nominal_c1'));
             testCase.verifyEqual(payload.run.id, 1);
+            failedPayload = agc.io.loadRun(fullfile(suiteDirectory, 'bregman_c2'));
+            testCase.verifyEqual(failedPayload.run.id, 2);
+            testCase.verifyEqual(failedPayload.failure.identifier, 'agc:test:failure');
         end
 
         function resolvesNewestCompleteSuiteBelowResultsRoot(testCase)

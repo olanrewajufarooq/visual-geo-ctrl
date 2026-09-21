@@ -18,7 +18,10 @@ for k = 1:numel(batch.metrics)
     if isempty(batch.failures{k})
         m = batch.metrics{k};
         cost = cost + weights.position * m.positionRMSE + ...
-            weights.attitude * m.attitudeRMSE + weights.effort * m.wrenchRMS + ...
+            weights.attitude * m.attitudeRMSE + ...
+            weights.linVel * m.linearVelocityRMSE + ...
+            weights.angVel * m.angularVelocityRMSE + ...
+            weights.effort * m.wrenchRMS + ...
             weights.estimation * m.parameterEstimationRMSE;
         valid = valid + 1;
     else
@@ -33,7 +36,7 @@ end
 
 function weights = defaults(weights)
 %DEFAULTS Fill omitted objective weights without overriding user choices.
-fallback = struct('position', 1, 'attitude', 1, 'effort', 0.01, 'estimation', 0.1, 'failure', 1e6);
+fallback = agc.opt.objectiveWeights();
 names = fieldnames(fallback);
 for k = 1:numel(names)
     if ~isfield(weights, names{k}), weights.(names{k}) = fallback.(names{k}); end

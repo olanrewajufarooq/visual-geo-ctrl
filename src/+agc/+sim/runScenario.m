@@ -1,8 +1,11 @@
-function run = runScenario(scenario)
+function [run, failure] = runScenario(scenario)
 %RUNSCENARIO Run one deterministic, multi-rate closed-loop simulation.
 %
 % Controller, estimator, and Robotics plant use explicit fixed rates. The
 % controller wrench is zero-order-held between controller sample instants.
+% With two outputs, a runtime failure returns the finite logged prefix and
+% its metadata. With one output, runtime failures retain legacy behavior and
+% are rethrown to the caller.
 
 %% Scenario contract and Robotics Toolbox plant
 
@@ -27,40 +30,72 @@ controlEvery = round(scenario.dtControl / scenario.dtPlant);
 adaptEvery = round(scenario.dtAdaptation / scenario.dtPlant);
 lastWrench = zeros(6,1);
 lastDiagnostics = emptyDiagnostics();
+loggedSteps = 0;
+failureTime = 0;
 
 %% Fixed-step plant loop
-for k = 1:n
-    t = run.t(k);
-    desired = scenario.trajectory(t);
-    [plant, activePlantPi] = activePlantAtTime(loadedPlant, barePlant, payloadDrop, t, scenario.plantPi);
-    % Evaluate and hold the wrench only at controller sample instants.
-    if mod(k - 1, controlEvery) == 0
-        [lastWrench, lastDiagnostics] = agc.paper.controller( ...
-            state, desired, scenario.controller, estimate, []);
+try
+    for k = 1:n
+        t = run.t(k);
+        failureTime = t;
+        desired = scenario.trajectory(t);
+        [plant, activePlantPi] = activePlantAtTime(loadedPlant, barePlant, payloadDrop, t, scenario.plantPi);
+        % Evaluate and hold the wrench only at controller sample instants.
+        if mod(k - 1, controlEvery) == 0
+            [lastWrench, lastDiagnostics] = agc.paper.controller( ...
+                state, desired, scenario.controller, estimate, []);
+        end
+        if mod(k - 1, adaptEvery) == 0 && ~strcmpi(scenario.controller.mode, 'nominal')
+            [~, ~, estimate] = agc.paper.controller( ...
+                state, desired, scenario.controller, estimate, scenario.dtAdaptation);
+        end
+        % Log the state that corresponds to the wrench before plant propagation.
+        run.H(:,:,k) = state.H;
+        run.V(k,:) = state.V(:).';
+        run.Hdesired(:,:,k) = desired.H;
+        run.Vdesired(k,:) = desired.V(:).';
+        run.wrench(k,:) = lastWrench.';
+        run.s(k,:) = lastDiagnostics.s.';
+        run.Psi(k) = lastDiagnostics.Psi;
+        run.Vs(k) = lastDiagnostics.Vs;
+        run.activePlantPi(k,:) = activePlantPi.';
+        run.estimatePi(k,:) = estimateToPi(scenario.controller.mode, estimate).';
+        if strcmpi(scenario.controller.mode, 'bregman')
+            run.minPseudoEigenvalue(k) = min(eig(0.5 * (estimate + estimate.')));
+        end
+        loggedSteps = k;
+        if k < n
+            state = agc.plant.propagate(plant, state, lastWrench, scenario.dtPlant);
+        end
     end
-    if mod(k - 1, adaptEvery) == 0 && ~strcmpi(scenario.controller.mode, 'nominal')
-        [~, ~, estimate] = agc.paper.controller( ...
-            state, desired, scenario.controller, estimate, scenario.dtAdaptation);
-    end
-    % Log the state that corresponds to the wrench before plant propagation.
-    run.H(:,:,k) = state.H;
-    run.V(k,:) = state.V(:).';
-    run.Hdesired(:,:,k) = desired.H;
-    run.Vdesired(k,:) = desired.V(:).';
-    run.wrench(k,:) = lastWrench.';
-    run.s(k,:) = lastDiagnostics.s.';
-    run.Psi(k) = lastDiagnostics.Psi;
-    run.Vs(k) = lastDiagnostics.Vs;
-    run.activePlantPi(k,:) = activePlantPi.';
-    run.estimatePi(k,:) = estimateToPi(scenario.controller.mode, estimate).';
-    if strcmpi(scenario.controller.mode, 'bregman')
-        run.minPseudoEigenvalue(k) = min(eig(0.5 * (estimate + estimate.')));
-    end
-    if k < n
-        state = agc.plant.propagate(plant, state, lastWrench, scenario.dtPlant);
-    end
+catch exception
+    run = trimRun(run, loggedSteps);
+    run.finalEstimate = estimate;
+    failure = struct('identifier', exception.identifier, 'message', exception.message, ...
+        'time', failureTime);
+    if nargout < 2, rethrow(exception); end
+    return
 end
+
 run.finalEstimate = estimate;
+failure = [];
+end
+
+function run = trimRun(run, count)
+%TRIMRUN Preserve exactly the finite samples written before a runtime fault.
+
+run.t = run.t(1:count);
+run.H = run.H(:,:,1:count);
+run.V = run.V(1:count,:);
+run.Hdesired = run.Hdesired(:,:,1:count);
+run.Vdesired = run.Vdesired(1:count,:);
+run.wrench = run.wrench(1:count,:);
+run.s = run.s(1:count,:);
+run.activePlantPi = run.activePlantPi(1:count,:);
+run.Psi = run.Psi(1:count);
+run.Vs = run.Vs(1:count);
+run.estimatePi = run.estimatePi(1:count,:);
+run.minPseudoEigenvalue = run.minPseudoEigenvalue(1:count);
 end
 
 function [loadedPlant, barePlant, payloadDrop] = configuredPlants(scenario)

@@ -11,8 +11,10 @@ desired0 = trajectory(0);
 m = 3.646; cog = [0; 0; -0.00229];
 I = [0.04092; 0.04017; 0.06921; 5.656e-5; 1.313e-5; -6.494e-5];
 pi = [m; m * cog; I];
-payload = struct('mass', 0.20, 'dimensions', [0.12; 0.12; 0.08], ...
-    'center', [0.15; 0; -0.10]);
+% A deliberately substantial, asymmetric temporary payload exposes the
+% post-release model mismatch without placing the added mass at the CoG.
+payload = struct('mass', 0.75, 'dimensions', [0.12; 0.12; 0.08], ...
+    'center', [0.20; 0.05; -0.12]);
 payloadDrop = struct('releaseTime', 10, 'barePi', pi, ...
     'loadedPi', agc.plant.compoundPi(pi, payload), 'payload', payload);
 initialH = desired0.H; initialH(1:3,4) = initialH(1:3,4) + [0.2; -0.1; 0.15];

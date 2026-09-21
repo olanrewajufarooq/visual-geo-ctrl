@@ -1,7 +1,7 @@
 % RUN_BATCH Execute, save, and plot the six payload-drop comparison variants.
 %
-% Every controller begins with exact loaded parameters. The fixed payload is
-% released at t = 10 s, and independent cases use parallel workers by default.
+% Every controller begins with exact loaded parameters. The 0.75 kg offset
+% payload is released at t = 10 s, and cases use parallel workers by default.
 
 %% User settings
 
@@ -47,7 +47,7 @@ resultsRoot = fullfile(root, 'results');
 if inplaceSave
     suiteDirectory = fullfile(resultsRoot, 'inplace');
 
-    % saveBatchSuite overwrites only successful <mode>_<coriolis>/run.mat
+    % saveBatchSuite overwrites only selected <mode>_<coriolis>/run.mat
     % members; all unrelated in-place result folders remain untouched.
 else
     stamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
@@ -57,14 +57,18 @@ end
 
 saved = agc.io.saveBatchSuite(suiteDirectory, scenarios, batch);
 
-%% Report the successful and failed variants
+%% Report completed variants and persisted runtime-failure prefixes
 
 for k = 1:numel(saved)
-    if saved(k).saved
+    if saved(k).successful
         metrics = batch.metrics{k};
 
         fprintf('%s: position RMSE %.4g m, attitude RMSE %.4g rad\n', ...
             saved(k).name, metrics.positionRMSE, metrics.attitudeRMSE);
+    elseif saved(k).saved
+        warning('run_batch:PartialVariant', ...
+            '%s failed after %.4g s; saved its finite prefix for diagnostics: %s', ...
+            saved(k).name, saved(k).failure.time, saved(k).failure.message);
     else
         warning('run_batch:FailedVariant', '%s failed: %s', ...
             saved(k).name, saved(k).failure.message);
@@ -73,7 +77,7 @@ end
 
 fprintf('Saved result suite: %s\n', suiteDirectory);
 
-%% Optionally export one 3-D replay video for every successful variant
+%% Optionally export one 3-D replay video for every persisted run
 
 if saveReplay3D
     for k = 1:numel(saved)
@@ -96,14 +100,14 @@ if saveReplay3D
     end
 end
 
-%% Export static paper figures from the saved suite
+%% Export static paper figures from every persisted run
 
-if generateFigures && batch.successCount > 0
+if generateFigures && any([saved.saved])
     output = agc.viz.paperFigures(suiteDirectory, ...
         struct('visible', showFigures, 'exportComparisons', ~inplaceSave));
 
-    fprintf('Saved %d figure pairs from %d successful simulations.\n', ...
-        numel(output), batch.successCount);
+    fprintf('Saved %d figure pairs from %d persisted simulations.\n', ...
+        numel(output), sum([saved.saved]));
 elseif generateFigures
-    warning('run_batch:NoSuccessfulRuns', 'Skipping figures because every simulation failed.');
+    warning('run_batch:NoSavedRuns', 'Skipping figures because no simulation logged a finite prefix.');
 end

@@ -1,10 +1,9 @@
 function saved = saveBatchSuite(suiteDirectory, scenarios, batch)
-%SAVEBATCHSUITE Persist each successful batch member in a named suite folder.
+%SAVEBATCHSUITE Persist completed runs and finite runtime-failure prefixes.
 %
-% A suite is directly consumable by agc.viz.paperFigures: every successful
-% scenario is stored as <suite>/<mode>_<coriolis>/run.mat. Failures remain in
-% the returned manifest so a caller can report them without serializing an
-% invalid partial run.
+% A suite is directly consumable by agc.viz.paperFigures: every available run
+% is stored as <suite>/<mode>_<coriolis>/run.mat. A failed finite prefix keeps
+% failure metadata but deliberately has no completed-run metric.
 
 validateattributes(suiteDirectory, {'char', 'string'}, {'scalartext'});
 if ~iscell(scenarios)
@@ -21,7 +20,8 @@ end
 
 suiteDirectory = char(suiteDirectory);
 if ~isfolder(suiteDirectory), mkdir(suiteDirectory); end
-saved = repmat(struct('name', '', 'directory', '', 'saved', false, 'failure', []), n, 1);
+saved = repmat(struct('name', '', 'directory', '', 'saved', false, ...
+    'successful', false, 'failure', []), n, 1);
 
 for k = 1:n
     controller = scenarios{k}.controller;
@@ -29,10 +29,12 @@ for k = 1:n
         lower(char(string(controller.coriolis))));
     resultDirectory = fullfile(suiteDirectory, name);
     saved(k) = struct('name', name, 'directory', resultDirectory, ...
-        'saved', false, 'failure', batch.failures{k});
+        'saved', false, 'successful', isempty(batch.failures{k}), ...
+        'failure', batch.failures{k});
 
-    if isempty(batch.failures{k})
-        agc.io.saveRun(resultDirectory, scenarios{k}, batch.runs{k}, batch.metrics{k});
+    if ~isempty(batch.runs{k})
+        agc.io.saveRun(resultDirectory, scenarios{k}, batch.runs{k}, ...
+            batch.metrics{k}, batch.failures{k});
         saved(k).saved = true;
     end
 end
