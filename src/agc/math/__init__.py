@@ -9,6 +9,9 @@ from .se3 import (
     expm_so3,
     rotm_to_quat,
     quat_to_rotm,
+    log_so3,
+    exp_se3,
+    log_se3,
 )
 from .inertia import (
     inertia_from_pi,
@@ -26,8 +29,12 @@ __all__ = [
     "expm_so3",
     "rotm_to_quat",
     "quat_to_rotm",
+    "log_so3",
+    "exp_se3",
+    "log_se3",
     "inertia_from_pi",
     "pseudo_from_pi",
     "pi_from_pseudo",
     "is_spd",
 ]
+

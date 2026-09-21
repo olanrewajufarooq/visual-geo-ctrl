@@ -26,7 +26,9 @@ def default_scenario(
 ) -> dict:
     """Build paper-validation benchmark scenario with 10s payload drop."""
     root = get_repository_root()
-    traj_file = root / "trajectories" / "processed" / f"{replay_id}.mat"
+    processed_dir = root / "trajectories" / "processed"
+    npz_file = processed_dir / f"{replay_id}.npz"
+    traj_file = npz_file if npz_file.is_file() else (processed_dir / f"{replay_id}.mat")
     sampler = ReplayTrajectory(str(traj_file))
     desired0 = sampler.sample(0.0)
 

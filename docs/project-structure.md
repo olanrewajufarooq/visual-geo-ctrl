@@ -95,13 +95,24 @@ adaptive-geo-ctrl-pybullet/
 |   |-- test_pybullet_plant.py
 |   |-- test_pybullet_viz.py
 |   |-- test_scenario_runner.py
+|   |-- test_trajectory_processing.py
 |   |-- test_validation.py
 |   `-- test_workflow.py
 |-- trajectories/
+|   |-- process_trajectories.py
 |   |-- processed/
-|   |   |-- ellipse_01_auto.mat
-|   |   |-- lemniscate_01_auto.mat
-|   |   `-- RATM_01_auto.mat
+|   |   |-- ellipse_01_auto.npz
+|   |   |-- lemniscate_01_auto.npz
+|   |   |-- manifest.json
+|   |   `-- RATM_01_auto.npz
+|   |-- replay_scripts/
+|   |   |-- __init__.py
+|   |   |-- replay_kinematics.py
+|   |   |-- replay_processing_core.py
+|   |   |-- replay_processor.py
+|   |   |-- replay_traj.py
+|   |   |-- replay_wnoj_smoother.py
+|   |   `-- write_replay_artifact.py
 |   |-- POSTPROCESSING.md
 |   `-- README.md
 |-- .github/workflows/

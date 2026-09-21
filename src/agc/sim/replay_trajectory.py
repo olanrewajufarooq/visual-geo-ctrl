@@ -1,6 +1,8 @@
 """Replay trajectory loader and continuous SE(3) sampler."""
 
+import json
 import os
+from pathlib import Path
 from typing import Callable, Dict, Any
 import numpy as np
 import scipy.io as sio
@@ -13,24 +15,61 @@ class ReplayTrajectory:
     """Continuous SE(3) trajectory sampler from recorded flight data."""
 
     def __init__(self, file_path: str):
-        if not os.path.isfile(file_path):
+        path = Path(file_path)
+
+        # Automatic resolution between .npz and .mat
+        if not path.is_file():
+            candidates = [
+                path.with_suffix(".npz"),
+                path.with_suffix(".mat"),
+                Path("trajectories/processed") / path.name,
+                Path("trajectories/processed") / f"{path.stem}.npz",
+                Path("trajectories/processed") / f"{path.stem}.mat",
+            ]
+            for cand in candidates:
+                if cand.is_file():
+                    path = cand
+                    break
+
+        if not path.is_file():
             raise FileNotFoundError(f"Replay artifact not found: {file_path}")
 
-        mat = sio.loadmat(file_path, squeeze_me=True)
-        if "traj" not in mat:
-            raise KeyError(f"Replay artifact {file_path} must contain 'traj'.")
-
-        raw_traj = mat["traj"]
-        # Extract fields whether raw_traj is a void/struct or dict
-        if hasattr(raw_traj, "dtype") and raw_traj.dtype.names:
-            names = raw_traj.dtype.names
-            self.traj = {name: raw_traj[name].item() if raw_traj[name].shape == () else raw_traj[name] for name in names}
-        elif isinstance(raw_traj, dict):
-            self.traj = raw_traj
+        resolved_path = str(path)
+        if resolved_path.endswith(".npz"):
+            data = np.load(resolved_path, allow_pickle=True)
+            traj_dict = {}
+            for k in data.files:
+                val = data[k]
+                if k == "meta":
+                    if isinstance(val, np.ndarray) and val.ndim == 0:
+                        val = val.item()
+                    if isinstance(val, str):
+                        try:
+                            val = json.loads(val)
+                        except Exception:
+                            pass
+                traj_dict[k] = val
+            self.traj = traj_dict
         else:
-            raise TypeError(f"Unexpected traj type: {type(raw_traj)}")
+            mat = sio.loadmat(resolved_path, squeeze_me=True)
+            if "traj" not in mat:
+                raise KeyError(f"Replay artifact {resolved_path} must contain 'traj'.")
+
+            raw_traj = mat["traj"]
+            # Extract fields whether raw_traj is a void/struct or dict
+            if hasattr(raw_traj, "dtype") and raw_traj.dtype.names:
+                names = raw_traj.dtype.names
+                self.traj = {
+                    name: raw_traj[name].item() if raw_traj[name].shape == () else raw_traj[name]
+                    for name in names
+                }
+            elif isinstance(raw_traj, dict):
+                self.traj = raw_traj
+            else:
+                raise TypeError(f"Unexpected traj type: {type(raw_traj)}")
 
         validate_replay_data(self.traj)
+
 
         self.t = np.asarray(self.traj["t"], dtype=float).ravel()
         self.p = np.asarray(self.traj["p"], dtype=float)

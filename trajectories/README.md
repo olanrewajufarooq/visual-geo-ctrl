@@ -47,14 +47,30 @@ The downloader always writes CSVs into `.\trajectories\autonomous` and `.\trajec
 
 The default second argument is `safe`, which reuses cached downloads but refuses to overwrite non-empty target folders.
 
-## Trajectory Datasets
+## Trajectory Datasets & Preprocessing
 
-Canonical smoothed trajectory artifacts are stored in `trajectories/processed/*.mat`. These files contain continuous 500 Hz reference trajectories ($t, p, v, a, R, \Omega, \dot{\Omega}$) and are consumed directly by `agc.sim.ReplayTrajectory`.
+Canonical smoothed trajectory artifacts are stored in `trajectories/processed/*.npz` as compressed NumPy archives. These files contain continuous 500 Hz reference trajectories ($t, p, v, a, R, \Omega, \dot{\Omega}$) and metadata, consumed directly by `agc.sim.ReplayTrajectory`.
+
+### Preprocessing Python Workflow
+
+Raw 500 Hz CSV telemetry files are processed into canonical `.npz` reference artifacts using `trajectories/process_trajectories.py` and the `trajectories.replay_scripts` package:
+
+```powershell
+# Preprocess default benchmark trajectories (ellipse, lemniscate, RATM)
+python trajectories/process_trajectories.py
+
+# Force re-processing from raw CSV flight recordings
+python trajectories/process_trajectories.py --clear-cache
+
+# Process all trajectories listed in manifest.json
+python trajectories/process_trajectories.py --all
+```
 
 To inspect any recorded flight trajectory:
 ```powershell
 python run/plot_trajectories.py --replay-id lemniscate_01_auto
 ```
+
 
 ## Papers
 

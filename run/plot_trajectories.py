@@ -33,7 +33,9 @@ def main():
     args = parser.parse_args()
 
     traj_id = args.replay_id
-    traj_file = REPO_ROOT / "trajectories" / "processed" / f"{traj_id}.mat"
+    processed_dir = REPO_ROOT / "trajectories" / "processed"
+    npz_file = processed_dir / f"{traj_id}.npz"
+    traj_file = npz_file if npz_file.is_file() else (processed_dir / f"{traj_id}.mat")
     if not traj_file.is_file():
         print(f"Error: Trajectory file not found: {traj_file}")
         sys.exit(1)

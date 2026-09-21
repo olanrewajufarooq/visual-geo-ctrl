@@ -104,3 +104,51 @@ def quat_to_rotm(q: np.ndarray) -> np.ndarray:
         [2.0 * (x*y + z*w),       1.0 - 2.0 * (x*x + z*z), 2.0 * (y*z - x*w)],
         [2.0 * (x*z - y*w),       2.0 * (y*z + x*w),       1.0 - 2.0 * (x*x + y*y)]
     ], dtype=float)
+
+
+def log_so3(R: np.ndarray) -> np.ndarray:
+    """Analytical matrix logarithm for SO(3) returning 3-element rotation vector."""
+    R = np.asarray(R, dtype=float)
+    tr = np.clip((np.trace(R) - 1.0) / 2.0, -1.0, 1.0)
+    theta = np.arccos(tr)
+    if theta < 1e-10:
+        return unskew(R - np.eye(3))
+    return unskew((theta / (2.0 * np.sin(theta))) * (R - R.T))
+
+
+def exp_se3(xi: np.ndarray) -> np.ndarray:
+    """Exponential map on SE(3) mapping twist xi = [omega; v] to 4x4 transform."""
+    xi = np.asarray(xi, dtype=float).ravel()
+    omega = xi[0:3]
+    v = xi[3:6]
+    theta = np.linalg.norm(omega)
+    R = expm_so3(omega)
+    if theta < 1e-10:
+        V_mat = np.eye(3, dtype=float) + 0.5 * skew(omega)
+    else:
+        K = skew(omega / theta)
+        V_mat = np.eye(3, dtype=float) + ((1.0 - np.cos(theta)) / theta) * K + ((theta - np.sin(theta)) / theta) * (K @ K)
+    p = V_mat @ v
+    H = np.eye(4, dtype=float)
+    H[0:3, 0:3] = R
+    H[0:3, 3] = p
+    return H
+
+
+def log_se3(H: np.ndarray) -> np.ndarray:
+    """Logarithm map on SE(3) mapping 4x4 transform to twist xi = [omega; v]."""
+    H = np.asarray(H, dtype=float)
+    R = H[0:3, 0:3]
+    p = H[0:3, 3]
+    omega = log_so3(R)
+    theta = np.linalg.norm(omega)
+    if theta < 1e-10:
+        V_inv = np.eye(3, dtype=float) - 0.5 * skew(omega)
+    else:
+        K = skew(omega / theta)
+        half_theta = 0.5 * theta
+        coeff = 1.0 - (half_theta / np.tan(half_theta))
+        V_inv = np.eye(3, dtype=float) - 0.5 * skew(omega) + coeff * (K @ K)
+    v = V_inv @ p
+    return np.concatenate([omega, v])
+
