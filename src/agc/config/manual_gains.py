@@ -19,9 +19,26 @@ def general_default():
 def manual_gains(mode: str, coriolis: str) -> dict:
     """Return hand-tuned gains for given controller mode and Coriolis factorization."""
     key = f"{mode.lower()}_{coriolis.lower()}"
-    gains = general_default()
-    if key == "nominal_c2":
-        gains["KRdiag"] = np.array([100.0, 100.0, 200.0])
-        gains["Kxidiag"] = np.array([5.0, 5.0, 5.0])
-        gains["LambdaDiag"] = np.array([100.0, 100.0, 100.0, 10.0, 10.0, 10.0])
-    return gains
+    baseline = general_default()
+    registry = {
+        "nominal_c1": baseline,
+        "nominal_c2": {
+            **baseline,
+            "KRdiag": np.array([100.0, 100.0, 200.0]),
+            "Kxidiag": np.array([5.0, 5.0, 5.0]),
+            "LambdaDiag": np.array([100.0, 100.0, 100.0, 10.0, 10.0, 10.0]),
+        },
+        "euclidean_c1": baseline,
+        "euclidean_c2": baseline,
+        "bregman_c1": baseline,
+        "bregman_c2": baseline,
+    }
+
+    if key not in registry:
+        raise KeyError(f"Unknown scenario key: '{key}'.")
+
+    gains = registry[key]
+    return {
+        field: np.array(value, dtype=float, copy=True) if isinstance(value, np.ndarray) else value
+        for field, value in gains.items()
+    }
