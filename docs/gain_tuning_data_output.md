@@ -9,7 +9,7 @@ Staged optimization reports and checkpoints are written to `results/tuning/<mode
   - Initial baseline costs (`manual_cost`, `registered_cost`, `incumbent_seed_cost`).
   - Stage-by-stage progression with block names, candidate costs, improvement status, and elapsed wall-clock times.
   - Final optimized gain dictionary (`KRdiag`, `Kxidiag`, `LambdaDiag`, `kd`, `ks`, `alpha`, `gammaE`, `gammaB`).
-  - Promotion status indicating whether `config/optimized_gains.py` was updated.
+  - Promotion status indicating whether registries (`src/agc/config/optimized_gains.py` and `config/optimized_gains.py`) were updated.
 - `checkpoint_<stage>.json`: Intermediate checkpoint after each block optimization stage, preserving the best candidate state and cost history.
 
 ## Gain Data Dictionary

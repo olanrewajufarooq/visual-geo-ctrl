@@ -53,11 +53,18 @@ def run_batch(
     failures: List[Optional[dict]] = [None] * n
     metrics_list: List[Optional[dict]] = [None] * n
 
+    executed_in_parallel = False
     if parallel and n > 1:
         if verbose:
             print(f"Executing batch of {n} scenarios in parallel...")
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            results = list(executor.map(_run_single_scenario, scenarios))
+        try:
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                results = list(executor.map(_run_single_scenario, scenarios))
+            executed_in_parallel = True
+        except (PermissionError, OSError) as exc:
+            if verbose:
+                print(f"Parallel worker pool unavailable ({exc}); executing serially.")
+            results = [_run_single_scenario(sc) for sc in scenarios]
         for i, (run, failure) in enumerate(results):
             runs[i] = run
             failures[i] = failure

@@ -47,25 +47,14 @@ The downloader always writes CSVs into `.\trajectories\autonomous` and `.\trajec
 
 The default second argument is `safe`, which reuses cached downloads but refuses to overwrite non-empty target folders.
 
-## Processing
+## Trajectory Datasets
 
-See [POSTPROCESSING.md](POSTPROCESSING.md) for the geometrically consistent WNOJ replay-trajectory post-processing design and its research references.
+Canonical smoothed trajectory artifacts are stored in `trajectories/processed/*.mat`. These files contain continuous 500 Hz reference trajectories ($t, p, v, a, R, \Omega, \dot{\Omega}$) and are consumed directly by `agc.sim.ReplayTrajectory`.
 
-Replay implementation files are grouped under `trajectories/replayScripts/`. The repository startup adds the complete `trajectories/` tree to the MATLAB path. After downloading the CSV files, run this once from the repository root:
-
-```matlab
-run('trajectories/process_trajectories.m')
+To inspect any recorded flight trajectory:
+```powershell
+python run/plot_trajectories.py --replay-id lemniscate_01_auto
 ```
-
-This creates WNOJ-smoothed `.mat` artifacts under `trajectories/processed/`.
-Set `trajIds = {}` to process the complete manifest, or provide selected
-manifest keys, for example:
-
-```matlab
-trajIds = {'ellipse_01_auto', 'lemniscate_01_auto', 'RATM_01_auto'};
-```
-
-When the Parallel Computing Toolbox is available, preprocessing uses independent workers for the selected manifest entries automatically. It falls back to sequential processing otherwise. To force sequential processing from MATLAB, pass `false` as the third argument to the full `ReplayProcessor.processAll` API.
 
 ## Papers
 

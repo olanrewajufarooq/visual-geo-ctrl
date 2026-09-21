@@ -134,6 +134,12 @@ def promote_gains_to_registry(
     ])
 
     target_path.write_text("\n".join(lines), encoding="utf-8")
+    if target_file is None:
+        root_target = root / "config" / "optimized_gains.py"
+        try:
+            root_target.write_text("\n".join(lines), encoding="utf-8")
+        except OSError:
+            pass
 
 
 def run_staged_optimization(

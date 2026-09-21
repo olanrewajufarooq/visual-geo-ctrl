@@ -56,5 +56,5 @@ python run/optimize_gains.py --mode euclidean --coriolis c2 --method de --polish
 
 When optimization completes and strictly improves upon the registered incumbent:
 - The gains are rounded to 4 significant figures.
-- The entry in `config/optimized_gains.py` is automatically updated.
-- Pass `--no-promote` to evaluate candidates without modifying `config/optimized_gains.py`.
+- Both the package gain registry `src/agc/config/optimized_gains.py` and the root convenience alias `config/optimized_gains.py` are automatically updated and kept in sync.
+- Pass `--no-promote` to evaluate candidates without modifying the gain registries.
