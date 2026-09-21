@@ -48,18 +48,38 @@ CHANNEL_LABELS = {
     "body lin. accel.":    ("$a_x$", "$a_y$", "$a_z$"),
     "body ang. velocity":  (r"$\omega_x$", r"$\omega_y$", r"$\omega_z$"),
     "body ang. accel.":    (r"$\alpha_x$", r"$\alpha_y$", r"$\alpha_z$"),
+    "orientation (ZYX)":   ("roll", "pitch", "yaw"),
 }
 CHANNEL_UNITS = {
     "position":            "m",
     "body lin. velocity":  "m/s",
-    "body lin. accel.":    r"m/s²",
+    "body lin. accel.":    r"m/s^2",
     "body ang. velocity":  "rad/s",
-    "body ang. accel.":    r"rad/s²",
+    "body ang. accel.":    r"rad/s^2",
+    "orientation (ZYX)":   "deg",
 }
 
 
+def _rotm_to_euler_zyx_deg(R: np.ndarray) -> np.ndarray:
+    """Convert rotation matrices (3,3,N) to ZYX Euler angles (N,3) in degrees.
+
+    Returns columns [roll (phi), pitch (theta), yaw (psi)] in degrees.
+    Convention: R = Rz(psi) @ Ry(theta) @ Rx(phi), body-to-world.
+    """
+    N = R.shape[2]
+    euler = np.zeros((N, 3))
+    for k in range(N):
+        Rk = R[:, :, k]
+        sin_theta = np.clip(-Rk[2, 0], -1.0, 1.0)
+        theta = np.arcsin(sin_theta)
+        phi   = np.arctan2(Rk[2, 1], Rk[2, 2])
+        psi   = np.arctan2(Rk[1, 0], Rk[0, 0])
+        euler[k] = [np.degrees(phi), np.degrees(theta), np.degrees(psi)]
+    return euler
+
+
 def _plot_one(traj_id: str, out_dir: Path) -> None:
-    """Produce the 3×3 inspection figure for a single trajectory ID."""
+    """Produce the 3x3 inspection figure for a single trajectory ID."""
     processed_dir = REPO_ROOT / "trajectories" / "processed"
     npz_file = processed_dir / f"{traj_id}.npz"
     traj_file = npz_file if npz_file.is_file() else (processed_dir / f"{traj_id}.mat")
@@ -71,22 +91,25 @@ def _plot_one(traj_id: str, out_dir: Path) -> None:
 
     print(f"  Loaded {traj_id}  |  {s.t[0]:.2f} s -> {s.t[-1]:.2f} s  ({len(s.t)} samples)")
 
+    # Derive orientation from stored rotation matrix R (3,3,N)
+    euler_deg = _rotm_to_euler_zyx_deg(s.R)
+
     # ── figure + layout ───────────────────────────────────────────────────────
     fig = plt.figure(figsize=(14, 8))
     fig.suptitle(f"Preprocessed replay: {traj_id}", fontsize=13, fontweight="bold")
 
-    # 3-D path occupies column 0, all 3 rows
+    # 3-D path occupies column 0, all 3 rows (subplot indices 1, 4, 7)
     ax3d = fig.add_subplot(3, 3, (1, 7), projection="3d")
 
-    # Five kinematic panels fill columns 1-2, rows 0-2 (positions 2,3,5,6,8,9
-    # in 1-indexed grid — but we only have 5 panels so leave one blank or fill)
-    panel_positions = [2, 3, 5, 6, 8]
+    # Six panels fill the right two columns completely (positions 2,3,5,6,8,9)
+    panel_positions = [2, 3, 5, 6, 8, 9]
     channels = [
         ("position",           s.p),
         ("body lin. velocity", s.v_b),
         ("body lin. accel.",   s.a_b),
         ("body ang. velocity", s.omega_b),
         ("body ang. accel.",   s.alpha_b),
+        ("orientation (ZYX)",  euler_deg),
     ]
 
     # ── 3-D path ──────────────────────────────────────────────────────────────
@@ -100,7 +123,7 @@ def _plot_one(traj_id: str, out_dir: Path) -> None:
     ax3d.legend(loc="best", fontsize=8)
     ax3d.grid(True)
 
-    # ── kinematic panels ──────────────────────────────────────────────────────
+    # ── kinematic + orientation panels ───────────────────────────────────────
     for grid_pos, (title, data) in zip(panel_positions, channels):
         ax = fig.add_subplot(3, 3, grid_pos)
         labels = CHANNEL_LABELS[title]
