@@ -30,7 +30,7 @@ Each run simulates the vehicle carrying a 0.75 kg payload, followed by dynamic d
 
 ## Output Structure
 
-Results are stored in `results/pybullet/suite_<timestamp>/` containing:
+By default, results are stored in `results/timestamped/<timestamp>/` containing:
 - `manifest.json`: Suite metadata, execution mode, variant status, and summary comparison table.
 - `<mode>_<coriolis>/run.npz`: Complete recorded states, errors, wrenches, and estimates.
 - `<mode>_<coriolis>/metadata.json`: Run parameters, timing, tracking RMSE metrics, and failure status.
@@ -40,6 +40,8 @@ Results are stored in `results/pybullet/suite_<timestamp>/` containing:
   - `euclidean_vs_bregman_tracking_error.png`
   - `euclidean_vs_bregman_parameter_error.png`
   - Per-variant standalone state and error trajectories.
+
+Use `python run/run_batch.py --inplace-save` to reuse `results/inplace/` instead.
 
 ## Failure Isolation & Diagnostics
 

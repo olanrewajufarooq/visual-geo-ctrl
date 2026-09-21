@@ -8,6 +8,19 @@ from typing import Dict, Any, List, Optional
 import numpy as np
 
 
+def default_results_root(
+    repository_root: Optional[str] = None,
+    inplace_save: bool = False,
+    timestamp: Optional[str] = None,
+) -> Path:
+    """Return the default result root for an in-place or timestamped run."""
+    root = Path(repository_root) if repository_root is not None else Path(__file__).resolve().parent.parent.parent.parent
+    if inplace_save:
+        return root / "results" / "inplace"
+    stamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+    return root / "results" / "timestamped" / stamp
+
+
 def _to_json_serializable(obj: Any) -> Any:
     """Convert nested structures with numpy arrays/scalars to native JSON types."""
     if isinstance(obj, np.ndarray):
@@ -161,7 +174,8 @@ def save_batch_suite(
 def resolve_result_suite(path: Optional[str] = None) -> Path:
     """Resolve a results directory or latest suite directory containing manifest.json or run.npz."""
     root = Path(__file__).resolve().parent.parent.parent.parent
-    base_results = root / "results" / "pybullet"
+    timestamped_results = root / "results" / "timestamped"
+    inplace_results = root / "results" / "inplace"
 
     if path:
         p = Path(path)
@@ -179,20 +193,23 @@ def resolve_result_suite(path: Optional[str] = None) -> Path:
             return p
         raise FileNotFoundError(f"Specified result path does not exist: {path}")
 
-    # Find newest suite under results/pybullet/
-    if base_results.is_dir():
-        # First check for dated suite directories with manifest.json
+    # Prefer the newest timestamped suite, then the in-place suite.
+    if timestamped_results.is_dir():
         candidate_suites = [
-            d for d in base_results.iterdir()
+            d for d in timestamped_results.iterdir()
             if d.is_dir() and (d / "manifest.json").is_file()
         ]
         if candidate_suites:
             candidate_suites.sort(key=lambda d: d.stat().st_mtime, reverse=True)
             return candidate_suites[0]
 
-        # Otherwise check if base_results itself has variant subdirectories with run.npz
-        variants = [d for d in base_results.iterdir() if d.is_dir() and (d / "run.npz").is_file()]
+    if inplace_results.is_dir():
+        if (inplace_results / "manifest.json").is_file():
+            return inplace_results
+        variants = [d for d in inplace_results.iterdir() if d.is_dir() and (d / "run.npz").is_file()]
         if variants:
-            return base_results
+            return inplace_results
 
-    raise FileNotFoundError(f"No result suites found under {base_results}")
+    raise FileNotFoundError(
+        f"No result suites found under {timestamped_results} or {inplace_results}"
+    )

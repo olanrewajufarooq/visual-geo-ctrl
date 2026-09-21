@@ -13,7 +13,7 @@ conda activate agc
 ### 1. `run_theory_suite.py`
 Simulates a single UAV tracking experiment in PyBullet.
 - Releases the 0.75 kg payload at 10.0 s (when duration $\ge 10$ s).
-- Saves results to `results/pybullet/run_<mode>_<coriolis>_<timestamp>/` with `run.npz` and `metadata.json`.
+- Saves results to `results/timestamped/<timestamp>/<mode>_<coriolis>/` with `run.npz` and `metadata.json`.
 
 ```powershell
 # Headless run (fast)
@@ -36,6 +36,7 @@ python run/run_theory_suite.py --mode bregman --coriolis c1 --save-figures
 - `--no-pacing`: Run as fast as possible without real-time wall-clock sleep.
 - `--save-figures`: Generate and save tracking/estimation figures.
 - `--output-dir`: Custom output directory.
+- `--inplace-save`: Save under `results/inplace/<mode>_<coriolis>/` instead of a timestamped directory.
 
 ---
 
@@ -56,6 +57,7 @@ python run/run_batch.py --serial --duration 10.0
 - `--serial`: Execute scenarios sequentially in a single process.
 - `--parallel`: Execute scenarios across multi-core worker processes (default).
 - `--output-dir`: Custom output directory for the suite.
+- `--inplace-save`: Save under `results/inplace/` instead of a timestamped directory.
 - `--no-figures`: Skip figure generation.
 
 ---
@@ -84,8 +86,9 @@ python run/optimize_gains.py --mode euclidean --coriolis c2 --method de --polish
 - `--max-stall`: Maximum iterations without improvement (default: 10).
 - `--seed`: Random seed for reproducible search.
 - `--no-parallel`: Disable multi-core particle evaluations.
-- `--no-promote`: Do not update `config/optimized_gains.py` if incumbent improves.
+- `--no-promote`: Do not update the gain registries if incumbent improves.
 - `--output-dir`: Custom output directory for checkpoints and logs.
+- `--inplace-save`: Save checkpoints under `results/inplace/optimization/` instead of a timestamped directory.
 
 ---
 
@@ -93,7 +96,7 @@ python run/optimize_gains.py --mode euclidean --coriolis c2 --method de --polish
 Visualizes a previously saved simulation run (`run.npz`) in the interactive 3D PyBullet GUI.
 
 ```powershell
-python run/replay_run.py results/pybullet/suite_<timestamp>/bregman_c1 --speed 1.5
+python run/replay_run.py results/timestamped/<timestamp>/bregman_c1 --speed 1.5
 ```
 
 **Options:**
@@ -120,5 +123,5 @@ python run/plot_trajectories.py --replay-id lemniscate_01_auto
 Regenerates publication-ready figures (attitude/position error, parameter estimates, C1 vs C2 comparisons, Euclidean vs Bregman comparisons) from a saved run or suite directory.
 
 ```powershell
-python run/generate_paper_figures.py results/pybullet/suite_<timestamp>
+python run/generate_paper_figures.py results/timestamped/<timestamp>
 ```

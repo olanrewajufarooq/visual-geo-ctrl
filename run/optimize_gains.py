@@ -84,7 +84,7 @@ def main():
     parser.add_argument(
         "--no-promote",
         action="store_true",
-        help="Do not update config/optimized_gains.py if incumbent improves",
+        help="Do not update the gain registries if incumbent improves",
     )
     parser.add_argument(
         "--seed",
@@ -97,6 +97,11 @@ def main():
         type=str,
         default=None,
         help="Custom output directory for optimization results and checkpoints",
+    )
+    parser.add_argument(
+        "--inplace-save",
+        action="store_true",
+        help="Save optimization checkpoints under results/inplace instead of a timestamped directory",
     )
     args = parser.parse_args()
 
@@ -117,6 +122,7 @@ def main():
         parallel=not args.no_parallel,
         promote=not args.no_promote,
         output_dir=args.output_dir,
+        inplace_save=args.inplace_save,
         seed=args.seed,
     )
 

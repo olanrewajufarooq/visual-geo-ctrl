@@ -3,6 +3,7 @@
 import json
 import pytest
 import numpy as np
+from pathlib import Path
 
 from agc.sim.default_scenario import default_scenario
 from agc.sim.run_scenario import run_scenario
@@ -12,7 +13,17 @@ from agc.io.persistence import (
     load_run,
     save_batch_suite,
     resolve_result_suite,
+    default_results_root,
 )
+
+
+def test_default_result_roots_split_inplace_and_timestamped_layouts():
+    repo_root = "/repo"
+
+    assert default_results_root(repo_root, inplace_save=True) == Path(repo_root) / "results" / "inplace"
+    assert default_results_root(repo_root, timestamp="20260922_143000") == (
+        Path(repo_root) / "results" / "timestamped" / "20260922_143000"
+    )
 
 
 def test_save_and_load_run_with_metadata(tmp_path):

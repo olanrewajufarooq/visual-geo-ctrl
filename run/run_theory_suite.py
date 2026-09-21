@@ -13,7 +13,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from agc.sim.default_scenario import default_scenario
 from agc.sim.run_scenario import run_scenario
 from agc.sim.metrics import compute_metrics
-from agc.io.persistence import save_run
+from agc.io.persistence import save_run, default_results_root
 from agc.viz.paper_figures import export_run_figures
 
 
@@ -28,6 +28,7 @@ def main():
     parser.add_argument("--no-pacing", action="store_true", help="Disable wall-clock real-time pacing")
     parser.add_argument("--save-figures", action="store_true", default=True, help="Export paper figures")
     parser.add_argument("--output-dir", type=str, default=None, help="Custom output directory")
+    parser.add_argument("--inplace-save", action="store_true", help="Save under results/inplace instead of a timestamped directory")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -51,7 +52,9 @@ def main():
     if args.output_dir is not None:
         results_dir = Path(args.output_dir)
     else:
-        results_dir = REPO_ROOT / "results" / "pybullet" / f"{args.mode}_{args.coriolis}"
+        results_dir = default_results_root(
+            str(REPO_ROOT), inplace_save=args.inplace_save
+        ) / f"{args.mode}_{args.coriolis}"
     os.makedirs(results_dir, exist_ok=True)
 
     if failure is None:

@@ -30,6 +30,7 @@ from .pso import ParticleSwarmOptimizer
 from .de import DifferentialEvolutionOptimizer, nelder_mead_polish
 from .bregman_profile import profile_bregman_gain
 from ..sim.default_scenario import default_scenario, get_repository_root
+from ..io.persistence import default_results_root
 
 
 def is_strictly_improved(candidate: Dict[str, Any], reference: Dict[str, Any]) -> bool:
@@ -158,6 +159,7 @@ def run_staged_optimization(
     promote: bool = True,
     output_dir: Optional[str] = None,
     seed: Optional[int] = None,
+    inplace_save: bool = False,
 ) -> Dict[str, Any]:
     """Execute staged block-coordinate optimization for selected scenarios."""
     variants = expand_scenario_selection(mode, coriolis)
@@ -209,7 +211,9 @@ def run_staged_optimization(
         if output_dir is not None:
             res_dir = Path(output_dir) / f"{sel_mode}_{sel_coriolis}"
         else:
-            res_dir = root / "results" / "optimization" / stamp / f"{sel_mode}_{sel_coriolis}"
+            res_dir = default_results_root(
+                str(root), inplace_save=inplace_save, timestamp=stamp
+            ) / "optimization" / f"{sel_mode}_{sel_coriolis}"
         os.makedirs(res_dir, exist_ok=True)
 
         stages_log = []

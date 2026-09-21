@@ -12,7 +12,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from agc.sim.default_scenario import default_scenario
 from agc.batch.run_batch import run_batch
-from agc.io.persistence import save_batch_suite
+from agc.io.persistence import save_batch_suite, default_results_root
 from agc.viz.paper_figures import export_run_figures, export_suite_comparison_figures
 
 
@@ -24,6 +24,7 @@ def main():
     parser.add_argument("--parallel", action="store_true", help="Run scenarios in parallel using worker processes")
     parser.add_argument("--output-dir", type=str, default=None, help="Custom output directory for suite results")
     parser.add_argument("--no-figures", action="store_true", help="Skip figure generation")
+    parser.add_argument("--inplace-save", action="store_true", help="Save under results/inplace instead of a timestamped directory")
     args = parser.parse_args()
 
     # Determine parallelism
@@ -66,14 +67,12 @@ def main():
     if args.output_dir is not None:
         suite_dir = Path(args.output_dir)
     else:
-        suite_dir = REPO_ROOT / "results" / "pybullet" / f"suite_{stamp}"
+        suite_dir = default_results_root(
+            str(REPO_ROOT), inplace_save=args.inplace_save, timestamp=stamp
+        )
 
     # Save suite manifest and per-variant data
     save_batch_suite(str(suite_dir), scenarios, batch)
-
-    # Also maintain latest run pointers under results/pybullet/<name>
-    latest_base = REPO_ROOT / "results" / "pybullet"
-    save_batch_suite(str(latest_base), scenarios, batch)
 
     print("\n" + "=" * 65)
     print(f"Batch Results Summary (Saved to {suite_dir}):")
@@ -89,14 +88,12 @@ def main():
             print(f"{name:15s} | Pos RMSE: {metrics['positionRMSE']:.4f} m | Att RMSE: {metrics['attitudeRMSE']:.4f} rad | Final ||s||: {metrics['finalSlidingNorm']:.4f}")
             if not args.no_figures:
                 export_run_figures(run, str(suite_dir / name))
-                export_run_figures(run, str(latest_base / name))
         else:
             print(f"{name:15s} | FAILED at t = {failure['time']:.3f} s: {failure['message']}")
 
     if not args.no_figures:
         print("\nExporting suite-level comparison figures...")
         export_suite_comparison_figures(str(suite_dir))
-        export_suite_comparison_figures(str(latest_base))
 
 
 if __name__ == "__main__":

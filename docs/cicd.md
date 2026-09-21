@@ -35,6 +35,6 @@ The repository includes GitHub Actions workflows under `.github/workflows/` for 
    ```bash
    python run/run_batch.py --duration 30.0 --serial
    ```
-4. Verifies output directory `results/pybullet/`.
+4. Verifies output directory `results/timestamped/`.
 5. Compresses the results into `results-<tag>.zip`.
 6. Attaches the zip archive to the GitHub Release.

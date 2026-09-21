@@ -1,6 +1,6 @@
 # Gain-Tuning Data Output
 
-Staged optimization reports and checkpoints are written to `results/tuning/<mode>_<coriolis>_<timestamp>/`.
+Staged optimization reports and checkpoints are written to `results/timestamped/<timestamp>/optimization/<mode>_<coriolis>/` by default, or `results/inplace/optimization/<mode>_<coriolis>/` with `--inplace-save`.
 
 ## Output Files
 

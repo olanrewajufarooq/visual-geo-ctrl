@@ -1,13 +1,13 @@
 # Simulation Outputs
 
-Simulation runs and batch comparison suites write structured results under `results/pybullet/`.
+Simulation runs and batch comparison suites write structured results under `results/timestamped/<timestamp>/` by default, or `results/inplace/` when `--inplace-save` is used.
 
 ## Directory Hierarchy
 
 ### Single Runs (`run_theory_suite.py`)
 ```text
-results/pybullet/
-`-- run_<mode>_<coriolis>_<timestamp>/
+results/timestamped/<timestamp>/
+`-- <mode>_<coriolis>/
     |-- run.npz
     |-- metadata.json
     `-- figures/
@@ -17,8 +17,8 @@ results/pybullet/
 
 ### Batch Suites (`run_batch.py`)
 ```text
-results/pybullet/
-`-- suite_<timestamp>/
+results/timestamped/<timestamp>/
+`--
     |-- manifest.json
     |-- nominal_c1/
     |   |-- run.npz

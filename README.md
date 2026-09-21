@@ -48,7 +48,7 @@ Controller options:
 ```powershell
 python run/run_batch.py
 ```
-Simulates all 6 variants (`nominal`, `euclidean`, `bregman` $\times$ `c1`, `c2`) with the 10-second payload drop, and writes results and publication figures to `results/pybullet/`.
+Simulates all 6 variants (`nominal`, `euclidean`, `bregman` $\times$ `c1`, `c2`) with the 10-second payload drop, and writes results and publication figures to `results/timestamped/<timestamp>/`. Pass `--inplace-save` to reuse `results/inplace/`.
 
 ---
 

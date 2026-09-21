@@ -45,7 +45,8 @@ Run headlessly and generate paper figures:
 python run/run_theory_suite.py --mode bregman --coriolis c1 --duration 30 --save-figures
 ```
 
-The results and figures will be saved in `results/pybullet/run_bregman_c1_<timestamp>/`.
+The results and figures will be saved in `results/timestamped/<timestamp>/bregman_c1/`.
+Use `--inplace-save` to save under `results/inplace/bregman_c1/` instead.
 
 ---
 
