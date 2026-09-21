@@ -8,6 +8,16 @@ classdef TestOptimization < matlab.unittest.TestCase
             testCase.verifyEqual(options.maxIterations, 20);
         end
 
+        function optimizerDefaultsUseSharedVelocityAndEffortWeights(testCase)
+            weights = agc.opt.objectiveWeights();
+            options = agc.opt.optimizationOptions(struct());
+
+            testCase.verifyEqual(weights, struct('position', 1, 'attitude', 1, ...
+                'linVel', 1, 'angVel', 1, 'effort', 0.01, ...
+                'estimation', 0.1, 'failure', 1e6));
+            testCase.verifyEqual(options.weights, weights);
+        end
+
         function suppliedConvergenceSettingsOverrideDefaults(testCase)
             options = agc.opt.optimizationOptions( ...
                 struct('functionTolerance', 2e-4, 'maxStallIterations', 7));

@@ -36,13 +36,35 @@ classdef TestWorkflow < matlab.unittest.TestCase
         function objectiveCanWeightNormalizedParameterEstimationRmse(testCase)
             scenario = makeScenario();
             scenario.initialEstimate(1) = 1.1 * scenario.plantPi(1);
-            weights = struct('position', 0, 'attitude', 0, 'effort', 0, ...
-                'estimation', 1, 'failure', 1e6);
+            weights = struct('position', 0, 'attitude', 0, 'linVel', 0, ...
+                'angVel', 0, 'effort', 0, 'estimation', 1, 'failure', 1e6);
 
             [cost, detail] = agc.opt.objective(0, {scenario}, @(~, base) base, weights, false);
 
             testCase.verifyGreaterThan(detail.batch.metrics{1}.parameterEstimationRMSE, 0);
             testCase.verifyEqual(cost, detail.batch.metrics{1}.parameterEstimationRMSE, 'AbsTol', 1e-12);
+        end
+
+        function metricsReportSeparateBodyVelocityRmse(testCase)
+            run = velocityMetricRun();
+
+            metrics = agc.sim.metrics(run);
+
+            testCase.verifyEqual(metrics.angularVelocityRMSE, sqrt(14), 'AbsTol', 1e-12);
+            testCase.verifyEqual(metrics.linearVelocityRMSE, sqrt(77), 'AbsTol', 1e-12);
+        end
+
+        function objectiveCanWeightSeparateBodyVelocityErrors(testCase)
+            scenario = makeScenario();
+            scenario.initial.V = [1; 2; 3; 4; 5; 6];
+            weights = struct('position', 0, 'attitude', 0, 'linVel', 1, 'angVel', 2, ...
+                'effort', 0, 'estimation', 0, 'failure', 1e6);
+
+            [cost, detail] = agc.opt.objective(0, {scenario}, @(~, base) base, weights, false);
+            metrics = detail.batch.metrics{1};
+
+            testCase.verifyEqual(cost, metrics.linearVelocityRMSE + ...
+                2 * metrics.angularVelocityRMSE, 'AbsTol', 1e-12);
         end
 
         function defaultScenarioUsesPreservedReplayArtifact(testCase)
@@ -98,6 +120,15 @@ classdef TestWorkflow < matlab.unittest.TestCase
             testCase.verifyTrue(all(isfinite(run.wrench), 'all'));
         end
     end
+end
+
+function run = velocityMetricRun()
+n = 2;
+run = struct('t', (0:n-1).', 'H', repmat(eye(4), 1, 1, n), ...
+    'Hdesired', repmat(eye(4), 1, 1, n), ...
+    'V', repmat([1, 2, 3, 4, 5, 6], n, 1), 'Vdesired', zeros(n, 6), ...
+    'wrench', zeros(n, 6), 's', zeros(n, 6), 'Psi', zeros(n, 1), ...
+    'Vs', zeros(n, 1), 'minPseudoEigenvalue', nan(n, 1));
 end
 
 function scenario = makeScenario()

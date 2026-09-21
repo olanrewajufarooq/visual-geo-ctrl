@@ -52,11 +52,28 @@ classdef TestScenarioRunner < matlab.unittest.TestCase
             testCase.verifyEqual(dropRun.V(3,:), loadedRun.V(3,:), 'AbsTol', 1e-12);
         end
 
-        function defaultScenarioUsesModeratePayloadDrop(testCase)
+        function defaultScenarioUsesOffsetPayloadDrop(testCase)
             scenario = agc.sim.defaultScenario('lemniscate_01_auto', 'nominal', 'c2', 30);
 
-            testCase.verifyEqual(scenario.payloadDrop.payload.mass, 0.20, 'AbsTol', 1e-12);
+            testCase.verifyEqual(scenario.payloadDrop.payload.mass, 0.75, 'AbsTol', 1e-12);
+            testCase.verifyEqual(scenario.payloadDrop.payload.center, [0.20; 0.05; -0.12], 'AbsTol', 1e-12);
             testCase.verifyEqual(scenario.payloadDrop.releaseTime, 10, 'AbsTol', 1e-12);
+        end
+
+        function failedBatchRunReturnsFinitePrefixAndFailureMetadata(testCase)
+            scenario = localScenario('nominal');
+            scenario.duration = 0.04;
+            scenario.dtControl = 0.01;
+            scenario.dtAdaptation = 0.01;
+            scenario.trajectory = @(time) failingTrajectory(time);
+
+            [run, failure] = agc.sim.runScenario(scenario);
+
+            testCase.verifyNotEmpty(failure);
+            testCase.verifyTrue(all(isfinite(run.V), 'all'));
+            testCase.verifyEqual(run.t, [0; 0.01]);
+            testCase.verifyEqual(failure.identifier, 'MATLAB:expectedFinite');
+            testCase.verifyEqual(failure.time, 0.02, 'AbsTol', 1e-12);
         end
     end
 end
@@ -76,4 +93,9 @@ scenario.controller = struct('mode', mode, 'coriolis', 'c2', 'KR', eye(3), ...
     'Kxi', eye(3), 'Lambda', eye(6), 'kd', 1, 'ks', 0.5, 'alpha', 0.5, ...
     'gravity', [0; 0; 9.81], 'gammaE', 0.01 * ones(10,1), 'gammaB', 0.1);
 scenario.initialEstimate = pi;
+end
+
+function desired = failingTrajectory(time)
+desired = struct('H', eye(4), 'V', zeros(6,1), 'Vdot', zeros(6,1));
+if time >= 0.02, desired.Vdot(1) = NaN; end
 end

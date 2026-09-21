@@ -2,7 +2,7 @@
 % By default, comparisons are grouped by study in
 % <suite>/comparisons/{nominal,euclidean,bregman,euclidean_v_bregman,performance}
 % and each standalone diagnostic is stored beside its run.mat in
-% <variant>/figures.
+% <variant>/figures/{total-sim,from-drop} when the payload release is reached.
 
 %% User settings
 

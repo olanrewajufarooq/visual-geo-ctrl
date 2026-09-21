@@ -30,9 +30,15 @@ end
 function [run, metric, failure] = executeOne(scenario)
 %EXECUTEONE Convert an individual scenario failure into batch diagnostics.
 try
-    run = agc.sim.runScenario(scenario);
-    metric = agc.sim.metrics(run);
-    failure = [];
+    [run, failure] = agc.sim.runScenario(scenario);
+    if isempty(failure)
+        metric = agc.sim.metrics(run);
+    else
+        % A finite prefix remains useful for diagnosis and plotting, but it
+        % is not a completed experiment and must not receive performance metrics.
+        metric = [];
+        if isempty(run.t), run = []; end
+    end
 catch exception
     run = [];
     metric = [];

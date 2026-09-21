@@ -1,7 +1,7 @@
 % RUN_THEORY_SUITE Run all paper variants in the 10 s payload-drop experiment.
 %
 % Every controller begins with the exact loaded model; only adaptive estimates
-% can respond after the physical plant becomes the bare UAV.
+% can respond after the 0.75 kg offset payload is released from the bare UAV.
 
 %% User settings
 
@@ -13,11 +13,11 @@ useParallel = true;
 
 inplaceSave = logical(true); % true: use results/inplace; false: create results/<timestamp>.
 
-generateFigures = true; % Export plots for every successful variant.
+generateFigures = true; % Export plots for every completed run or finite prefix.
 
 showFigures = false;
 
-saveReplay3D = true; % Save replay3d.mp4 beside every successful run.mat.
+saveReplay3D = true; % Save replay3d.mp4 beside every persisted run.mat.
 
 startup;
 
@@ -47,7 +47,7 @@ resultsRoot = fullfile(root, 'results');
 if inplaceSave
     suiteDirectory = fullfile(resultsRoot, 'inplace');
 
-    % saveBatchSuite overwrites only successful <mode>_<coriolis>/run.mat
+    % saveBatchSuite overwrites only selected <mode>_<coriolis>/run.mat
     % members; all unrelated in-place result folders remain untouched.
 else
     stamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
@@ -57,25 +57,27 @@ end
 
 saved = agc.io.saveBatchSuite(suiteDirectory, scenarios, batch);
 
-%% Report every requested variant and retain all successful runs as a suite
+%% Report every requested variant and retain finite runtime-failure prefixes
 
 for k = 1:numel(saved)
-    if ~saved(k).saved
+    if saved(k).successful
+        metrics = batch.metrics{k};
+
+        fprintf('%s/%s: position RMSE %.4g m, attitude RMSE %.4g rad\n', ...
+            variants{k,1}, variants{k,2}, metrics.positionRMSE, metrics.attitudeRMSE);
+    elseif saved(k).saved
+        warning('run_theory_suite:PartialVariant', ...
+            '%s/%s failed after %.4g s; saved its finite prefix: %s', ...
+            variants{k,1}, variants{k,2}, batch.failures{k}.time, batch.failures{k}.message);
+    else
         warning('run_theory_suite:FailedVariant', '%s/%s failed: %s', ...
             variants{k,1}, variants{k,2}, batch.failures{k}.message);
-
-        continue;
     end
-
-    metrics = batch.metrics{k};
-
-    fprintf('%s/%s: position RMSE %.4g m, attitude RMSE %.4g rad\n', ...
-        variants{k,1}, variants{k,2}, metrics.positionRMSE, metrics.attitudeRMSE);
 end
 
 fprintf('Saved result suite: %s\n', suiteDirectory);
 
-%% Optionally export one 3-D replay video for every successful variant
+%% Optionally export one 3-D replay video for every persisted variant
 
 if saveReplay3D
     for k = 1:numel(saved)
@@ -98,15 +100,15 @@ if saveReplay3D
     end
 end
 
-%% Export figures for every successful saved run and compatible comparisons
+%% Export figures for every persisted run and compatible comparisons
 
-if generateFigures && batch.successCount > 0
+if generateFigures && any([saved.saved])
     output = agc.viz.paperFigures(suiteDirectory, ...
         struct('visible', showFigures, 'exportComparisons', ~inplaceSave));
 
-    fprintf('Saved %d figure pairs from %d successful simulations.\n', ...
-        numel(output), batch.successCount);
+    fprintf('Saved %d figure pairs from %d persisted simulations.\n', ...
+        numel(output), sum([saved.saved]));
 elseif generateFigures
-    warning('run_theory_suite:NoSuccessfulRuns', ...
-        'Skipping figures because every requested simulation failed.');
+    warning('run_theory_suite:NoSavedRuns', ...
+        'Skipping figures because no requested simulation logged a finite prefix.');
 end
