@@ -1,88 +1,38 @@
 # Features
 
-This framework is organized around a simulation pipeline that starts from `fth.sim.Config`, builds the scenario in `fth.sim.SimRunner`, and evaluates the resulting closed-loop dynamics on SE(3).
+`adaptive-geo-ctrl-pybullet` provides an end-to-end framework for adaptive geometric tracking control of fully actuated UAVs on $\mathrm{SE}(3)$.
 
-## Simulation Flow
+## Key Capabilities
 
-```text
-Config -> SimRunner.setup() -> SimRunner.run()
-```
+1. **Lie Group & Geometric Mechanics (`agc.math`)**
+   - Full $\mathrm{SE}(3)$ and $\mathrm{SO}(3)$ matrix Lie algebra operations, skew/unskew operators, group inverse, and spatial adjoint transforms.
+   - $4 \times 4$ symmetric positive definite (SPD) pseudo-inertia $\mathcal{J}$ representation and conversions with the 10-parameter vector $\pi \in \mathbb{R}^{10}$.
 
-## Dynamics
+2. **Metric-Compatible Adaptive Control (`agc.paper`)**
+   - Paper-aligned tracking controller with transverse damping on $\mathrm{SE}(3)$.
+   - Levi-Civita connection Coriolis factorization (`c1`) and skew-symmetric coadjoint factorization (`c2`).
+   - Euclidean gradient parameter estimation.
+   - Riemannian Bregman divergence estimation using geodesic flow on the SPD cone $\mathcal{S}_{++}^4$, mathematically guaranteeing positive definiteness for all finite time.
 
-- Full 6-DOF rigid-body dynamics implemented on SE(3)
-- Euler-Poincare style body-frame modeling
-- Optional ground contact with stiffness, damping, and friction terms
-- Tracking metrics and logging integrated into the simulation loop
+3. **Physics Simulation Engine (`agc.plant`)**
+   - Floating-base multi-body forward dynamics in PyBullet.
+   - Exact physical mass, inertia, and center of mass.
+   - In-flight payload attachment and dynamic detachment at a configured timestamp.
+   - Headless simulation (`p.DIRECT`) and 3D visual rendering (`p.GUI`) with real-time trajectory visualization and tracking camera.
 
-Core files:
+4. **Multi-Rate Architecture (`agc.sim`)**
+   - Physics integration at 500 Hz.
+   - Parameter estimation at 100 Hz.
+   - Control wrench updates at 50 Hz.
+   - Zero-order hold (ZOH) actuator modeling.
 
-- `src/+fth/+core/Dynamics.m`
-- `src/+fth/+core/Logger.m`
-- `src/+fth/+core/TrackingMetrics.m`
+5. **Staged Gain Optimization (`agc.opt`)**
+   - Derivative-free block-coordinate optimization.
+   - Multi-core Particle Swarm Optimization (PSO) and Differential Evolution (DE).
+   - Hierarchical 7-stage and classic 4-stage optimization schedules.
+   - Automated gain promotion to `config/optimized_gains.py`.
 
-## Trajectory Generation
-
-Built-in trajectory presets include:
-
-- `hover`
-- `circle`
-- `infinity`
-- `lissajous3d`
-- `helix3d`
-- `poly3d`
-- `takeoffland`
-
-Trajectory generation lives in `src/+fth/+traj/` and is centered on `AnalyticTraj`, `TrajectoryBase`, `TrajectoryFactory`, and `TimeScaling`.
-
-## Controllers
-
-The framework supports multiple wrench-generation strategies:
-
-- `PD`
-- `Feedforward`
-- `FeedLin`
-
-These are implemented through `src/+fth/+ctrl/ControllerWrench.m` with supporting factories and regressor helpers under `src/+fth/+ctrl/`.
-
-## Adaptive Estimation
-
-Supported adaptation modes:
-
-- `none`
-- `euclidean`
-- `bregman`
-
-The adaptive stack estimates inertial parameters online and includes a no-adaptation fallback, Euclidean updates, and Bregman divergence based updates.
-
-Key files:
-
-- `src/+fth/+ctrl/+adapt/NoAdaptation.m`
-- `src/+fth/+ctrl/+adapt/EuclideanAdaptation.m`
-- `src/+fth/+ctrl/+adapt/BregmanDivAdaptation.m`
-
-## Potentials and Coriolis Options
-
-Potential functions include:
-
-- `log`
-- `inertia-gain`
-- `body-gain`
-- `ref-gain`
-- `sym-inv`
-
-Coriolis factorization options include:
-
-- `basic`
-- `consistent`
-
-These behaviors are split into dedicated factory-backed folders under `src/+fth/+ctrl/+potential/` and `src/+fth/+ctrl/+coriolis/`.
-
-## Visualization and Analysis
-
-- Live plotting and summary plots through `fth.plot.Plotter`
-- 3D vehicle view through `fth.plot.UrdfViewer`
-- Reference-only plotting through `run/plot_trajectories.m`
-- Saved figures and logs under `results/`
-
-URDF-backed rendering uses assets from `assets/hexacopter_description/urdf/`. When that path or the required toolbox is unavailable, the plotting stack can fall back to lighter visualization paths.
+6. **Batch Comparative Evaluation & Persistence (`agc.batch`, `agc.io`, `agc.viz`)**
+   - Automated 6-variant comparative study suite execution.
+   - Dense time-series persistence in `.npz` with comprehensive `metadata.json`.
+   - Publication-quality Matplotlib figures.

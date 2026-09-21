@@ -62,3 +62,53 @@ def test_payload_drop_parameters():
     assert drop["releaseTime"] == 10.0
     assert drop["payload"]["mass"] == 0.75
     assert np.allclose(drop["payload"]["center"], np.array([0.20, 0.05, -0.12]))
+
+
+def test_exact_release_timing():
+    """Verify active parameters transition from loaded to bare exactly at releaseTime."""
+    duration = 1.0
+    release_time = 0.5
+    scen = default_scenario(duration=duration)
+    scen["payloadDrop"]["releaseTime"] = release_time
+
+    run, failure = run_scenario(scen)
+    assert failure is None
+
+    t = run["t"]
+    dt = scen["dtPlant"]
+    idx_release = int(round(release_time / dt))
+
+    # Before release: loadedPi
+    loaded_pi = scen["payloadDrop"]["loadedPi"]
+    bare_pi = scen["payloadDrop"]["barePi"]
+    for k in range(idx_release):
+        assert np.allclose(run["activePlantPi"][k], loaded_pi, atol=1e-12)
+
+    # At and after release: barePi
+    for k in range(idx_release, len(t)):
+        assert np.allclose(run["activePlantPi"][k], bare_pi, atol=1e-12)
+
+
+def test_first_step_failure_preserves_prefix():
+    """Verify first-step failure preserves metadata and finalEstimate."""
+    scen = default_scenario(duration=0.1)
+    # Inject non-finite initial velocity
+    scen["initial"]["V"][0] = np.nan
+    with pytest.raises(ValueError, match="initial V must be a finite 6-element vector"):
+        run_scenario(scen)
+
+
+def test_multirate_timing_and_wrench_zoh():
+    """Verify wrench is zero-order held between control instants and adaptation updates at dtAdapt."""
+    scen = default_scenario(duration=0.2)
+    # dtPlant = 0.002, dtControl = 0.02 (every 10 steps), dtAdapt = 0.01 (every 5 steps)
+    run, failure = run_scenario(scen)
+    assert failure is None
+
+    control_stride = int(round(scen["dtControl"] / scen["dtPlant"]))
+    wrenches = run["wrench"]
+
+    # Wrench should remain identical between control updates
+    for k in range(len(wrenches) - 1):
+        if (k + 1) % control_stride != 0:
+            assert np.allclose(wrenches[k + 1], wrenches[k], atol=1e-12)

@@ -6,7 +6,7 @@ import numpy as np
 
 from ..paper.controller import controller
 from ..math.inertia import pi_from_pseudo
-from ..plant.pybullet_plant import PyBulletPlant
+from .validation import validate_scenario
 
 
 def estimate_to_pi(mode: str, estimate: Any) -> np.ndarray:
@@ -29,6 +29,8 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
     failure : dict or None
         Failure metadata if an exception occurred, or None if successful.
     """
+    validate_scenario(scenario)
+
     duration = float(scenario["duration"])
     dt_plant = float(scenario["dtPlant"])
     dt_control = float(scenario["dtControl"])
@@ -66,6 +68,8 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
     gui = bool(scenario.get("gui", False))
     sim_speed = float(scenario.get("simSpeed", 1.0))
     enable_pacing = bool(scenario.get("enablePacing", True))
+
+    from ..plant.pybullet_plant import PyBulletPlant
 
     plant = PyBulletPlant(
         pi=scenario["plantPi"],

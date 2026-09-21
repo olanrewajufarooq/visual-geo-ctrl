@@ -180,3 +180,96 @@ def test_potential_derivative_matches_error_kinematics():
     derivative = potential_derivative(He, Ve, KR, Kxi)
     fd_derivative = (e1 - e0) / dt
     assert np.allclose(derivative, fd_derivative, atol=1e-5)
+
+
+def test_controller_zero_error_behavior():
+    """Verify that when state == desired at hover (V = 0), tracking error and sliding
+    vector are zero, and the commanded wrench exactly balances gravity."""
+    H = np.eye(4)
+    V = np.zeros(6)
+    state = {"H": H, "V": V}
+    desired = {"H": H, "V": V, "Vdot": np.zeros(6)}
+
+    pi = np.array([2.5, 0.05, -0.02, 0.01, 0.3, 0.35, 0.4, 0.0, 0.0, 0.0])
+    g = np.array([0.0, 0.0, 9.81])
+    cfg = {
+        "mode": "nominal",
+        "coriolis": "c1",
+        "KR": np.eye(3) * 5.0,
+        "Kxi": np.eye(3) * 10.0,
+        "Lambda": np.eye(6) * 2.0,
+        "kd": 1.0,
+        "ks": 1.0,
+        "alpha": 0.8,
+        "gravity": g,
+    }
+
+    W, diag, _ = controller(state, desired, cfg, pi, dt_adapt=None)
+    assert np.allclose(diag.s, np.zeros(6), atol=1e-12)
+    assert abs(diag.Psi) < 1e-12
+    assert np.allclose(diag.eH, np.zeros(6), atol=1e-12)
+
+    # Command wrench should equal rigid body gravity wrench Wg
+    assert np.allclose(W, diag.Wg, atol=1e-12)
+
+
+def test_controller_all_modes_and_factorizations():
+    """Verify controller execution and adaptation update across all 6 paper variants."""
+    H = np.eye(4)
+    state = {"H": H, "V": np.array([0.2, -0.1, 0.1, 0.5, -0.3, 0.2])}
+    desired = {"H": H, "V": np.zeros(6), "Vdot": np.zeros(6)}
+
+    pi = np.array([3.0, 0.05, -0.02, 0.01, 0.4, 0.45, 0.5, 0.01, -0.01, 0.02])
+    g = np.array([0.0, 0.0, 9.81])
+
+    for mode in ["nominal", "euclidean", "bregman"]:
+        for form in ["c1", "c2"]:
+            cfg = {
+                "mode": mode,
+                "coriolis": form,
+                "KR": np.eye(3) * 6.0,
+                "Kxi": np.eye(3) * 12.0,
+                "Lambda": np.eye(6) * 1.5,
+                "kd": 1.2,
+                "ks": 0.8,
+                "alpha": 0.7,
+                "gravity": g,
+                "gammaE": 0.01 * np.ones(10),
+                "gammaB": 0.05,
+            }
+            est = pseudo_from_pi(pi) if mode == "bregman" else np.copy(pi)
+
+            W, diag, next_est = controller(state, desired, cfg, est, dt_adapt=0.01)
+            assert len(W) == 6 and np.all(np.isfinite(W))
+            assert len(diag.s) == 6
+            assert diag.Vs >= 0.0
+
+            if mode == "bregman":
+                assert is_spd(next_est)
+            else:
+                assert next_est[0] > 0.0
+
+
+def test_invalid_controller_mode_raises():
+    """Verify ValueError for unsupported mode or coriolis form."""
+    state = {"H": np.eye(4), "V": np.zeros(6)}
+    desired = {"H": np.eye(4), "V": np.zeros(6), "Vdot": np.zeros(6)}
+    pi = np.array([2.0, 0, 0, 0, 0.2, 0.2, 0.2, 0, 0, 0])
+    cfg = {
+        "mode": "neural",
+        "coriolis": "c1",
+        "KR": np.eye(3),
+        "Kxi": np.eye(3),
+        "Lambda": np.eye(6),
+        "kd": 1.0,
+        "ks": 1.0,
+        "alpha": 0.5,
+        "gravity": np.array([0.0, 0.0, 9.81]),
+    }
+    with pytest.raises(ValueError, match="Unknown controller mode"):
+        controller(state, desired, cfg, pi)
+
+    cfg["mode"] = "nominal"
+    cfg["coriolis"] = "c3"
+    with pytest.raises(ValueError, match="Unknown form 'c3'"):
+        controller(state, desired, cfg, pi)

@@ -2,6 +2,8 @@
 
 import os
 import sys
+import argparse
+from datetime import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -10,11 +12,27 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from agc.sim.default_scenario import default_scenario
 from agc.batch.run_batch import run_batch
-from agc.io.persistence import save_run
+from agc.io.persistence import save_batch_suite
 from agc.viz.paper_figures import export_run_figures
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Run AGC 6-Variant Comparison Batch in PyBullet.")
+    parser.add_argument("--duration", type=float, default=30.0, help="Simulation duration (seconds)")
+    parser.add_argument("--replay-id", type=str, default="lemniscate_01_auto", help="Trajectory artifact ID")
+    parser.add_argument("--serial", action="store_true", help="Run scenarios sequentially (single process)")
+    parser.add_argument("--parallel", action="store_true", help="Run scenarios in parallel using worker processes")
+    parser.add_argument("--output-dir", type=str, default=None, help="Custom output directory for suite results")
+    parser.add_argument("--no-figures", action="store_true", help="Skip figure generation")
+    args = parser.parse_args()
+
+    # Determine parallelism
+    is_parallel = True
+    if args.serial:
+        is_parallel = False
+    elif args.parallel:
+        is_parallel = True
+
     variants = [
         ("nominal", "c1"),
         ("nominal", "c2"),
@@ -26,10 +44,10 @@ def main():
 
     scenarios = [
         default_scenario(
-            replay_id="lemniscate_01_auto",
+            replay_id=args.replay_id,
             mode=mode,
             coriolis=coriolis,
-            duration=30.0,
+            duration=args.duration,
             gain_source="optimized",
             gui=False,
         )
@@ -37,13 +55,28 @@ def main():
     ]
 
     print("=" * 65)
-    print("Running AGC 6-Variant Comparison Batch in PyBullet")
+    print(f"Running AGC 6-Variant Comparison Batch in PyBullet ({'PARALLEL' if is_parallel else 'SERIAL'})")
+    print(f"Trajectory: {args.replay_id} | Duration: {args.duration} s")
     print("=" * 65)
 
-    batch = run_batch(scenarios)
+    batch = run_batch(scenarios, parallel=is_parallel)
+
+    # Determine suite directory
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if args.output_dir is not None:
+        suite_dir = Path(args.output_dir)
+    else:
+        suite_dir = REPO_ROOT / "results" / "pybullet" / f"suite_{stamp}"
+
+    # Save suite manifest and per-variant data
+    save_batch_suite(str(suite_dir), scenarios, batch)
+
+    # Also maintain latest run pointers under results/pybullet/<name>
+    latest_base = REPO_ROOT / "results" / "pybullet"
+    save_batch_suite(str(latest_base), scenarios, batch)
 
     print("\n" + "=" * 65)
-    print("Batch Results Summary:")
+    print(f"Batch Results Summary (Saved to {suite_dir}):")
     print("=" * 65)
 
     for i, (mode, coriolis) in enumerate(variants):
@@ -52,13 +85,11 @@ def main():
         metrics = batch["metrics"][i]
         failure = batch["failures"][i]
 
-        out_dir = REPO_ROOT / "results" / "pybullet" / name
-        os.makedirs(out_dir, exist_ok=True)
-
         if failure is None and metrics is not None:
             print(f"{name:15s} | Pos RMSE: {metrics['positionRMSE']:.4f} m | Att RMSE: {metrics['attitudeRMSE']:.4f} rad | Final ||s||: {metrics['finalSlidingNorm']:.4f}")
-            save_run(str(out_dir), run, metrics, scenarios[i])
-            export_run_figures(run, str(out_dir))
+            if not args.no_figures:
+                export_run_figures(run, str(suite_dir / name))
+                export_run_figures(run, str(latest_base / name))
         else:
             print(f"{name:15s} | FAILED at t = {failure['time']:.3f} s: {failure['message']}")
 

@@ -1,4 +1,4 @@
-name: Build MATLAB Results Release
+name: Build PyBullet Results Release
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - "v*"
 
 concurrency:
-  group: matlab-results-${{ github.ref }}
+  group: pybullet-results-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -15,62 +15,39 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_TOKEN }}
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Set up MATLAB
-        uses: matlab-actions/setup-matlab@v3
-
-      - name: Run adaptive release simulation
-        uses: matlab-actions/run-command@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          startup-options: -softwareopengl
-          command: "set(0,'DefaultFigureVisible','off'); addpath('run'); ci_release;"
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run verification test suite
+        run: |
+          pytest tests/ -v
+
+      - name: Run batch simulation release
+        run: |
+          python run/run_batch.py --duration 30.0 --serial
 
       - name: Verify results folder
         run: |
           pwd
-          test -d results
-          find results -type f | head
-
-      - name: Build release notes from aggregated command logs
-        shell: bash
-        run: |
-          shopt -s globstar nullglob
-          NOTE_FILE="release-notes.md"
-          {
-            echo "# MATLAB Simulation Results"
-            echo
-            echo "Generated from aggregated simulation command-window logs."
-            echo
-          } > "$NOTE_FILE"
-
-          mapfile -t LOG_FILES < <(find results -name command_window.txt ! -path '*/run_[0-9][0-9][0-9]/command_window.txt' | sort)
-          if [[ ${#LOG_FILES[@]} -eq 0 ]]; then
-            echo "No aggregated command_window.txt files found under results/"
-            exit 1
-          fi
-
-          for log_file in "${LOG_FILES[@]}"; do
-            rel_path="${log_file#results/}"
-            {
-              echo "## ${rel_path}"
-              echo
-              echo '```text'
-              cat "$log_file"
-              echo
-              echo '```'
-              echo
-            } >> "$NOTE_FILE"
-          done
+          test -d results/pybullet
+          ls -la results/pybullet
 
       - name: Package results
         run: |
-          zip -r "results-${GITHUB_REF_NAME}.zip" results
+          zip -r "results-${GITHUB_REF_NAME}.zip" results/pybullet
 
       - name: Upload results artifact
         uses: actions/upload-artifact@v4
@@ -82,4 +59,3 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: results-${{ github.ref_name }}.zip
-          body_path: release-notes.md

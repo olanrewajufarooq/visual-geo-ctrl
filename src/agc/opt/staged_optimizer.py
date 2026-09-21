@@ -72,7 +72,7 @@ def promote_gains_to_registry(
     else:
         target_path = Path(target_file)
 
-    from ...config.optimized_gains import optimized_gains as get_current_gains
+    from ..config.optimized_gains import optimized_gains as get_current_gains
 
     modes = ["nominal", "euclidean", "bregman"]
     forms = ["c1", "c2"]
@@ -89,9 +89,12 @@ def promote_gains_to_registry(
 
     # Write formatted python file
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    stage_str = metadata.get("stage", "N/A") if metadata else "N/A"
+    cost_val = metadata.get("cost", None) if metadata else None
+    cost_str = f"{float(cost_val):.6g}" if cost_val is not None else "N/A"
     lines = [
         '"""Optimized per-scenario gain registry.',
-        f"Last promotion: {timestamp} (Stage: {metadata.get('stage', 'N/A') if metadata else 'N/A'}, Cost: {metadata.get('cost', 'N/A'):.6g if metadata and 'cost' in metadata else 'N/A'})",
+        f"Last promotion: {timestamp} (Stage: {stage_str}, Cost: {cost_str})",
         '"""',
         "",
         "import numpy as np",
@@ -130,8 +133,7 @@ def promote_gains_to_registry(
         "",
     ])
 
-    with open(target_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
+    target_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def run_staged_optimization(
@@ -149,6 +151,7 @@ def run_staged_optimization(
     parallel: bool = True,
     promote: bool = True,
     output_dir: Optional[str] = None,
+    seed: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Execute staged block-coordinate optimization for selected scenarios."""
     variants = expand_scenario_selection(mode, coriolis)
@@ -251,6 +254,7 @@ def run_staged_optimization(
                         initial_points=block_seeds,
                         parallel=parallel,
                         verbose=True,
+                        seed=seed,
                     )
                 else:
                     opt = ParticleSwarmOptimizer(
@@ -264,6 +268,7 @@ def run_staged_optimization(
                         initial_points=block_seeds,
                         parallel=parallel,
                         verbose=True,
+                        seed=seed,
                     )
 
                 best_block_x, best_cost, history = opt.optimize()

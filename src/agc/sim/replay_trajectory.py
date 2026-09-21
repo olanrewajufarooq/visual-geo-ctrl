@@ -6,6 +6,7 @@ import numpy as np
 import scipy.io as sio
 
 from ..math.se3 import rotm_to_quat, quat_to_rotm
+from .validation import validate_replay_data
 
 
 class ReplayTrajectory:
@@ -28,6 +29,8 @@ class ReplayTrajectory:
             self.traj = raw_traj
         else:
             raise TypeError(f"Unexpected traj type: {type(raw_traj)}")
+
+        validate_replay_data(self.traj)
 
         self.t = np.asarray(self.traj["t"], dtype=float).ravel()
         self.p = np.asarray(self.traj["p"], dtype=float)

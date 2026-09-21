@@ -1,68 +1,26 @@
-# Gain-tuning data output
+# Gain-Tuning Data Output
 
-Optimization reports are written below `results/tuning/<run>/<scenario-id>/`.
-The iteration number is the primary identifier. `elapsed_seconds` is recorded
-as optional runtime metadata for estimating iteration duration and total cost.
+Staged optimization reports and checkpoints are written to `results/tuning/<mode>_<coriolis>_<timestamp>/`.
 
-## Files
+## Output Files
 
-- `convergence.csv`: one row for every completed PSO iteration with
-  `iteration`, `best_cost`, and `elapsed_seconds`. Repeated best costs are
-  retained so stall periods are visible.
-- `best_improvements.csv`: rows recorded when the global best improves. It has
-  `iteration`, `best_cost`, `elapsed_seconds`, `event`, named controller-gain
-  columns, and physical `Gamma` columns. This is the preferred file for
-  plotting gain changes that produced improvement.
-- `baseline_and_best.csv`: headered `baseline` and `best` rows using the same
-  named gain columns. Older generated files with two unnamed positional rows
-  are legacy outputs and are not rewritten.
-- `optimizer_state.mat`: MATLAB-native state including `bestX`, `bestCost`,
-  `topX`, `topCost`, `history`, `improvementHistory`, baseline/final
-  breakdowns, options, checkpoint swarm, completion state, and run signature.
-  `topX` is ranked by ascending cost and contains up to three numerically
-  distinct historical candidates. Gamma values in
-  `bestX` are log10 values; table/CSV Gamma columns are physical values
-  (`10.^bestX(19:end)`).
-- `best_gains.csv`: ranked cache candidates (`rank_1` through `rank_3`) with
-  named physical-gain columns. It may contain fewer than three rows early in
-  an interrupted run.
-- `run_metadata.json`: compact scenario, optimizer, completion, iteration,
-  elapsed-time, and signature metadata for non-MATLAB tooling.
-- `best_gains.txt`, `best_gains.m`, and `convergence.png`: human-readable,
-  executable, and visual summaries of the final result.
+- `optimization_results.json`: Complete record of the optimization session, containing:
+  - `mode`, `coriolis`, `schedule`, and `method` settings.
+  - Initial baseline costs (`manual_cost`, `registered_cost`, `incumbent_seed_cost`).
+  - Stage-by-stage progression with block names, candidate costs, improvement status, and elapsed wall-clock times.
+  - Final optimized gain dictionary (`KRdiag`, `Kxidiag`, `LambdaDiag`, `kd`, `ks`, `alpha`, `gammaE`, `gammaB`).
+  - Promotion status indicating whether `config/optimized_gains.py` was updated.
+- `checkpoint_<stage>.json`: Intermediate checkpoint after each block optimization stage, preserving the best candidate state and cost history.
 
-## Gain columns
+## Gain Data Dictionary
 
-`Kp_1...Kp_6`, `Kd_1...Kd_6`, and `lambda_1...lambda_6` are controller gains.
-Bregman reports contain one `Gamma_1`; Euclidean reports contain ten Gamma
-columns ordered as `[m,hx,hy,hz,Ixx,Iyy,Izz,Ixy,Ixz,Iyz]`.
-
-## Specialized Gamma runs
-
-After a completed general run, run the corresponding script from the
-repository root. With the default empty source directory, the runner selects
-the newest matching general-run report under `results/tuning` and errors when
-none exists:
-
-```matlab
-% Edit sourceReportDir in run/optimize_bregmann_gamma_gain.m, then:
-optimize_bregmann_gamma_gain
-
-% Edit sourceReportDir in run/optimize_euclidean_gamma_gains.m, then:
-optimize_euclidean_gamma_gains
-```
-
-The Bregman script optimizes only scalar Bregman Gamma. The Euclidean script
-optimizes only the ten Euclidean Gamma values. Both freeze `Kp`, `Kd`, and
-`lambda` from the selected general-run scenario reports. For experiments with
-user-supplied fixed gains, call `fth.opt.GammaOptimizationRunner.run` with a
-`fixedGains` struct containing physical `Kp`, `Kd`, `lambda`, and `Gamma`; a
-commented example is included in each script.
-
-Search bounds can be overridden field-by-field through `opt.bounds` before
-the runner call. Gamma bounds use log10 optimizer space, for example:
-
-```matlab
-opt.bounds = struct();
-opt.bounds.gammaLog10 = [-5, -2];
-```
+| Gain Field | Dimension | Physical Meaning |
+| --- | --- | --- |
+| `KRdiag` | $3 \times 1$ | Diagonal attitude tracking gains on $\mathfrak{so}(3)$ |
+| `Kxidiag` | $3 \times 1$ | Diagonal position tracking gains in $\mathbb{R}^3$ |
+| `LambdaDiag` | $6 \times 1$ | Diagonal metric damping gains on $\mathfrak{se}(3)$ |
+| `kd` | Scalar | Velocity damping gain |
+| `ks` | Scalar | Generalized sliding surface scaling |
+| `alpha` | Scalar | Orientation sliding scale |
+| `gammaE` | $10 \times 1$ | Euclidean adaptation learning rates: $[m, h_x, h_y, h_z, I_{xx}, I_{yy}, I_{zz}, I_{xy}, I_{xz}, I_{yz}]$ |
+| `gammaB` | Scalar | Bregman Riemannian learning rate for SPD affine-invariant update |

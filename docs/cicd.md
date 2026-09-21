@@ -1,46 +1,40 @@
 # CI/CD
 
-The repository includes a GitHub Actions workflow at `.github/workflows/release-results.yml` for headless MATLAB result generation and release packaging.
+The repository includes GitHub Actions workflows under `.github/workflows/` for automated verification and release builds.
 
-## Trigger
+## 1. Continuous Integration (`ci.yml`)
 
-The workflow runs on tag pushes matching:
+### Triggers
+- Pushes to the `main` branch
+- Pull requests targeting `main`
 
-```text
-v*
-```
+### Pipeline Steps
+1. Checks out repository and configures Python 3.12.
+2. Installs dependencies (`pip install -e ".[dev]"`).
+3. Executes the full automated test suite with pytest:
+   ```bash
+   pytest tests/ -v
+   ```
+4. Runs smoke simulation verification:
+   ```bash
+   python run/run_theory_suite.py --mode nominal --coriolis c1 --duration 0.1 --no-pacing
+   python run/run_batch.py --duration 0.1 --serial
+   ```
 
-## What the Workflow Does
+---
 
-1. Checks out the repository.
-2. Sets up MATLAB through `matlab-actions/setup-matlab`.
-3. Runs `ci_release` headlessly with software OpenGL and invisible figures.
-4. Verifies that the `results/` folder was generated.
-5. Builds release notes from aggregated `command_window.txt` files.
-6. Packages the `results/` directory as a zip artifact.
-7. Uploads the artifact and publishes a GitHub release.
+## 2. Release Results Workflow (`release-results.yml`)
 
-## MATLAB Command Used
+### Triggers
+- Tag pushes matching `v*` (e.g. `v1.0.0`).
 
-```text
-set(0,'DefaultFigureVisible','off'); addpath('run'); ci_release;
-```
-
-## Required Secret
-
-The workflow expects:
-
-- `MATLAB_TOKEN` mapped into `MLM_LICENSE_TOKEN`
-
-## Release Output
-
-Generated release assets include:
-
-- `results-<tag>.zip`
-- GitHub release notes built from aggregated simulation logs
-
-## Operational Notes
-
-- The workflow is currently centered on the adaptive release scenario in `run/ci_release.m`.
-- If you change output folder structure or log naming, update the release note generation step so it still finds the aggregated `command_window.txt` files.
-- For local validation, run `ci_release` directly in MATLAB before pushing a release tag.
+### Pipeline Steps
+1. Sets up Python 3.12 and installs dependencies.
+2. Runs the full test suite.
+3. Executes the full 6-variant comparative study batch:
+   ```bash
+   python run/run_batch.py --duration 30.0 --serial
+   ```
+4. Verifies output directory `results/pybullet/`.
+5. Compresses the results into `results-<tag>.zip`.
+6. Attaches the zip archive to the GitHub Release.

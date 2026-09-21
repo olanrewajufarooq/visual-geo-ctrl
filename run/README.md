@@ -1,16 +1,124 @@
-# Run scripts
+# Run Scripts
 
-Every `.m` file here is a MATLAB script. Edit its settings at the top, then run it from the repository root after `startup`.
+All scripts in this directory are Python CLI entry points. Run them from the repository root within the `agc` Conda environment.
 
-`run_batch.m` and `run_theory_suite.m` default to `inplaceSave = true`, writing to `results/inplace/`. They overwrite only the selected scenario subfolders, such as `results/inplace/nominal_c2/`; other in-place scenarios and `results/inplace/comparisons/` remain untouched. A runtime failure that has logged at least one finite sample is retained in its selected folder with failure metadata, allowing diagnosis without being counted as a completed experiment. In-place runs export only standalone diagnostics. Set `inplaceSave = false` to create a new timestamped suite under `results/<timestamp>/`, including comparisons.
+```powershell
+conda activate agc
+```
 
-- `run_theory_suite.m` runs a selectable payload-drop subset over a 30 s replay segment. Every case begins with an exact loaded UAV model, releases the 0.75 kg offset payload at 10 s, and is saved under `results/<timestamp>/`. Set `generateFigures` to plot completed cases and finite failed prefixes, and `saveReplay3D` to write an MP4 beside each persisted `run.mat`.
-- `run_batch.m` runs the six-case payload-drop matrix with parallel workers by default and saves every completed run plus every finite failed prefix. It exports standalone diagnostics for each persisted run plus only comparisons whose required members are available. Each figure family is split into total and release-relative views: standalone figures are stored at `results/<timestamp>/<mode>_<coriolis>/figures/{total-sim,from-drop}/`; comparisons are stored at `results/<timestamp>/comparisons/{total-sim,from-drop}/{nominal,euclidean,bregman,euclidean_v_bregman,performance}/`. Performance summaries are total-simulation only and include completed simulations only.
-- `optimize_gains.m` uses Global Optimization Toolbox for staged derivative-free block-coordinate optimization. It runs an all-gain particle swarm, a non-adaptive block swarm, an adaptive block search, then a final all-gain polish; Bregman uses a saved scalar `gammaB` log-grid profile. Its objective is a dimensionless weighted sum formed by dividing each RMSE by an explicit physical tolerance and squaring it: mass and center-of-mass estimation receive slightly more priority than position and attitude, followed by body velocity tracking, rotational-inertia estimation, and wrench effort. Each stage retains the best full-horizon feasible incumbent and may update only its matching entry in `config/optimized_gains.m`. Set either selector to `''` for all supported values, or pass a cell array such as `{'bregman','euclidean'}`.
-- `replay_run.m` visualizes a saved result and can export an MP4.
-- `plot_trajectories.m` plots one recorded artifact from `trajectories/processed/`; it does not run a simulation.
-- `generate_paper_figures.m` re-exports available comparisons and every standalone diagnostic from one saved suite, or the newest suite containing saved runs when given `results`.
+---
 
-## Optimization reference
+## Script Overview
 
-The staged method uses block-coordinate terminology in the sense of P. Tseng, [“Convergence of a Block Coordinate Descent Method for Nondifferentiable Minimization”](https://www.mit.edu/~dimitrib/PTseng/papers/archive/bcr_jota.pdf), *Journal of Optimization Theory and Applications*, 109(3), 475–494, 2001. The particle-swarm and grid stages are approximate derivative-free block solves; this implementation does not claim the convergence guarantees of exact block-coordinate descent.
+### 1. `run_theory_suite.py`
+Simulates a single UAV tracking experiment in PyBullet.
+- Releases the 0.75 kg payload at 10.0 s (when duration $\ge 10$ s).
+- Saves results to `results/pybullet/run_<mode>_<coriolis>_<timestamp>/` with `run.npz` and `metadata.json`.
+
+```powershell
+# Headless run (fast)
+python run/run_theory_suite.py --mode bregman --coriolis c1 --duration 30
+
+# Interactive 3D PyBullet GUI with trajectory trail and camera tracking
+python run/run_theory_suite.py --mode bregman --coriolis c1 --gui --speed 1.0
+
+# Export paper figures
+python run/run_theory_suite.py --mode bregman --coriolis c1 --save-figures
+```
+
+**Options:**
+- `--replay-id`: Trajectory benchmark ID (default: `lemniscate_01_auto`).
+- `--mode`: Controller mode: `nominal`, `euclidean`, or `bregman`.
+- `--coriolis`: Coriolis factorization: `c1` (Levi-Civita) or `c2` (coadjoint).
+- `--duration`: Flight duration in seconds (default: 30.0 s).
+- `--gui`: Launch 3D PyBullet GUI.
+- `--speed`: GUI playback speed multiplier (default: 1.0).
+- `--no-pacing`: Run as fast as possible without real-time wall-clock sleep.
+- `--save-figures`: Generate and save tracking/estimation figures.
+- `--output-dir`: Custom output directory.
+
+---
+
+### 2. `run_batch.py`
+Runs the full 6-variant comparison matrix (`nominal`, `euclidean`, `bregman` $\times$ `c1`, `c2`) with payload drop, saving run data, `manifest.json`, and comparison figures.
+
+```powershell
+# Default batch (parallel execution)
+python run/run_batch.py
+
+# Serial execution (single process)
+python run/run_batch.py --serial --duration 10.0
+```
+
+**Options:**
+- `--duration`: Flight duration in seconds (default: 30.0 s).
+- `--replay-id`: Benchmark trajectory ID (default: `lemniscate_01_auto`).
+- `--serial`: Execute scenarios sequentially in a single process.
+- `--parallel`: Execute scenarios across multi-core worker processes (default).
+- `--output-dir`: Custom output directory for the suite.
+- `--no-figures`: Skip figure generation.
+
+---
+
+### 3. `optimize_gains.py`
+Performs staged block-coordinate gain optimization (Particle Swarm or Differential Evolution) over tracking gains ($K_R, K_\xi$), damping/metric gains ($\Lambda, k_s, k_d$), and adaptation gains ($\gamma_E, \gamma_B$).
+
+```powershell
+# Optimize Bregman C1 gains using hierarchical 7-stage schedule
+python run/optimize_gains.py --mode bregman --coriolis c1 --schedule hierarchical
+
+# Optimize Euclidean C2 using Differential Evolution with Nelder-Mead polish
+python run/optimize_gains.py --mode euclidean --coriolis c2 --method de --polish
+```
+
+**Options:**
+- `--mode`: `nominal`, `euclidean`, `bregman`, or `all`.
+- `--coriolis`: `c1`, `c2`, or `all`.
+- `--schedule`: `hierarchical` (7 stages: $K \to \Lambda,k_s,k_d \to \Lambda \to k_s,k_d \to \gamma \to \text{all}$) or `classic` (4 stages).
+- `--method`: `pso` (Particle Swarm) or `de` (Differential Evolution).
+- `--polish`: Run Nelder-Mead simplex polishing on final `all` stage.
+- `--duration`: Evaluation flight duration in seconds (default: 30.0 s).
+- `--replay-id`: Trajectory benchmark ID (default: `lemniscate_01_auto`).
+- `--swarm-size`: Swarm size / population multiplier (default: 50).
+- `--max-iter`: Maximum iterations per stage (default: 20).
+- `--max-stall`: Maximum iterations without improvement (default: 10).
+- `--seed`: Random seed for reproducible search.
+- `--no-parallel`: Disable multi-core particle evaluations.
+- `--no-promote`: Do not update `config/optimized_gains.py` if incumbent improves.
+- `--output-dir`: Custom output directory for checkpoints and logs.
+
+---
+
+### 4. `replay_run.py`
+Visualizes a previously saved simulation run (`run.npz`) in the interactive 3D PyBullet GUI.
+
+```powershell
+python run/replay_run.py results/pybullet/suite_<timestamp>/bregman_c1 --speed 1.5
+```
+
+**Options:**
+- `run_dir`: Positional argument; path to directory containing `run.npz`.
+- `--speed`: Playback speed multiplier (default: 1.0).
+- `--frame-stride`: Simulation step stride for rendering (default: 5).
+
+---
+
+### 5. `plot_trajectories.py`
+Inspects reference trajectory geometry and time profiles directly from `trajectories/processed/*.mat`.
+
+```powershell
+python run/plot_trajectories.py --replay-id lemniscate_01_auto
+```
+
+**Options:**
+- `--replay-id`: Benchmark trajectory ID (e.g. `lemniscate_01_auto`, `ellipse_01_auto`, `RATM_01_auto`).
+- `--output`: File path to save the generated plot image.
+
+---
+
+### 6. `generate_paper_figures.py`
+Regenerates publication-ready figures (attitude/position error, parameter estimates, C1 vs C2 comparisons, Euclidean vs Bregman comparisons) from a saved run or suite directory.
+
+```powershell
+python run/generate_paper_figures.py results/pybullet/suite_<timestamp>
+```

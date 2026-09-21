@@ -1,68 +1,64 @@
 # Troubleshooting
 
-## MATLAB Path Issues
+## Python Environment & Import Issues
 
-Symptoms:
+### Symptoms:
+- `ModuleNotFoundError: No module named 'agc'`
+- `ModuleNotFoundError: No module named 'pybullet'` or `numpy`
 
-- `fth.*` classes or functions are not found
-- Run scripts fail immediately on startup
-
-Checks:
-
-```matlab
-startup
-which fth.sim.SimRunner
-which fth.sim.Config
+### Solution:
+Verify that the `agc` Conda environment is active:
+```powershell
+conda activate agc
+```
+If developing in editable mode, reinstall the package:
+```powershell
+pip install -e ".[dev]"
+```
+Test module imports:
+```powershell
+python -c "import agc.math, agc.paper, agc.plant; print('Imports OK')"
 ```
 
-If those lookups fail, make sure you started MATLAB in the repository root or explicitly `cd` into it before calling `startup`.
+---
 
-## Visualization Problems
+## PyBullet GUI & Visualization Issues
 
-Common causes:
+### Symptoms:
+- PyBullet window crashes or fails to open with `--gui`.
+- OpenGL/driver warning on headless or virtual machines.
 
-- Missing Robotics System Toolbox
-- Graphics driver or renderer issues
-- Overly aggressive live-update settings during long runs
+### Solutions:
+1. Run in headless mode:
+   ```powershell
+   python run/run_theory_suite.py --mode bregman --coriolis c1
+   ```
+2. Update OpenGL / GPU display drivers. PyBullet utilizes hardware OpenGL acceleration for the 3D window when `--gui` is specified.
+3. For remote machines or Docker containers, use `pybullet.DIRECT` (default in batch and test scripts).
 
-Mitigations:
+---
 
-```matlab
-cfg.enableLiveView(false);
-cfg.setLiveUrdfEmbedding(false);
-cfg.setLiveUpdateRate(500);
-```
+## Numerical Stability & Divergence
 
-If URDF rendering is unavailable, prefer lighter plotting paths and summary figures.
+### Symptoms:
+- Vehicle tumbles or divergence warning.
+- Non-finite tracking errors or parameter estimates.
 
-## Numerical or Stability Issues
+### Solutions:
+1. Ensure the simulation rates maintain integer step ratios (`dtPlant = 0.002`, `dtControl = 0.02`, `dtAdaptation = 0.01`).
+2. Verify positive definiteness of metric matrix $\Lambda$ and tracking gains $K_R, K_\xi$.
+3. When using Euclidean adaptation, ensure learning rate $\gamma_E$ does not cause pseudo-inertia estimate $\hat{\mathcal{J}}$ to lose positive definiteness. Bregman adaptation (`--mode bregman`) is mathematically guaranteed to preserve SPD estimates for all finite time.
 
-Symptoms:
+---
 
-- Divergent trajectories
-- Unstable adaptive estimates
-- Integration errors or unrealistic motion
+## Batch Process Isolation & Multi-Processing
 
-Checks:
+### Symptoms:
+- Parallel batch runs (`run_batch.py`) stall or encounter pickling errors.
 
-- Reduce `dt`, `controlDt`, or `adaptationDt`
-- Verify payload mass, position, and drop timing
-- Re-check controller gains and adaptation gains
-- Start from a nominal scenario before enabling adaptation
-
-## Batch Run Performance
-
-For large sweeps:
-
-- Disable live plotting
-- Use `plotMode = 'summary'` or `plotMode = 'none'`
-- Save `sim_data.mat` only when you actually need it
-- Use `parallelRuns = true` only in environments where MATLAB parallel execution is configured
-
-## CI/Release Failures
-
-If the GitHub Actions release job fails:
-
-- Confirm `MATLAB_TOKEN` is configured in repository secrets
-- Run `ci_release` locally first
-- Check whether result-folder naming or log generation changed in a way that breaks the workflow log collection step
+### Solutions:
+1. Run in serial mode for debugging:
+   ```powershell
+   python run/run_batch.py --serial --duration 5.0
+   ```
+2. On Windows, Python uses `spawn` for multiprocessing. All scenario arguments and callable wrappers must be top-level picklable objects.

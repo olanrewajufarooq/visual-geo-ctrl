@@ -21,6 +21,7 @@ class ParticleSwarmOptimizer:
         parallel: bool = True,
         max_workers: Optional[int] = None,
         verbose: bool = True,
+        seed: Optional[int] = None,
     ):
         self.cost_func = cost_func
         self.lb = np.asarray(lower_bound, dtype=float).ravel()
@@ -37,6 +38,8 @@ class ParticleSwarmOptimizer:
         self.parallel = bool(parallel)
         self.max_workers = max_workers
         self.verbose = bool(verbose)
+        self.seed = seed
+        self.rng = np.random.default_rng(seed)
 
         # Standard Clerc & Kennedy constriction coefficients matching MATLAB
         self.w = 0.72984
@@ -48,7 +51,7 @@ class ParticleSwarmOptimizer:
         span = self.ub - self.lb
 
         # 1. Initialize particle positions
-        X = np.random.uniform(self.lb, self.ub, size=(self.swarm_size, self.dim))
+        X = self.rng.uniform(self.lb, self.ub, size=(self.swarm_size, self.dim))
 
         # Inject seeds if provided
         if self.initial_points is not None:
@@ -58,7 +61,7 @@ class ParticleSwarmOptimizer:
             X[:n_seeds] = pts[:n_seeds]
 
         # 2. Initialize particle velocities (bounded to 20% of range)
-        V = np.random.uniform(-0.2 * span, 0.2 * span, size=(self.swarm_size, self.dim))
+        V = self.rng.uniform(-0.2 * span, 0.2 * span, size=(self.swarm_size, self.dim))
 
         # 3. Evaluate initial population
         costs = self._evaluate_batch(X)
@@ -77,8 +80,8 @@ class ParticleSwarmOptimizer:
 
         # 4. Swarm iteration loop
         for it in range(1, self.max_iter + 1):
-            r1 = np.random.uniform(0.0, 1.0, size=(self.swarm_size, self.dim))
-            r2 = np.random.uniform(0.0, 1.0, size=(self.swarm_size, self.dim))
+            r1 = self.rng.uniform(0.0, 1.0, size=(self.swarm_size, self.dim))
+            r2 = self.rng.uniform(0.0, 1.0, size=(self.swarm_size, self.dim))
 
             # Velocity update
             V = self.w * V + self.c1 * r1 * (pbest_X - X) + self.c2 * r2 * (gbest_X - X)

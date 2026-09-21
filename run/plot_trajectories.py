@@ -1,7 +1,12 @@
 """Plot and inspect recorded reference flight trajectories."""
 
 import sys
+import argparse
 from pathlib import Path
+
+# Ensure headless plotting
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -12,8 +17,27 @@ from agc.sim.replay_trajectory import ReplayTrajectory
 
 
 def main():
-    traj_id = "lemniscate_01_auto"
+    parser = argparse.ArgumentParser(description="Plot and inspect recorded reference flight trajectories.")
+    parser.add_argument(
+        "--replay-id",
+        type=str,
+        default="lemniscate_01_auto",
+        help="Trajectory benchmark ID (e.g. lemniscate_01_auto, ellipse_01_auto, RATM_01_auto)",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Path to save output inspection image",
+    )
+    args = parser.parse_args()
+
+    traj_id = args.replay_id
     traj_file = REPO_ROOT / "trajectories" / "processed" / f"{traj_id}.mat"
+    if not traj_file.is_file():
+        print(f"Error: Trajectory file not found: {traj_file}")
+        sys.exit(1)
+
     sampler = ReplayTrajectory(str(traj_file))
 
     print(f"Loaded trajectory: {traj_id}")
@@ -39,7 +63,11 @@ def main():
     ax2.legend()
 
     plt.tight_layout()
-    out_file = REPO_ROOT / "results" / "trajectory_inspection.png"
+    if args.output is not None:
+        out_file = Path(args.output)
+    else:
+        out_file = REPO_ROOT / "results" / f"trajectory_{traj_id}.png"
+
     out_file.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_file, dpi=300)
     print(f"Saved inspection plot to {out_file}")

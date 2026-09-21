@@ -1,44 +1,29 @@
 # Coding Conventions
 
-## Namespacing
+## Namespacing & Package Hierarchy
 
-MATLAB package names follow the `fth.<package>.<symbol>` pattern.
+All Python modules reside under the `agc` package namespace:
+- `agc.math`: Lie-group operations on $\mathrm{SE}(3)$ and $\mathrm{SO}(3)$, pseudo-inertia, and SPD validations.
+- `agc.paper`: Paper equations, tracking error covectors, Coriolis factorizations (`c1`, `c2`), 6x10 regressor $Y$, and adaptation laws.
+- `agc.plant`: PyBullet floating-base multi-body physics plant and link wrench interfaces.
+- `agc.sim`: Multi-rate simulation execution (`run_scenario`), continuous trajectory replay, metrics, and scenario validation.
+- `agc.opt`: Staged block-coordinate optimization, PSO, DE, Nelder-Mead simplex, and gain bounds.
+- `agc.io`: Persistence utilities for `.npz` runs, `metadata.json`, and `manifest.json`.
+- `agc.batch`: Batch simulation orchestration and process isolation.
+- `agc.viz`: Headless publication figures and 3D PyBullet replay.
 
-Examples:
+## Package Boundaries & PyBullet Isolation
 
-- `fth.sim.Config`
-- `fth.sim.SimRunner`
-- `fth.se3.expSE3`
-- `fth.ctrl.ControllerWrench`
+- Pure numerical modules (`agc.math`, `agc.paper`, `agc.opt.bounds`) must remain importable without PyBullet.
+- PyBullet dependencies must be localized to physics and 3D visualizer modules (`agc.plant`, `agc.viz.replay_3d`).
 
-Package folders use MATLAB `+package` directory naming under `src/+fth/`.
+## Python Code Style
 
-## File Organization
+- Use Python 3.10+ typing annotations (`Dict[str, Any]`, `np.ndarray`, `Optional[float]`).
+- All scripts under `run/` must expose clear CLI arguments via `argparse`.
+- Avoid side-effects on module import.
 
-- Keep domain logic inside the relevant package rather than in run scripts.
-- Use `run/` for reproducible scenarios and demos, not for core library behavior.
-- Prefer extending factories and dedicated subpackages over adding large conditional blocks in unrelated files.
+## Automated Testing
 
-## Configuration Style
-
-- Use `fth.sim.Config` as the single configuration entry point.
-- Call `cfg.done()` before constructing `SimRunner`.
-- Prefer explicit run names and script names for batch scenarios so output folders stay readable.
-
-## Commits
-
-Use Conventional Commits when possible.
-
-Examples:
-
-- `feat: add helix trajectory sweep`
-- `fix: correct adaptive gain batch expansion`
-- `refactor: simplify results naming`
-- `test: cover bregman adaptation edge cases`
-- `docs: split readme into docs hub`
-
-## Documentation
-
-- Keep the root `README.md` concise and link out to `docs/`.
-- Put durable how-to and architecture details in topic-specific markdown files.
-- Update documentation when changing public configuration or run-script behavior.
+- Add unit and regression tests under `tests/` using `pytest`.
+- Test numerical algorithms against deterministic fixtures.

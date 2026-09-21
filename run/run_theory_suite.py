@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--speed", type=float, default=1.0, help="GUI playback speed multiplier (e.g. 1.0 for real-time, 2.0 for 2x)")
     parser.add_argument("--no-pacing", action="store_true", help="Disable wall-clock real-time pacing")
     parser.add_argument("--save-figures", action="store_true", default=True, help="Export paper figures")
+    parser.add_argument("--output-dir", type=str, default=None, help="Custom output directory")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -47,7 +48,10 @@ def main():
 
     run, failure = run_scenario(scenario)
 
-    results_dir = REPO_ROOT / "results" / "pybullet" / f"{args.mode}_{args.coriolis}"
+    if args.output_dir is not None:
+        results_dir = Path(args.output_dir)
+    else:
+        results_dir = REPO_ROOT / "results" / "pybullet" / f"{args.mode}_{args.coriolis}"
     os.makedirs(results_dir, exist_ok=True)
 
     if failure is None:

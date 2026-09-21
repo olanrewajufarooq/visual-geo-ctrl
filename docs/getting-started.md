@@ -2,76 +2,83 @@
 
 ## Prerequisites
 
-- MATLAB R2020b or later is recommended.
-- Robotics System Toolbox is optional and mainly affects URDF-based visualization.
-- A standard desktop MATLAB environment is enough for nominal runs; longer batch sweeps benefit from more CPU time and memory.
+- **Python 3.10+** (Python 3.12 recommended)
+- **Miniconda** or **Anaconda**
+- Recommended OS: Windows, Linux, or macOS
 
-## Installation
+## Environment Installation
 
-Clone the repository:
+Create and activate the dedicated `agc` Conda environment:
 
-```bash
-git clone https://github.com/kfupm-arm-lab/adaptive-geo-ctrl.git
-cd adaptive-geo-ctrl
+```powershell
+conda env create -f environment.yml
+conda activate agc
 ```
 
-Initialize the MATLAB path from the repository root:
+Alternatively, install the package in editable mode with development dependencies:
 
-```matlab
-cd('path/to/adaptive-geo-ctrl')
-startup
+```powershell
+pip install -e ".[dev]"
 ```
 
-`startup.m` adds the repository root, `src/`, and `run/` to the active MATLAB path.
+Verify that the environment imports correctly:
+
+```powershell
+python -c "import agc.math, agc.paper, agc.plant; print('AGC imported successfully')"
+```
+
+---
 
 ## First Run
 
-Run a nominal demo:
+### 1. Interactive 3D Simulation
+Run an adaptive tracking experiment in the 3D PyBullet GUI:
 
-```matlab
-startup
-run_nominal_demo
+```powershell
+python run/run_theory_suite.py --mode bregman --coriolis c1 --gui --speed 1.0
 ```
 
-Run an adaptive demo with a scheduled payload change:
+### 2. Fast Headless Simulation
+Run headlessly and generate paper figures:
 
-```matlab
-startup
-run_adaptive_demo
+```powershell
+python run/run_theory_suite.py --mode bregman --coriolis c1 --duration 30 --save-figures
 ```
 
-## Batch and Release Runs
+The results and figures will be saved in `results/pybullet/run_bregman_c1_<timestamp>/`.
 
-For a larger comparison run:
+---
 
-```matlab
-startup
-run_adaptive_gain_comparison
+## Batch Comparisons
+
+Run all 6 controller variants (`nominal`, `euclidean`, `bregman` $\times$ `c1`, `c2`) with the 10-second payload drop:
+
+```powershell
+# Parallel execution across CPU cores
+python run/run_batch.py
+
+# Serial execution (single process)
+python run/run_batch.py --serial --duration 10.0
 ```
 
-For the CI-oriented release batch:
+---
 
-```matlab
-startup
-ci_release
+## Inspecting Recorded Trajectories
+
+Visualize reference trajectories from `trajectories/processed/`:
+
+```powershell
+python run/plot_trajectories.py --replay-id lemniscate_01_auto
 ```
 
-## Available Run Scripts
+---
 
-| Script | Purpose |
-| --- | --- |
-| `run_nominal_demo.m` | Single-run nominal control example |
-| `run_adaptive_demo.m` | Adaptive control with payload drop |
-| `run_nominal_coriolis_comparison.m` | Compare nominal Coriolis formulations |
-| `run_adaptive_coriolis_comparison.m` | Compare adaptive Coriolis formulations |
-| `run_adaptive_gain_comparison.m` | Batch Euclidean and Bregman gain sweep |
-| `plot_trajectories.m` | Plot reference trajectories without a simulation run |
-| `ci_release.m` | Batch release scenario used by GitHub Actions |
+## Running Automated Tests
 
-## Typical Workflow
+Run the full pytest test suite:
 
-1. Call `startup`.
-2. Build a `fth.sim.Config` object or use one of the `run/` scripts.
-3. Finalize the config with `cfg.done()`.
-4. Create `fth.sim.SimRunner`, call `setup()`, then `run(...)`.
-5. Inspect figures and the generated `results/` folder.
+```powershell
+pytest tests/ -v
+```
+
+All 59+ unit and integration tests should pass.

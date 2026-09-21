@@ -87,3 +87,50 @@ def test_adjoint_se3_structure():
     assert np.allclose(Ad[0:3, 3:6], np.zeros((3, 3)), atol=1e-12)
     assert np.allclose(Ad[3:6, 0:3], skew(p) @ R, atol=1e-12)
     assert np.allclose(Ad[3:6, 3:6], R, atol=1e-12)
+
+
+def test_ad_twist_numerical_fixture():
+    """Verify ad_twist structure matches [S(omega) 0; S(v) S(omega)]."""
+    V = np.array([1.0, -2.0, 3.0, 4.0, -5.0, 6.0])
+    adV = ad_twist(V)
+    assert adV.shape == (6, 6)
+    assert np.allclose(adV[0:3, 0:3], skew(V[0:3]), atol=1e-12)
+    assert np.allclose(adV[0:3, 3:6], np.zeros((3, 3)), atol=1e-12)
+    assert np.allclose(adV[3:6, 0:3], skew(V[3:6]), atol=1e-12)
+    assert np.allclose(adV[3:6, 3:6], skew(V[0:3]), atol=1e-12)
+
+    # Lie bracket identity: ad_V(U) == [V, U]
+    U = np.array([0.5, 1.5, -0.5, -1.0, 2.0, 0.5])
+    bracket = adV @ U
+    expected_top = skew(V[0:3]) @ U[0:3]
+    expected_bot = skew(V[3:6]) @ U[0:3] + skew(V[0:3]) @ U[3:6]
+    assert np.allclose(bracket[0:3], expected_top, atol=1e-12)
+    assert np.allclose(bracket[3:6], expected_bot, atol=1e-12)
+
+
+def test_pi_parameter_ordering_and_inertia_structure():
+    """Verify exact parameter ordering and subblock placement in 6x6 generalized inertia."""
+    m = 2.5
+    hx, hy, hz = 0.1, -0.2, 0.15
+    Ixx, Iyy, Izz = 0.4, 0.5, 0.6
+    Ixy, Ixz, Iyz = 0.02, -0.03, 0.01
+    pi = np.array([m, hx, hy, hz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz])
+
+    I6 = inertia_from_pi(pi)
+    assert I6.shape == (6, 6)
+
+    # Rotational inertia block J
+    assert np.isclose(I6[0, 0], Ixx)
+    assert np.isclose(I6[1, 1], Iyy)
+    assert np.isclose(I6[2, 2], Izz)
+    assert np.isclose(I6[0, 1], Ixy) and np.isclose(I6[1, 0], Ixy)
+    assert np.isclose(I6[0, 2], Ixz) and np.isclose(I6[2, 0], Ixz)
+    assert np.isclose(I6[1, 2], Iyz) and np.isclose(I6[2, 1], Iyz)
+
+    # Coupling block S(h)
+    h = np.array([hx, hy, hz])
+    assert np.allclose(I6[0:3, 3:6], skew(h), atol=1e-12)
+    assert np.allclose(I6[3:6, 0:3], -skew(h), atol=1e-12)
+
+    # Translational block m * I
+    assert np.allclose(I6[3:6, 3:6], m * np.eye(3), atol=1e-12)

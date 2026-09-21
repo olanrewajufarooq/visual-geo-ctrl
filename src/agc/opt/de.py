@@ -20,6 +20,7 @@ class DifferentialEvolutionOptimizer:
         parallel: bool = True,
         max_workers: Optional[int] = None,
         verbose: bool = True,
+        seed: Optional[int] = None,
     ):
         self.cost_func = cost_func
         self.lb = np.asarray(lower_bound, dtype=float).ravel()
@@ -32,11 +33,13 @@ class DifferentialEvolutionOptimizer:
         self.parallel = parallel
         self.max_workers = max_workers
         self.verbose = verbose
+        self.seed = seed
 
     def optimize(self) -> Tuple[np.ndarray, float, List[float]]:
         bounds = list(zip(self.lb, self.ub))
         workers = -1 if self.parallel else 1
         history = []
+        rng = np.random.default_rng(self.seed)
 
         init_method = "latinhypercube"
         if self.initial_points is not None:
@@ -44,7 +47,7 @@ class DifferentialEvolutionOptimizer:
             pts = np.clip(pts, self.lb, self.ub)
             total_needed = self.pop_size * self.dim
             if len(pts) < total_needed:
-                extra = np.random.uniform(self.lb, self.ub, size=(total_needed - len(pts), self.dim))
+                extra = rng.uniform(self.lb, self.ub, size=(total_needed - len(pts), self.dim))
                 init_pop = np.vstack([pts, extra])
             else:
                 init_pop = pts[:total_needed]
@@ -66,6 +69,7 @@ class DifferentialEvolutionOptimizer:
             workers=workers,
             callback=_callback,
             polish=False,
+            seed=self.seed,
         )
 
         best_x = np.asarray(res.x, dtype=float)

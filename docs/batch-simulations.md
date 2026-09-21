@@ -1,88 +1,50 @@
 # Batch Simulations
 
-The framework supports multi-run sweeps over trajectories, controller gains, adaptation gains, payload settings, and Coriolis factorization choices. Batch expansion happens through `fth.sim.Config` and is executed by `fth.sim.SimRunner` and `fth.sim.BatchRunner`.
+The framework provides batch execution to simulate and compare all controller and Coriolis variants over benchmark trajectories with payload detachment.
 
-## Trajectory and Gain Sweeps
+Batch simulation is orchestrated by `src/agc/batch/run_batch.py` and executed via the CLI runner `run/run_batch.py`.
 
-The common pattern is:
+## Running Batch Simulations
 
-1. Configure multiple trajectories.
-2. Provide one row or entry per run for the batched field.
-3. Finalize with `cfg.done()`.
-4. Run once; the framework expands the batch internally.
+### Parallel Execution (Recommended)
+By default, `run/run_batch.py` launches worker processes to execute scenarios concurrently, maintaining independent PyBullet physics client contexts:
 
-```matlab
-startup
-
-cfg = fth.sim.Config();
-duration = 60;
-
-cfg.useSimOptions(struct( ...
-    'dt', 0.005, ...
-    'duration', duration, ...
-    'controlDt', 0.01, ...
-    'adaptationDt', 0.005, ...
-    'runNames', {{'baseline', 'euclid-base-gain', 'euclid-high-inertia', ...
-                  'euclid-high-cog', 'breg-low', 'breg-mid', 'breg-high'}}, ...
-    'scriptName', 'adapt_gain_comp', ...
-    'parallelRuns', true));
-
-cfg.useTrajectoryOptions(struct( ...
-    'names', {{'circle', 'lissajous3d', 'helix3d', 'poly3d'}}, ...
-    'goToHoverBeforePathStarts', false, ...
-    'period', [duration, duration, duration/2, duration/2]));
-
-cfg.useControllerOptions(struct( ...
-    'potential', 'inertia-gain', ...
-    'Kp', [5.5, 5.5, 5.5, 5.5, 5.5, 5.5]', ...
-    'Kd', [2.05, 2.05, 2.05, 2.05, 2.05, 2.05]', ...
-    'lambda', 1e-3 * [5, 5, 5, 50, 50, 50], ...
-    'paramInit', 'mid-vehicle-payload', ...
-    'coriolisForm', 'consistent'));
-
-cfg.useAdaptationOptions(struct( ...
-    'type', {{'euclidean', 'euclidean', 'euclidean', 'euclidean', ...
-              'bregman', 'bregman', 'bregman'}}, ...
-    'Gamma', {{ ...
-        1e-2 * zeros(1, 10), ...
-        1e-2 * [36, 12, 12, 12, 8, 8, 12, 0.4, 0.4, 0.4], ...
-        1e-2 * [72, 12, 12, 12, 360, 360, 360, 40, 40, 40], ...
-        1e-2 * [36, 120, 120, 120, 8, 8, 12, 0.4, 0.4, 0.4], ...
-        1/10, 1/20, 1/30 }}));
-
-cfg.done();
-
-sim = fth.sim.SimRunner(cfg);
-sim.setup();
-sim.run(struct('plotMode', 'all', 'displayPlots', false, ...
-               'saveSimData', false, ...
-               'cummPlotModes', {{'tracking_rmse', 'estimation_nrmse'}}));
+```powershell
+python run/run_batch.py --duration 30.0 --replay-id lemniscate_01_auto
 ```
 
-## What Can Be Batched
+### Serial Execution
+For single-threaded debugging or memory-constrained environments:
 
-- Trajectory names
-- Controller gains `Kp` and `Kd`
-- Adaptive gains `Gamma`
-- Adaptation mode when using mixed run sets
-- Coriolis factorization form
-- Payload mass, position, and drop time
-- Simulation duration and dt-related fields
+```powershell
+python run/run_batch.py --serial --duration 10.0
+```
 
-## Naming and Expansion Rules
+## The 6-Variant Matrix
 
-- Single values are broadcast to all runs.
-- Row-oriented matrices are interpreted as one run per row.
-- `sim.runNames` provides stable labels for batch result folders.
-- The total run count is the number of trajectories multiplied by the per-trajectory batch count.
+The batch suite executes all combinations of:
+- **Modes**: `nominal`, `euclidean`, `bregman`
+- **Coriolis Factorizations**: `c1` (Levi-Civita), `c2` (coadjoint)
 
-## Parallel Runs
+Each run simulates the vehicle carrying a 0.75 kg payload, followed by dynamic detachment at $t = 10.0$ s.
 
-Set `parallelRuns = true` in `useSimOptions(...)` when the environment supports parallel execution. For reproducible CI-style runs, keep plotting off and save only the artifacts you need.
+## Output Structure
 
-## Recommended Practices
+Results are stored in `results/pybullet/suite_<timestamp>/` containing:
+- `manifest.json`: Suite metadata, execution mode, variant status, and summary comparison table.
+- `<mode>_<coriolis>/run.npz`: Complete recorded states, errors, wrenches, and estimates.
+- `<mode>_<coriolis>/metadata.json`: Run parameters, timing, tracking RMSE metrics, and failure status.
+- `figures/`: Publication-quality comparison plots:
+  - `c1_vs_c2_tracking_error.png`
+  - `c1_vs_c2_parameter_error.png`
+  - `euclidean_vs_bregman_tracking_error.png`
+  - `euclidean_vs_bregman_parameter_error.png`
+  - Per-variant standalone state and error trajectories.
 
-- Disable live visualization for large sweeps.
-- Use explicit `runNames` so result folders are self-describing.
-- Keep `plotMode` at `summary` or `none` when batch size is high.
-- Turn on `saveSimData` only when you need later replotting or post-processing.
+## Failure Isolation & Diagnostics
+
+If an individual scenario encounters a numerical failure or instability:
+- The worker isolates the error without terminating the batch suite.
+- All finite prefix samples prior to the failure are persisted to `run.npz`.
+- Failure details (exception message, failure time, step index) are recorded in `metadata.json`.
+- Performance comparisons gracefully exclude failed members while retaining diagnostic plots.

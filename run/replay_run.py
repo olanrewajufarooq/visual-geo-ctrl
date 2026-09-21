@@ -139,10 +139,34 @@ def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
 
 
 if __name__ == "__main__":
-    run_dir = str(REPO_ROOT / "results" / "pybullet" / "bregman_c1")
-    speed = 1.0
-    if len(sys.argv) > 1:
-        run_dir = sys.argv[1]
-    if len(sys.argv) > 2:
-        speed = float(sys.argv[2])
-    replay_3d(run_dir, playback_speed=speed)
+    import argparse
+    from agc.io.persistence import resolve_result_suite
+
+    parser = argparse.ArgumentParser(description="Replay a saved simulation run in PyBullet 3D GUI.")
+    parser.add_argument("run_dir", nargs="?", default=None, help="Path to saved run directory containing run.npz")
+    parser.add_argument("--speed", type=float, default=1.0, help="Playback speed multiplier (e.g. 1.0, 2.0)")
+    parser.add_argument("--frame-stride", type=int, default=5, help="Simulation step stride for visualization rendering")
+    args = parser.parse_args()
+
+    if args.run_dir is not None:
+        target_dir = Path(args.run_dir)
+        if not (target_dir / "run.npz").is_file():
+            # Check if it's a suite directory
+            candidates = [d for d in target_dir.iterdir() if d.is_dir() and (d / "run.npz").is_file()]
+            if candidates:
+                target_dir = candidates[0]
+                print(f"Selected variant run: {target_dir.name}")
+    else:
+        # Default to latest result suite
+        try:
+            suite = resolve_result_suite()
+            candidates = [d for d in suite.iterdir() if d.is_dir() and (d / "run.npz").is_file()]
+            target_dir = candidates[0] if candidates else suite
+        except FileNotFoundError:
+            target_dir = REPO_ROOT / "results" / "pybullet" / "bregman_c1"
+
+    if not (target_dir / "run.npz").is_file():
+        print(f"Error: No run.npz found in {target_dir}. Please run a simulation first.")
+        sys.exit(1)
+
+    replay_3d(str(target_dir), frame_stride=args.frame_stride, playback_speed=args.speed)

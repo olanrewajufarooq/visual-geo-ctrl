@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from unittest.mock import patch
 import numpy as np
 import pytest
 
@@ -28,6 +29,8 @@ from agc.opt.objective import (
 )
 from agc.opt.bregman_profile import bregman_gamma_grid
 from agc.opt.pso import ParticleSwarmOptimizer
+from agc.opt.staged_optimizer import promote_gains_to_registry
+from agc.config.manual_gains import manual_gains
 from agc.sim.default_scenario import default_scenario
 
 
@@ -173,6 +176,20 @@ def test_encode_decode_roundtrip():
     new_sc = apply_scenario_gains(cand, scenario)
     cand2 = encode_scenario_gains(new_sc)
     assert np.allclose(cand, cand2, atol=1e-12)
+
+
+def test_promote_gains_loads_python_registry_without_relative_import_error():
+    gains = manual_gains("bregman", "c1")
+
+    with patch.object(Path, "write_text") as write_text:
+        promote_gains_to_registry(
+            "bregman",
+            "c1",
+            gains,
+            target_file="optimized_gains_test.py",
+        )
+
+    write_text.assert_called_once()
 
 
 def test_pso_sphere_function_convergence():
