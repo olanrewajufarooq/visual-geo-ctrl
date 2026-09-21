@@ -101,15 +101,18 @@ def _plot_one(traj_id: str, out_dir: Path) -> None:
     # 3-D path occupies column 0, all 3 rows (subplot indices 1, 4, 7)
     ax3d = fig.add_subplot(3, 3, (1, 7), projection="3d")
 
-    # Six panels fill the right two columns completely (positions 2,3,5,6,8,9)
+    # Six panels fill the right two columns (positions 2,3,5,6,8,9).
+    # Layout: row 0 → position | attitude
+    #         row 1 → lin. velocity | ang. velocity
+    #         row 2 → lin. accel.   | ang. accel.
     panel_positions = [2, 3, 5, 6, 8, 9]
     channels = [
-        ("position",           s.p),
-        ("body lin. velocity", s.v_b),
-        ("body lin. accel.",   s.a_b),
-        ("body ang. velocity", s.omega_b),
-        ("body ang. accel.",   s.alpha_b),
-        ("orientation (ZYX)",  euler_deg),
+        ("position",           s.p),           # col 1, row 0
+        ("orientation (ZYX)",  euler_deg),     # col 2, row 0
+        ("body lin. velocity", s.v_b),         # col 1, row 1
+        ("body ang. velocity", s.omega_b),     # col 2, row 1
+        ("body lin. accel.",   s.a_b),         # col 1, row 2
+        ("body ang. accel.",   s.alpha_b),     # col 2, row 2
     ]
 
     # ── 3-D path ──────────────────────────────────────────────────────────────
