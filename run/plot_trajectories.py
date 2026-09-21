@@ -1,13 +1,36 @@
-"""Plot and inspect recorded reference flight trajectories."""
+"""Plot and inspect recorded reference flight trajectories.
+
+By default all three canonical trajectories are plotted and saved to
+``results/trajectories/``.  Each figure mirrors the MATLAB tiled layout:
+
+  ┌────────────────┬──────────────────────┬──────────────────────────┐
+  │                │  position (m)        │  body lin. velocity m/s  │
+  │  3-D path      ├──────────────────────┼──────────────────────────┤
+  │  (3 rows tall) │  body lin. accel m/s²│  body ang. velocity rad/s│
+  │                ├──────────────────────┼──────────────────────────┤
+  │                │  body ang. accel r/s²│                          │
+  └────────────────┴──────────────────────┴──────────────────────────┘
+
+Usage
+-----
+  # plot all three trajectories (default):
+  python run/plot_trajectories.py
+
+  # plot a single trajectory:
+  python run/plot_trajectories.py --ids lemniscate_01_auto
+
+  # override output directory:
+  python run/plot_trajectories.py --output-dir path/to/dir
+"""
 
 import sys
 import argparse
 from pathlib import Path
 
-# Ensure headless plotting
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
@@ -15,65 +38,124 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from agc.sim.replay_trajectory import ReplayTrajectory
 
+# ── canonical ordering matches manifest.json ──────────────────────────────────
+ALL_IDS = ["ellipse_01_auto", "lemniscate_01_auto", "RATM_01_auto"]
 
-def main():
-    parser = argparse.ArgumentParser(description="Plot and inspect recorded reference flight trajectories.")
-    parser.add_argument(
-        "--replay-id",
-        type=str,
-        default="lemniscate_01_auto",
-        help="Trajectory benchmark ID (e.g. lemniscate_01_auto, ellipse_01_auto, RATM_01_auto)",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help="Path to save output inspection image",
-    )
-    args = parser.parse_args()
+# Pretty labels used in panel titles
+CHANNEL_LABELS = {
+    "position":            ("x", "y", "z"),
+    "body lin. velocity":  ("$v_x$", "$v_y$", "$v_z$"),
+    "body lin. accel.":    ("$a_x$", "$a_y$", "$a_z$"),
+    "body ang. velocity":  (r"$\omega_x$", r"$\omega_y$", r"$\omega_z$"),
+    "body ang. accel.":    (r"$\alpha_x$", r"$\alpha_y$", r"$\alpha_z$"),
+}
+CHANNEL_UNITS = {
+    "position":            "m",
+    "body lin. velocity":  "m/s",
+    "body lin. accel.":    r"m/s²",
+    "body ang. velocity":  "rad/s",
+    "body ang. accel.":    r"rad/s²",
+}
 
-    traj_id = args.replay_id
+
+def _plot_one(traj_id: str, out_dir: Path) -> None:
+    """Produce the 3×3 inspection figure for a single trajectory ID."""
     processed_dir = REPO_ROOT / "trajectories" / "processed"
     npz_file = processed_dir / f"{traj_id}.npz"
     traj_file = npz_file if npz_file.is_file() else (processed_dir / f"{traj_id}.mat")
     if not traj_file.is_file():
-        print(f"Error: Trajectory file not found: {traj_file}")
-        sys.exit(1)
+        print(f"  [SKIP]  Trajectory file not found: {traj_file}")
+        return
 
-    sampler = ReplayTrajectory(str(traj_file))
+    s = ReplayTrajectory(str(traj_file))
 
-    print(f"Loaded trajectory: {traj_id}")
-    print(f"Time span: {sampler.t[0]:.2f} s to {sampler.t[-1]:.2f} s ({len(sampler.t)} samples)")
+    print(f"  Loaded {traj_id}  |  {s.t[0]:.2f} s -> {s.t[-1]:.2f} s  ({len(s.t)} samples)")
 
-    fig = plt.figure(figsize=(12, 5))
-    ax1 = fig.add_subplot(1, 2, 1, projection="3d")
-    ax1.plot(sampler.p[:, 0], sampler.p[:, 1], sampler.p[:, 2], label="Desired Position", color="#1f77b4")
-    ax1.set_xlabel("X (m)")
-    ax1.set_ylabel("Y (m)")
-    ax1.set_zlabel("Z (m)")
-    ax1.set_title(f"3D Flight Path: {traj_id}")
-    ax1.legend()
+    # ── figure + layout ───────────────────────────────────────────────────────
+    fig = plt.figure(figsize=(14, 8))
+    fig.suptitle(f"Preprocessed replay: {traj_id}", fontsize=13, fontweight="bold")
 
-    ax2 = fig.add_subplot(1, 2, 2)
-    ax2.plot(sampler.t, sampler.v_b[:, 0], label=r"$v_x$ (body)")
-    ax2.plot(sampler.t, sampler.v_b[:, 1], label=r"$v_y$ (body)")
-    ax2.plot(sampler.t, sampler.v_b[:, 2], label=r"$v_z$ (body)")
-    ax2.set_xlabel("Time (s)")
-    ax2.set_ylabel("Linear Velocity (m/s)")
-    ax2.set_title("Body Linear Velocities")
-    ax2.grid(True, linestyle=":", alpha=0.6)
-    ax2.legend()
+    # 3-D path occupies column 0, all 3 rows
+    ax3d = fig.add_subplot(3, 3, (1, 7), projection="3d")
+
+    # Five kinematic panels fill columns 1-2, rows 0-2 (positions 2,3,5,6,8,9
+    # in 1-indexed grid — but we only have 5 panels so leave one blank or fill)
+    panel_positions = [2, 3, 5, 6, 8]
+    channels = [
+        ("position",           s.p),
+        ("body lin. velocity", s.v_b),
+        ("body lin. accel.",   s.a_b),
+        ("body ang. velocity", s.omega_b),
+        ("body ang. accel.",   s.alpha_b),
+    ]
+
+    # ── 3-D path ──────────────────────────────────────────────────────────────
+    ax3d.plot(s.p[:, 0], s.p[:, 1], s.p[:, 2], "k-", linewidth=1.4, label="path")
+    ax3d.plot(*s.p[0],   "go", markersize=7, markerfacecolor="g", label="start")
+    ax3d.plot(*s.p[-1],  "rd", markersize=7, markerfacecolor="r", label="end")
+    ax3d.set_xlabel("x (m)")
+    ax3d.set_ylabel("y (m)")
+    ax3d.set_zlabel("z (m)")
+    ax3d.set_title("3-D Flight Path", fontsize=10)
+    ax3d.legend(loc="best", fontsize=8)
+    ax3d.grid(True)
+
+    # ── kinematic panels ──────────────────────────────────────────────────────
+    for grid_pos, (title, data) in zip(panel_positions, channels):
+        ax = fig.add_subplot(3, 3, grid_pos)
+        labels = CHANNEL_LABELS[title]
+        for j, lbl in enumerate(labels):
+            ax.plot(s.t, data[:, j], linewidth=1.2, label=lbl)
+        ax.set_title(title.capitalize(), fontsize=9)
+        ax.set_ylabel(CHANNEL_UNITS[title], fontsize=8)
+        ax.set_xlabel("time (s)", fontsize=8)
+        ax.legend(loc="best", fontsize=7, ncol=1)
+        ax.grid(True, linestyle=":", alpha=0.6)
+        ax.tick_params(labelsize=7)
 
     plt.tight_layout()
-    if args.output is not None:
-        out_file = Path(args.output)
-    else:
-        out_file = REPO_ROOT / "results" / f"trajectory_{traj_id}.png"
 
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(out_file, dpi=300)
-    print(f"Saved inspection plot to {out_file}")
-    plt.close()
+    # ── save ──────────────────────────────────────────────────────────────────
+    out_dir.mkdir(parents=True, exist_ok=True)
+    png_path = out_dir / f"{traj_id}_trajectory.png"
+    plt.savefig(png_path, dpi=300, bbox_inches="tight")
+    print(f"  Saved -> {png_path}")
+    plt.close(fig)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Plot all canonical reference trajectories into results/trajectories/.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--ids",
+        nargs="+",
+        metavar="ID",
+        default=ALL_IDS,
+        help=(
+            "Trajectory IDs to plot (default: all three canonical trajectories). "
+            f"Choices: {ALL_IDS}"
+        ),
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Directory to write output PNGs (default: results/trajectories/)",
+    )
+    args = parser.parse_args()
+
+    out_dir = Path(args.output_dir) if args.output_dir else REPO_ROOT / "results" / "trajectories"
+
+    print(f"Output directory: {out_dir}")
+    print(f"Plotting {len(args.ids)} trajectory(ies): {args.ids}")
+    print()
+
+    for traj_id in args.ids:
+        _plot_one(traj_id, out_dir)
+
+    print("\nDone.")
 
 
 if __name__ == "__main__":
