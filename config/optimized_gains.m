@@ -1,10 +1,10 @@
 function gains = optimized_gains(mode, coriolis)
 %OPTIMIZED_GAINS Automatically maintained per-scenario gain registry.
-% Last promotion: 2026-09-21 20:20:47.
+% Last promotion: 2026-09-21 21:06:40.
 key = sprintf('%s_%s', lower(char(string(mode))), lower(char(string(coriolis))));
 switch key
     case 'nominal_c1'
-        gains = struct('KRdiag', [2.197 0.09943 2.517], 'Kxidiag', [39.74 8.85 7.891], 'LambdaDiag', [4.315 9.267 3.333 0.2074 3.552 3.315], 'kd', 0.6467, 'ks', 15.62, 'alpha', 0.5587, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 0.001);
+        gains = struct('KRdiag', [2.006 0.3173 3.523], 'Kxidiag', [25.06 6.507 7.744], 'LambdaDiag', [7.061 8.789 2.883 0.1834 3.764 2.272], 'kd', 0.7041, 'ks', 13.84, 'alpha', 0.8554, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 0.001);
     case 'nominal_c2'
         gains = struct('KRdiag', [0.1819 0.01 2.596], 'Kxidiag', [85.36 3.784 100], 'LambdaDiag', [38.73 26.23 5.068 0.1638 0.2499 0.1605], 'kd', 24.6, 'ks', 1.651, 'alpha', 0.1439, 'gammaE', [0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001;0.001], 'gammaB', 0.001);
     case 'euclidean_c1'
