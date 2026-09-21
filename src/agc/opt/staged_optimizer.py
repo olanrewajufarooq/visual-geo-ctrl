@@ -65,10 +65,10 @@ def promote_gains_to_registry(
     metadata: Optional[Dict[str, Any]] = None,
     target_file: Optional[str] = None,
 ):
-    """Update config/optimized_gains.py with improved gains."""
+    """Update the Python optimized-gains registry with improved gains."""
     root = get_repository_root()
     if target_file is None:
-        target_path = root / "config" / "optimized_gains.py"
+        target_path = root / "src" / "agc" / "config" / "optimized_gains.py"
     else:
         target_path = Path(target_file)
 
