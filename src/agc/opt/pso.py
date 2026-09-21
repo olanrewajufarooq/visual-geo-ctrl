@@ -40,6 +40,8 @@ class ParticleSwarmOptimizer:
         self.verbose = bool(verbose)
         self.seed = seed
         self.rng = np.random.default_rng(seed)
+        self._executor = None
+        self._cost_cache = {}
 
         # Standard Clerc & Kennedy constriction coefficients matching MATLAB
         self.w = 0.72984
@@ -48,6 +50,15 @@ class ParticleSwarmOptimizer:
 
     def optimize(self) -> Tuple[np.ndarray, float, List[float]]:
         """Run PSO search, returning (best_candidate, best_cost, cost_history)."""
+        if self.parallel:
+            self._executor = ProcessPoolExecutor(max_workers=self.max_workers)
+        try:
+            return self._optimize()
+        finally:
+            self.close()
+
+    def _optimize(self) -> Tuple[np.ndarray, float, List[float]]:
+        """Run the PSO loop with one worker pool shared by all evaluations."""
         span = self.ub - self.lb
 
         # 1. Initialize particle positions
@@ -130,9 +141,31 @@ class ParticleSwarmOptimizer:
     def _evaluate_batch(self, X: np.ndarray) -> np.ndarray:
         """Evaluate a batch of candidate positions."""
         rows = [row for row in X]
-        if self.parallel and len(rows) > 1:
-            with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
-                costs = list(executor.map(self.cost_func, rows))
-        else:
-            costs = [self.cost_func(r) for r in rows]
-        return np.array(costs, dtype=float)
+        keys = [tuple(np.asarray(row, dtype=float).tolist()) for row in rows]
+        missing = []
+        missing_keys = []
+        for row, key in zip(rows, keys):
+            if key not in self._cost_cache and key not in missing_keys:
+                missing.append(row)
+                missing_keys.append(key)
+
+        if missing:
+            if self.parallel and self._executor is not None and len(missing) > 1:
+                new_costs = list(self._executor.map(self.cost_func, missing))
+            else:
+                new_costs = [self.cost_func(row) for row in missing]
+            self._cost_cache.update(zip(missing_keys, (float(c) for c in new_costs)))
+
+        return np.array([self._cost_cache[key] for key in keys], dtype=float)
+
+    def close(self):
+        """Release the persistent worker pool after one optimization run."""
+        if self._executor is not None:
+            self._executor.shutdown(wait=True)
+            self._executor = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass

@@ -30,7 +30,7 @@ from .pso import ParticleSwarmOptimizer
 from .de import DifferentialEvolutionOptimizer, nelder_mead_polish
 from .bregman_profile import profile_bregman_gain
 from ..sim.default_scenario import default_scenario, get_repository_root
-from ..io.persistence import default_results_root
+from ..io.persistence import default_results_root, load_best_gain, save_best_gain
 
 
 def is_strictly_improved(candidate: Dict[str, Any], reference: Dict[str, Any]) -> bool:
@@ -184,6 +184,7 @@ def run_staged_optimization(
             duration=duration,
             gain_source="manual",
             gui=False,
+            enable_pacing=False,
         )
         reg_scenario = default_scenario(
             replay_id=replay_id,
@@ -192,6 +193,7 @@ def run_staged_optimization(
             duration=duration,
             gain_source="optimized",
             gui=False,
+            enable_pacing=False,
         )
 
         manual_cand = encode_scenario_gains(manual_scenario)
@@ -203,6 +205,24 @@ def run_staged_optimization(
         incumbent = best_feasible_candidate(manual_rec, reg_rec)
         promoted = reg_rec
 
+        # Resume from the best candidate persisted by an earlier in-place run.
+        result_root = default_results_root(str(root), inplace_save=inplace_save, timestamp=stamp)
+        best_gain_path = result_root / f"{sel_mode}_{sel_coriolis}.json"
+        saved_best = load_best_gain(best_gain_path)
+        if saved_best is not None and "candidate" in saved_best:
+            saved_candidate = np.asarray(saved_best["candidate"], dtype=float)
+            saved_rec = evaluate_scenario_candidate(
+                saved_candidate, manual_scenario, weights, label="persisted-best"
+            )
+            incumbent = best_feasible_candidate(incumbent, saved_rec)
+            promoted = best_feasible_candidate(promoted, saved_rec)
+
+        if not best_gain_path.exists() and not incumbent["failed"]:
+            save_best_gain(
+                best_gain_path, sel_mode, sel_coriolis, incumbent["gains"],
+                incumbent["cost"], incumbent["label"], incumbent["candidate"],
+            )
+
         print(f"  Manual cost:     {manual_rec['cost']:.6g} (failed={manual_rec['failed']})")
         print(f"  Registered cost: {reg_rec['cost']:.6g} (failed={reg_rec['failed']})")
         print(f"  Incumbent seed:  {incumbent['cost']:.6g} ({incumbent['label']})")
@@ -213,7 +233,7 @@ def run_staged_optimization(
         else:
             res_dir = default_results_root(
                 str(root), inplace_save=inplace_save, timestamp=stamp
-            ) / "optimization" / f"{sel_mode}_{sel_coriolis}"
+            ) / f"{sel_mode}_{sel_coriolis}"
         os.makedirs(res_dir, exist_ok=True)
 
         stages_log = []
@@ -349,6 +369,10 @@ def run_staged_optimization(
                     coriolis=sel_coriolis,
                     gains=incumbent["gains"],
                     metadata={"cost": incumbent["cost"], "stage": s_name, "artifact": str(res_dir)},
+                )
+                save_best_gain(
+                    best_gain_path, sel_mode, sel_coriolis, incumbent["gains"],
+                    incumbent["cost"], s_name, incumbent["candidate"],
                 )
                 promoted = incumbent
 

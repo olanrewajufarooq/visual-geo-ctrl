@@ -98,6 +98,7 @@ def evaluate_scenario_candidate(
         c["gammaB"] = gains["gammaB"]
     temp_scenario["controller"] = c
     temp_scenario["gui"] = False  # Headless evaluation
+    temp_scenario["enable_pacing"] = False  # Never wall-clock pace optimizer trials
 
     published_candidate = encode_scenario_gains(temp_scenario)
 

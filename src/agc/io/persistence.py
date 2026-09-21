@@ -13,12 +13,49 @@ def default_results_root(
     inplace_save: bool = True,
     timestamp: Optional[str] = None,
 ) -> Path:
-    """Return the default result root for an in-place or timestamped run."""
+    """Return the optimizer result root for in-place or timestamped output."""
     root = Path(repository_root) if repository_root is not None else Path(__file__).resolve().parent.parent.parent.parent
     if inplace_save:
-        return root / "results" / "inplace"
+        return root / "results" / "optimization" / "best-gain"
     stamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
-    return root / "results" / "timestamped" / stamp
+    return root / "results" / "optimization" / "timestamped" / stamp
+
+
+def save_best_gain(
+    path: Path,
+    mode: str,
+    coriolis: str,
+    gains: Dict[str, Any],
+    cost: float,
+    stage: str,
+    candidate: Optional[np.ndarray] = None,
+) -> None:
+    """Persist one variant's best rounded gains and score."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "mode": str(mode).lower(),
+        "coriolis": str(coriolis).lower(),
+        "gains": _to_json_serializable(gains),
+        "cost": float(cost),
+        "stage": str(stage),
+        "updatedAt": datetime.now().isoformat(timespec="seconds"),
+    }
+    if candidate is not None:
+        payload["candidate"] = _to_json_serializable(np.asarray(candidate, dtype=float))
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+
+
+def load_best_gain(path: Path) -> Optional[Dict[str, Any]]:
+    """Load a persisted best-gain record, or return None when absent."""
+    path = Path(path)
+    if not path.is_file():
+        return None
+    with path.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
+    payload["cost"] = float(payload["cost"])
+    return payload
 
 
 def _to_json_serializable(obj: Any) -> Any:
@@ -174,8 +211,8 @@ def save_batch_suite(
 def resolve_result_suite(path: Optional[str] = None) -> Path:
     """Resolve a results directory or latest suite directory containing manifest.json or run.npz."""
     root = Path(__file__).resolve().parent.parent.parent.parent
-    timestamped_results = root / "results" / "timestamped"
-    inplace_results = root / "results" / "inplace"
+    timestamped_results = root / "results" / "optimization" / "timestamped"
+    inplace_results = root / "results" / "optimization" / "best-gain"
 
     if path:
         p = Path(path)
