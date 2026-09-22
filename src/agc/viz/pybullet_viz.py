@@ -24,13 +24,13 @@ class PyBulletVisualizer:
         self,
         client_id: int,
         uav_id: int,
-        ground_z: float = -1.5,
+        ground_z: float = 0.0,
         sim_speed: float = 1.0,
         enable_pacing: bool = True,
         ground_style: str = "arena",
         gates_mode: str = "lemniscate",
         cam_mode: str = "chase",
-        enable_osd: bool = True,
+        enable_osd: bool = False,
         dashboard_enabled: bool = False,
     ):
         self.client_id = client_id
@@ -156,16 +156,6 @@ class PyBulletVisualizer:
                 lifeTime=0,
                 physicsClientId=self.client_id,
             )
-
-        # Mark start location
-        p.addUserDebugText(
-            "START / LAUNCH",
-            [pts[0][0], pts[0][1], pts[0][2] + 0.20],
-            textColorRGB=[0.2, 1.0, 0.3],
-            textSize=1.1,
-            lifeTime=0,
-            physicsClientId=self.client_id,
-        )
 
         # Spawn Racing Gate Passages (aligned with world coordinates where trajectory resides)
         z_offset = 0.0

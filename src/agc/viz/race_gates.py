@@ -345,18 +345,6 @@ class RaceGateManager:
         for m_pos in marker_positions:
             self._add_marker_sphere(gate, m_pos)
 
-        # 4. Gate ID Label Badge (Floating text above top crossbar)
-        top_center = c + R @ np.array([0.0, 0.0, half_h + border + 0.15])
-        label_id = p.addUserDebugText(
-            f"GATE {gate.gate_id}",
-            top_center.tolist(),
-            textColorRGB=[1.0, 0.95, 0.2],
-            textSize=1.1,
-            lifeTime=0,
-            physicsClientId=self.client_id,
-        )
-        gate.debug_ids.append(label_id)
-
     def _add_line(self, gate: RaceGate, p1: np.ndarray, p2: np.ndarray, color: List[float], width: float = 2.0):
         """Add a persistent debug line and track its ID with the gate."""
         line_id = p.addUserDebugLine(

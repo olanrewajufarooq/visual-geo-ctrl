@@ -28,7 +28,7 @@ def default_scenario(
     ground_style: str = "arena",
     gates_mode: Optional[str] = None,
     cam_mode: str = "chase",
-    enable_osd: bool = True,
+    enable_osd: bool = False,
     drone_type: str = "pybullet_drones",
     initial_offset: Optional[np.ndarray] = None,
 ) -> dict:

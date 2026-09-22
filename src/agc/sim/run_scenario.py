@@ -69,11 +69,11 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
     gui = bool(scenario.get("gui", False))
     sim_speed = float(scenario.get("simSpeed", 1.0))
     enable_pacing = bool(scenario.get("enablePacing", True))
-    ground_z = float(scenario.get("groundZ", -1.5))
+    ground_z = float(scenario.get("groundZ", 0.0))
     ground_style = str(scenario.get("groundStyle", "arena"))
     gates_mode = str(scenario.get("gatesMode", "lemniscate"))
     cam_mode = str(scenario.get("camMode", "chase"))
-    enable_osd = bool(scenario.get("enableOsd", True))
+    enable_osd = bool(scenario.get("enableOsd", False))
     drone_type = str(scenario.get("droneType", "pybullet_drones"))
 
     from ..plant.pybullet_plant import PyBulletPlant

@@ -30,8 +30,9 @@ def main():
     parser.add_argument("--gates", type=str, default=None, choices=["lemniscate", "ratm", "auto", "none"], help="Racing gates mode")
     parser.add_argument("--drone-type", type=str, default="pybullet_drones", choices=["pybullet_drones", "hexacopter"], help="Visual drone model")
     parser.add_argument("--cam-mode", type=str, default="chase", choices=["chase", "fpv", "overview", "free"], help="Initial camera mode")
-    parser.add_argument("--ground-z", type=float, default=None, help="Floor Z elevation (default: 0.0 for RATM tracks, -1.5 for synthetic)")
-    parser.add_argument("--no-osd", action="store_true", help="Disable FPV OSD HUD overlay")
+    parser.add_argument("--ground-z", type=float, default=0.0, help="Floor Z elevation (default: 0.0)")
+    parser.add_argument("--osd", action="store_true", default=False, help="Enable FPV OSD HUD overlay (disabled by default)")
+    parser.add_argument("--no-osd", action="store_true", help="Explicitly disable FPV OSD HUD overlay")
     parser.add_argument("--save-figures", action="store_true", default=True, help="Export paper figures")
     parser.add_argument("--output-dir", type=str, default=None, help="Custom output directory")
     parser.add_argument(
@@ -49,17 +50,15 @@ def main():
     )
     args = parser.parse_args()
 
-    # Determine ground_z
-    if args.ground_z is not None:
-        ground_z = float(args.ground_z)
-    else:
-        ground_z = 0.0 if "ratm" in args.replay_id.lower() else -1.5
+    # Determine ground_z (default to 0.0 for arena floor alignment)
+    ground_z = float(args.ground_z)
+    enable_osd = bool(args.osd and not args.no_osd)
 
     print("=" * 60)
     print(f"Running AGC Simulation: Mode = {args.mode}, Coriolis = {args.coriolis}")
     print(f"Trajectory = {args.replay_id}, Duration = {args.duration} s, GUI = {args.gui}, Speed = {args.speed}x")
     if args.gui:
-        print(f"Visuals: Ground = {args.ground}, Gates = {args.gates or 'auto'}, Cam = {args.cam_mode}, OSD = {not args.no_osd}")
+        print(f"Visuals: Ground = {args.ground}, Gates = {args.gates or 'auto'}, Cam = {args.cam_mode}, OSD = {enable_osd}")
     print("=" * 60)
 
     scenario = default_scenario(
@@ -75,7 +74,7 @@ def main():
         ground_style=args.ground,
         gates_mode=args.gates,
         cam_mode=args.cam_mode,
-        enable_osd=not args.no_osd,
+        enable_osd=enable_osd,
         drone_type=args.drone_type,
     )
 

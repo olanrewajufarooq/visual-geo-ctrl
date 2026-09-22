@@ -30,11 +30,11 @@ class PyBulletPlant:
         release_time: Optional[float] = None,
         sim_speed: float = 1.0,
         enable_pacing: bool = True,
-        ground_z: float = -1.5,
+        ground_z: float = 0.0,
         ground_style: str = "arena",
         gates_mode: str = "lemniscate",
         cam_mode: str = "chase",
-        enable_osd: bool = True,
+        enable_osd: bool = False,
         drone_type: str = "pybullet_drones",
     ):
         self.dt = float(dt)
