@@ -68,6 +68,11 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
     gui = bool(scenario.get("gui", False))
     sim_speed = float(scenario.get("simSpeed", 1.0))
     enable_pacing = bool(scenario.get("enablePacing", True))
+    ground_z = float(scenario.get("groundZ", -1.5))
+    ground_style = str(scenario.get("groundStyle", "arena"))
+    gates_mode = str(scenario.get("gatesMode", "ratm"))
+    cam_mode = str(scenario.get("camMode", "chase"))
+    enable_osd = bool(scenario.get("enableOsd", True))
 
     from ..plant.pybullet_plant import PyBulletPlant
 
@@ -80,6 +85,11 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
         release_time=release_time,
         sim_speed=sim_speed,
         enable_pacing=enable_pacing,
+        ground_z=ground_z,
+        ground_style=ground_style,
+        gates_mode=gates_mode,
+        cam_mode=cam_mode,
+        enable_osd=enable_osd,
     )
 
     if gui:
@@ -168,6 +178,8 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
                         est_m=est_m,
                         true_m=true_m,
                         step_idx=k,
+                        mode=mode,
+                        coriolis=coriolis,
                     )
 
                 # Advance physics plant

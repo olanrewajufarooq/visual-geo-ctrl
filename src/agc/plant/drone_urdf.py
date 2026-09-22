@@ -1,4 +1,9 @@
-"""Multicopter URDF generator with exact inertial properties."""
+"""Multicopter URDF generator with exact inertial properties and high-fidelity visuals.
+
+Generates a realistic carbon-fiber hexacopter with avionics stack, tilted front FPV camera,
+brushless outrunner motors, counter-rotating propeller discs, and aviation navigation LEDs.
+Preserves exact mathematical mass, CoM, and 6D inertia from the input pi vector.
+"""
 
 from pathlib import Path
 import numpy as np
@@ -36,30 +41,78 @@ def generate_multicopter_urdf(pi: np.ndarray, output_path: str):
         arm_y = (arm_length / 2.0) * sin_a
         m_x = arm_length * cos_a
         m_y = arm_length * sin_a
-        # Front rotors green, rear rotors red (aviation navigation standard)
-        prop_mat = "prop_front" if (deg <= 60 or deg >= 300) else "prop_rear"
+
+        # Front rotors green/cyan, rear rotors red/orange (aviation navigation standard)
+        is_front = (deg <= 60.0 or deg >= 300.0)
+        prop_mat = "prop_front" if is_front else "prop_rear"
+
+        # LED color on arm tips: Right (Starboard) = Green, Left (Port) = Red, Front = Cyan, Rear = Amber
+        if deg in (300.0, 0.0):
+            led_mat = "led_green" if sin_a < 0 else "led_cyan"
+        elif deg == 60.0:
+            led_mat = "led_red" if sin_a > 0 else "led_cyan"
+        elif deg == 180.0:
+            led_mat = "led_amber"
+        elif deg == 120.0:
+            led_mat = "led_red"
+        else:  # 240.0
+            led_mat = "led_green"
 
         arms_urdf += f"""
+  <!-- Arm {i} ({deg} deg) -->
   <link name="arm_{i}">
     <inertial>
-      <mass value="0.0001"/>
+      <mass value="1e-7"/>
       <origin xyz="0 0 0"/>
-      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
+      <inertia ixx="1e-9" ixy="0" ixz="0" iyy="1e-9" iyz="0" izz="1e-9"/>
     </inertial>
+    <!-- Carbon Tube Boom -->
     <visual>
       <origin xyz="{arm_x:.5f} {arm_y:.5f} 0.0" rpy="0 1.5707 {rad:.5f}"/>
-      <geometry><cylinder radius="0.012" length="{arm_length:.4f}"/></geometry>
-      <material name="arm_metal"/>
+      <geometry><cylinder radius="0.010" length="{arm_length:.4f}"/></geometry>
+      <material name="matte_carbon"/>
     </visual>
+    <!-- CNC Aluminum Motor Mount -->
     <visual>
-      <origin xyz="{m_x:.5f} {m_y:.5f} 0.025"/>
-      <geometry><cylinder radius="0.022" length="0.035"/></geometry>
+      <origin xyz="{m_x:.5f} {m_y:.5f} 0.006"/>
+      <geometry><cylinder radius="0.024" length="0.012"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Brushless Motor Stator (Dark Gunmetal) -->
+    <visual>
+      <origin xyz="{m_x:.5f} {m_y:.5f} 0.018"/>
+      <geometry><cylinder radius="0.021" length="0.016"/></geometry>
+      <material name="motor_stator"/>
+    </visual>
+    <!-- Brushless Motor Rotor Bell (Silver Chrome) -->
+    <visual>
+      <origin xyz="{m_x:.5f} {m_y:.5f} 0.030"/>
+      <geometry><cylinder radius="0.022" length="0.014"/></geometry>
       <material name="motor_silver"/>
     </visual>
+    <!-- Prop Locknut -->
+    <visual>
+      <origin xyz="{m_x:.5f} {m_y:.5f} 0.042"/>
+      <geometry><cylinder radius="0.008" length="0.010"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
     <visual>
       <origin xyz="{m_x:.5f} {m_y:.5f} 0.045"/>
-      <geometry><cylinder radius="0.12" length="0.004"/></geometry>
+      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
       <material name="{prop_mat}"/>
+    </visual>
+    <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
+    <visual>
+      <origin xyz="{m_x:.5f} {m_y:.5f} 0.046" rpy="0 0 {rad + 0.785:.4f}"/>
+      <geometry><box size="0.25 0.022 0.002"/></geometry>
+      <material name="matte_carbon"/>
+    </visual>
+    <!-- Navigation Tip LED -->
+    <visual>
+      <origin xyz="{(m_x * 1.08):.5f} {(m_y * 1.08):.5f} 0.015"/>
+      <geometry><box size="0.015 0.015 0.008"/></geometry>
+      <material name="{led_mat}"/>
     </visual>
   </link>
   <joint name="joint_arm_{i}" type="fixed">
@@ -71,13 +124,22 @@ def generate_multicopter_urdf(pi: np.ndarray, output_path: str):
 
     urdf = f"""<?xml version="1.0"?>
 <robot name="hexacopter">
+  <!-- Realistic Material Palette -->
   <material name="dark_carbon"><color rgba="0.12 0.12 0.14 1.0"/></material>
-  <material name="arm_metal"><color rgba="0.25 0.25 0.28 1.0"/></material>
-  <material name="motor_silver"><color rgba="0.75 0.75 0.78 1.0"/></material>
-  <material name="prop_front"><color rgba="0.1 0.85 0.25 0.75"/></material>
-  <material name="prop_rear"><color rgba="0.9 0.15 0.15 0.75"/></material>
-  <material name="nose_cone"><color rgba="0.0 0.85 1.0 1.0"/></material>
-  <material name="landing_gear"><color rgba="0.18 0.18 0.2 1.0"/></material>
+  <material name="matte_carbon"><color rgba="0.18 0.18 0.20 1.0"/></material>
+  <material name="cnc_aluminum"><color rgba="0.55 0.58 0.62 1.0"/></material>
+  <material name="motor_stator"><color rgba="0.28 0.28 0.32 1.0"/></material>
+  <material name="motor_silver"><color rgba="0.80 0.82 0.86 1.0"/></material>
+  <material name="prop_front"><color rgba="0.0 0.90 0.35 0.65"/></material>
+  <material name="prop_rear"><color rgba="1.0 0.30 0.05 0.65"/></material>
+  <material name="camera_lens"><color rgba="0.05 0.05 0.08 1.0"/></material>
+  <material name="fpv_case"><color rgba="0.95 0.35 0.05 1.0"/></material>
+  <material name="landing_gear"><color rgba="0.15 0.15 0.17 1.0"/></material>
+  <material name="gps_mast"><color rgba="0.20 0.22 0.25 1.0"/></material>
+  <material name="led_green"><color rgba="0.0 1.0 0.2 1.0"/></material>
+  <material name="led_red"><color rgba="1.0 0.05 0.05 1.0"/></material>
+  <material name="led_cyan"><color rgba="0.0 0.9 1.0 1.0"/></material>
+  <material name="led_amber"><color rgba="1.0 0.7 0.0 1.0"/></material>
 
   <link name="base_link">
     <inertial>
@@ -86,45 +148,88 @@ def generate_multicopter_urdf(pi: np.ndarray, output_path: str):
       <inertia ixx="{I_com[0,0]:.6e}" ixy="{I_com[0,1]:.6e}" ixz="{I_com[0,2]:.6e}"
                iyy="{I_com[1,1]:.6e}" iyz="{I_com[1,2]:.6e}" izz="{I_com[2,2]:.6e}"/>
     </inertial>
-    <!-- Central Fuselage Top Dome -->
+
+    <!-- Lower Carbon-Fiber Deck Plate -->
     <visual>
-      <origin xyz="0 0 0.02"/>
-      <geometry><cylinder radius="0.12" length="0.04"/></geometry>
+      <origin xyz="0 0 -0.015"/>
+      <geometry><cylinder radius="0.13" length="0.003"/></geometry>
       <material name="dark_carbon"/>
     </visual>
-    <!-- Central Fuselage Core -->
+
+    <!-- Upper Carbon-Fiber Deck Plate -->
     <visual>
-      <origin xyz="0 0 0"/>
-      <geometry><box size="0.18 0.18 0.05"/></geometry>
+      <origin xyz="0 0 0.015"/>
+      <geometry><cylinder radius="0.13" length="0.003"/></geometry>
       <material name="dark_carbon"/>
     </visual>
-    <!-- Forward Heading Arrow/Nose Marker -->
+
+    <!-- Central Electronics Core / Flight Controller Stack -->
     <visual>
-      <origin xyz="0.12 0 0.01"/>
-      <geometry><box size="0.06 0.03 0.02"/></geometry>
-      <material name="nose_cone"/>
+      <origin xyz="0 0 0.0"/>
+      <geometry><box size="0.12 0.12 0.026"/></geometry>
+      <material name="matte_carbon"/>
     </visual>
+
+    <!-- Avionics Top Dome / Canopy -->
+    <visual>
+      <origin xyz="0 0 0.025"/>
+      <geometry><cylinder radius="0.08" length="0.020"/></geometry>
+      <material name="dark_carbon"/>
+    </visual>
+
+    <!-- GPS / Compass Mast & Antenna Puck -->
+    <visual>
+      <origin xyz="-0.05 0 0.045"/>
+      <geometry><cylinder radius="0.004" length="0.045"/></geometry>
+      <material name="gps_mast"/>
+    </visual>
+    <visual>
+      <origin xyz="-0.05 0 0.070"/>
+      <geometry><cylinder radius="0.025" length="0.010"/></geometry>
+      <material name="dark_carbon"/>
+    </visual>
+
+    <!-- Front FPV Racing Camera Pod (25 deg upward tilt) -->
+    <visual>
+      <origin xyz="0.13 0 0.012" rpy="0 -0.4363 0"/>
+      <geometry><box size="0.028 0.028 0.028"/></geometry>
+      <material name="fpv_case"/>
+    </visual>
+    <visual>
+      <origin xyz="0.145 0 0.019" rpy="0 -0.4363 0"/>
+      <geometry><cylinder radius="0.009" length="0.010"/></geometry>
+      <material name="camera_lens"/>
+    </visual>
+
+    <!-- Physical Collision Geometry -->
     <collision>
       <origin xyz="0 0 0"/>
       <geometry><cylinder radius="0.25" length="0.08"/></geometry>
     </collision>
   </link>
 {arms_urdf}
-  <!-- Left Landing Gear -->
+  <!-- Left Landing Skid -->
   <link name="gear_left">
     <inertial>
-      <mass value="0.0001"/>
+      <mass value="1e-7"/>
       <origin xyz="0 0 0"/>
-      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
+      <inertia ixx="1e-9" ixy="0" ixz="0" iyy="1e-9" iyz="0" izz="1e-9"/>
     </inertial>
+    <!-- Vertical Struts -->
     <visual>
-      <origin xyz="0 0.10 -0.06"/>
-      <geometry><box size="0.01 0.01 0.10"/></geometry>
+      <origin xyz="0.08 0.10 -0.06"/>
+      <geometry><cylinder radius="0.005" length="0.10"/></geometry>
       <material name="landing_gear"/>
     </visual>
     <visual>
-      <origin xyz="0 0.10 -0.11"/>
-      <geometry><box size="0.26 0.015 0.01"/></geometry>
+      <origin xyz="-0.08 0.10 -0.06"/>
+      <geometry><cylinder radius="0.005" length="0.10"/></geometry>
+      <material name="landing_gear"/>
+    </visual>
+    <!-- Longitudinal Skid Runner -->
+    <visual>
+      <origin xyz="0 0.10 -0.11" rpy="0 1.5707 0"/>
+      <geometry><cylinder radius="0.007" length="0.28"/></geometry>
       <material name="landing_gear"/>
     </visual>
   </link>
@@ -134,21 +239,28 @@ def generate_multicopter_urdf(pi: np.ndarray, output_path: str):
     <origin xyz="0 0 0"/>
   </joint>
 
-  <!-- Right Landing Gear -->
+  <!-- Right Landing Skid -->
   <link name="gear_right">
     <inertial>
-      <mass value="0.0001"/>
+      <mass value="1e-7"/>
       <origin xyz="0 0 0"/>
-      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
+      <inertia ixx="1e-9" ixy="0" ixz="0" iyy="1e-9" iyz="0" izz="1e-9"/>
     </inertial>
+    <!-- Vertical Struts -->
     <visual>
-      <origin xyz="0 -0.10 -0.06"/>
-      <geometry><box size="0.01 0.01 0.10"/></geometry>
+      <origin xyz="0.08 -0.10 -0.06"/>
+      <geometry><cylinder radius="0.005" length="0.10"/></geometry>
       <material name="landing_gear"/>
     </visual>
     <visual>
-      <origin xyz="0 -0.10 -0.11"/>
-      <geometry><box size="0.26 0.015 0.01"/></geometry>
+      <origin xyz="-0.08 -0.10 -0.06"/>
+      <geometry><cylinder radius="0.005" length="0.10"/></geometry>
+      <material name="landing_gear"/>
+    </visual>
+    <!-- Longitudinal Skid Runner -->
+    <visual>
+      <origin xyz="0 -0.10 -0.11" rpy="0 1.5707 0"/>
+      <geometry><cylinder radius="0.007" length="0.28"/></geometry>
       <material name="landing_gear"/>
     </visual>
   </link>

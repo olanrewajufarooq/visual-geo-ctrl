@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from typing import Optional
 import numpy as np
 
 from ..math.inertia import pseudo_from_pi
@@ -23,6 +24,11 @@ def default_scenario(
     gui: bool = False,
     sim_speed: float = 1.0,
     enable_pacing: bool = True,
+    ground_z: float = -1.5,
+    ground_style: str = "arena",
+    gates_mode: Optional[str] = None,
+    cam_mode: str = "chase",
+    enable_osd: bool = True,
 ) -> dict:
     """Build paper-validation benchmark scenario with 10s payload drop."""
     root = get_repository_root()
@@ -87,6 +93,9 @@ def default_scenario(
     if mode_lower == "bregman":
         initial_estimate = pseudo_from_pi(initial_estimate)
 
+    if gates_mode is None:
+        gates_mode = "ratm" if "ratm" in replay_id.lower() else "auto"
+
     return {
         "plantPi": pi,
         "initial": initial_state,
@@ -103,4 +112,9 @@ def default_scenario(
         "simSpeed": sim_speed,
         "enablePacing": enable_pacing,
         "replayId": replay_id,
+        "groundZ": ground_z,
+        "groundStyle": ground_style,
+        "gatesMode": gates_mode,
+        "camMode": cam_mode,
+        "enableOsd": enable_osd,
     }

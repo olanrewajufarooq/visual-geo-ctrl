@@ -30,6 +30,10 @@ class PyBulletPlant:
         sim_speed: float = 1.0,
         enable_pacing: bool = True,
         ground_z: float = -1.5,
+        ground_style: str = "arena",
+        gates_mode: str = "ratm",
+        cam_mode: str = "chase",
+        enable_osd: bool = True,
     ):
         self.dt = float(dt)
         self.gravity = np.asarray(gravity, dtype=float).ravel()
@@ -40,6 +44,10 @@ class PyBulletPlant:
         self.sim_speed = float(sim_speed)
         self.enable_pacing = bool(enable_pacing)
         self.ground_z = float(ground_z)
+        self.ground_style = ground_style
+        self.gates_mode = gates_mode
+        self.cam_mode = cam_mode
+        self.enable_osd = enable_osd
 
         # Connect to PyBullet
         connection_mode = p.GUI if self.gui else p.DIRECT
@@ -51,7 +59,7 @@ class PyBulletPlant:
         p.setRealTimeSimulation(0, physicsClientId=self.client_id)
 
         if self.gui:
-            # Add ground plane
+            # Add plane URDF if plane style is requested or as invisible baseline collision
             with suppress_c_stdout():
                 self.plane_id = p.loadURDF("plane.urdf", [0, 0, self.ground_z], physicsClientId=self.client_id)
         else:
@@ -69,6 +77,10 @@ class PyBulletPlant:
                 ground_z=self.ground_z,
                 sim_speed=self.sim_speed,
                 enable_pacing=self.enable_pacing,
+                ground_style=self.ground_style,
+                gates_mode=self.gates_mode,
+                cam_mode=self.cam_mode,
+                enable_osd=self.enable_osd,
             )
         else:
             self.visualizer = None
@@ -182,6 +194,8 @@ class PyBulletPlant:
         est_m: float,
         true_m: float,
         step_idx: int,
+        mode: str = "BREGMAN",
+        coriolis: str = "C1",
     ):
         """Update live camera tracking, trail, HUD, and wall-clock pacing."""
         if self.visualizer is not None:
@@ -193,6 +207,8 @@ class PyBulletPlant:
                 true_m=true_m,
                 payload_dropped=self.payload_dropped,
                 step_idx=step_idx,
+                mode=mode,
+                coriolis=coriolis,
             )
 
     def set_state(self, H: np.ndarray, V: np.ndarray):
@@ -299,7 +315,10 @@ class PyBulletPlant:
             )
 
     def close(self):
-        """Disconnect PyBullet session."""
+        """Disconnect PyBullet session and clean up visualizer."""
+        if hasattr(self, "visualizer") and self.visualizer is not None:
+            self.visualizer.close()
+            self.visualizer = None
         if p.isConnected(physicsClientId=self.client_id):
             p.disconnect(physicsClientId=self.client_id)
 
