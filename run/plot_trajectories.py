@@ -40,7 +40,7 @@ from agc.sim.replay_trajectory import ReplayTrajectory
 from agc.viz.plot_style import COMPONENT_COLORS, limit_for, plot_time_series
 
 # ── canonical ordering matches manifest.json ──────────────────────────────────
-ALL_IDS = ["ellipse_01_auto", "lemniscate_01_auto", "RATM_01_auto"]
+ALL_IDS = ["lemniscate_01_auto", "lemniscate_02_auto", "lemniscate_03_auto", "lemniscate_04_auto"]
 
 # Pretty labels used in panel titles
 CHANNEL_LABELS = {

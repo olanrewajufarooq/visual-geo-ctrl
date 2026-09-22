@@ -74,19 +74,19 @@ def main():
     parser.add_argument(
         "--swarm-size",
         type=int,
-        default=20,
+        default=50,
         help="Swarm size for PSO / population multiplier for DE",
     )
     parser.add_argument(
         "--max-iter",
         type=int,
-        default=30,
+        default=100,
         help="Maximum iterations per stage",
     )
     parser.add_argument(
         "--max-stall",
         type=int,
-        default=10,
+        default=25,
         help="Maximum iterations without improvement before early stopping",
     )
     parser.add_argument(
