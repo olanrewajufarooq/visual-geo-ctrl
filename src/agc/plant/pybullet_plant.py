@@ -61,8 +61,8 @@ class PyBulletPlant:
         p.setTimeStep(self.dt, physicsClientId=self.client_id)
         p.setRealTimeSimulation(0, physicsClientId=self.client_id)
 
-        if self.gui:
-            # Add plane URDF if plane style is requested or as invisible baseline collision
+        if self.gui and self.ground_style == "plane":
+            # Add plane URDF only when plane ground style is explicitly requested
             with suppress_c_stdout():
                 self.plane_id = p.loadURDF("plane.urdf", [0, 0, self.ground_z], physicsClientId=self.client_id)
         else:
@@ -184,6 +184,10 @@ class PyBulletPlant:
             physicsClientId=self.client_id,
         )
 
+        # Disable collision with ground plane while attached to avoid ground penetration
+        if self.plane_id is not None:
+            p.setCollisionFilterPair(self.payload_id, self.plane_id, -1, -1, enableCollision=0, physicsClientId=self.client_id)
+
     def draw_reference_path(self, trajectory_fn, duration: float):
         """Pre-render reference trajectory if visualizer is active."""
         if self.visualizer is not None:
@@ -295,6 +299,8 @@ class PyBulletPlant:
             p.removeConstraint(self.constraint_id, physicsClientId=self.client_id)
             self.constraint_id = None
             self.payload_dropped = True
+            if self.plane_id is not None:
+                p.setCollisionFilterPair(self.payload_id, self.plane_id, -1, -1, enableCollision=1, physicsClientId=self.client_id)
 
     def step(self, time: Optional[float] = None):
         """Advance physical simulation by dt."""
