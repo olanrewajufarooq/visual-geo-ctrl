@@ -8,6 +8,7 @@ Digital twin of the 7-gate racing circuit from:
 """
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Callable, Any
 import numpy as np
 import pybullet as p
@@ -166,6 +167,59 @@ class RaceGateManager:
             self.gates.append(gate)
 
         self._build_visual_gates()
+        return self.gates
+
+    def load_lemniscate_4gates(self, z_offset: float = 0.0) -> List[RaceGate]:
+        """Load the authentic 4-gate lemniscate racing circuit from static URDF."""
+        self.clear()
+        repo_root = Path(__file__).resolve().parents[3]
+        urdf_path = (repo_root / "assets" / "gates" / "lemniscate_gates.urdf").resolve()
+        body_id = None
+        if urdf_path.exists():
+            body_id = p.loadURDF(
+                str(urdf_path).replace("\\", "/"),
+                basePosition=[0.0, 0.0, z_offset],
+                baseOrientation=[0.0, 0.0, 0.0, 1.0],
+                useFixedBase=True,
+                flags=p.URDF_MERGE_FIXED_LINKS,
+                physicsClientId=self.client_id,
+            )
+
+        # Exact centers and orientations matching the URDF model and lemniscate_01_auto trajectory
+        lemniscate_specs = [
+            {"id": 1, "pos": np.array([3.5, 1.55, 0.75 + z_offset]), "yaw": 0.0},
+            {"id": 2, "pos": np.array([3.5, -1.60, 0.75 + z_offset]), "yaw": float(np.pi)},
+            {"id": 3, "pos": np.array([-3.5, 1.50, 0.75 + z_offset]), "yaw": float(np.pi)},
+            {"id": 4, "pos": np.array([-3.5, -1.70, 0.75 + z_offset]), "yaw": 0.0},
+        ]
+
+        for spec in lemniscate_specs:
+            yaw = spec["yaw"]
+            c, s = np.cos(yaw), np.sin(yaw)
+            R = np.array([
+                [c, -s, 0.0],
+                [s, c, 0.0],
+                [0.0, 0.0, 1.0],
+            ], dtype=float)
+            normal = R[:, 0]
+
+            gate = RaceGate(
+                gate_id=spec["id"],
+                center=spec["pos"],
+                yaw=yaw,
+                rotation=R,
+                normal=normal,
+                width_inner=1.524,
+                height_inner=1.524,
+            )
+            if body_id is not None:
+                gate.body_ids.append(body_id)
+            self.gates.append(gate)
+
+        # Fallback to procedural line visualization only if URDF file is absent
+        if body_id is None:
+            self._build_visual_gates()
+
         return self.gates
 
     def generate_path_adaptive_gates(
@@ -361,6 +415,13 @@ class RaceGateManager:
                     self.last_cleared_gate = gate.gate_id
                     self.gate_split_times[gate.gate_id] = t
                     self._flash_gate_cleared(gate)
+
+                    # Multi-lap support: reset cleared flags when full circuit is completed
+                    if all(g.cleared for g in self.gates):
+                        self.lap_count += 1
+                        for g in self.gates:
+                            g.cleared = False
+
                     return gate.gate_id, t
 
         return None
@@ -393,6 +454,7 @@ class RaceGateManager:
 
     def clear(self):
         """Remove all gates and visual items from PyBullet."""
+        removed_bodies = set()
         for gate in self.gates:
             for d_id in gate.debug_ids:
                 try:
@@ -400,10 +462,12 @@ class RaceGateManager:
                 except Exception:
                     pass
             for b_id in gate.body_ids:
-                try:
-                    p.removeBody(b_id, physicsClientId=self.client_id)
-                except Exception:
-                    pass
+                if b_id not in removed_bodies:
+                    try:
+                        p.removeBody(b_id, physicsClientId=self.client_id)
+                    except Exception:
+                        pass
+                    removed_bodies.add(b_id)
         self.gates.clear()
         self.last_cleared_gate = None
         self.gate_split_times.clear()

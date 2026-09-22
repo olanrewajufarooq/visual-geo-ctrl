@@ -70,9 +70,10 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
     enable_pacing = bool(scenario.get("enablePacing", True))
     ground_z = float(scenario.get("groundZ", -1.5))
     ground_style = str(scenario.get("groundStyle", "arena"))
-    gates_mode = str(scenario.get("gatesMode", "ratm"))
+    gates_mode = str(scenario.get("gatesMode", "lemniscate"))
     cam_mode = str(scenario.get("camMode", "chase"))
     enable_osd = bool(scenario.get("enableOsd", True))
+    drone_type = str(scenario.get("droneType", "pybullet_drones"))
 
     from ..plant.pybullet_plant import PyBulletPlant
 
@@ -90,6 +91,7 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
         gates_mode=gates_mode,
         cam_mode=cam_mode,
         enable_osd=enable_osd,
+        drone_type=drone_type,
     )
 
     if gui:

@@ -25,7 +25,7 @@ class PyBulletVisualizer:
         sim_speed: float = 1.0,
         enable_pacing: bool = True,
         ground_style: str = "arena",
-        gates_mode: str = "ratm",
+        gates_mode: str = "lemniscate",
         cam_mode: str = "chase",
         enable_osd: bool = True,
     ):
@@ -152,7 +152,9 @@ class PyBulletVisualizer:
 
         # Spawn Racing Gate Passages
         z_offset = self.ground_z if abs(self.ground_z) > 0.1 else 0.0
-        if self.gates_mode == "ratm":
+        if self.gates_mode == "lemniscate":
+            self.gate_manager.load_lemniscate_4gates(z_offset=z_offset)
+        elif self.gates_mode == "ratm":
             self.gate_manager.load_ratm_track(z_offset=z_offset)
         elif self.gates_mode == "auto":
             self.gate_manager.generate_path_adaptive_gates(trajectory_fn, duration, num_gates=4)
@@ -174,7 +176,11 @@ class PyBulletVisualizer:
                     if self.gate_manager.gates:
                         self.gate_manager.clear()
                     else:
-                        self.gate_manager.load_ratm_track()
+                        z_off = self.ground_z if abs(self.ground_z) > 0.1 else 0.0
+                        if self.gates_mode == "lemniscate":
+                            self.gate_manager.load_lemniscate_4gates(z_offset=z_off)
+                        else:
+                            self.gate_manager.load_ratm_track(z_offset=z_off)
 
     def update(
         self,
@@ -210,30 +216,7 @@ class PyBulletVisualizer:
                 )
                 self.prev_trail_pos = pos_arr
 
-        # 2. Ground drop shadow line (shows altitude above floor)
-        shadow_start = pos_arr.tolist()
-        shadow_end = [pos_arr[0], pos_arr[1], self.ground_z]
-        if self.drop_line_id is None:
-            self.drop_line_id = p.addUserDebugLine(
-                shadow_start,
-                shadow_end,
-                lineColorRGB=[0.3, 0.3, 0.3],
-                lineWidth=1.0,
-                lifeTime=0,
-                physicsClientId=self.client_id,
-            )
-        else:
-            self.drop_line_id = p.addUserDebugLine(
-                shadow_start,
-                shadow_end,
-                lineColorRGB=[0.3, 0.3, 0.3],
-                lineWidth=1.0,
-                lifeTime=0,
-                replaceItemUniqueId=self.drop_line_id,
-                physicsClientId=self.client_id,
-            )
-
-        # 3. Check Racing Gate Traversal
+        # 2. Check Racing Gate Traversal
         traversal = self.gate_manager.check_traversals(
             drone_pos=pos_arr,
             prev_pos=self.prev_drone_pos,
@@ -248,16 +231,39 @@ class PyBulletVisualizer:
             )
         self.prev_drone_pos = pos_arr.copy()
 
-        # 4. Check Keyboard Events
+        # 3. Check Keyboard Events
         self._handle_keyboard()
 
-        # 5. Multi-Camera Director (Updated at ~60 Hz rate)
+        # 4. Multi-Camera Director (Updated at ~60 Hz rate)
         if step_idx - self.last_cam_update_step >= 8:  # ~60 Hz at 500 Hz physics
             self.last_cam_update_step = step_idx
             self._update_camera_director(pos_arr, R)
 
-        # 6. FPV Racing OSD & HUD Overlay
-        if step_idx % 25 == 0:  # ~20 Hz update rate
+        # 5. FPV Racing OSD & HUD Overlay (Updated at ~20 Hz rate)
+        if step_idx % 25 == 0:
+            # Ground drop shadow line (shows altitude above floor)
+            shadow_start = pos_arr.tolist()
+            shadow_end = [pos_arr[0], pos_arr[1], self.ground_z]
+            if self.drop_line_id is None:
+                self.drop_line_id = p.addUserDebugLine(
+                    shadow_start,
+                    shadow_end,
+                    lineColorRGB=[0.3, 0.3, 0.3],
+                    lineWidth=1.0,
+                    lifeTime=0,
+                    physicsClientId=self.client_id,
+                )
+            else:
+                self.drop_line_id = p.addUserDebugLine(
+                    shadow_start,
+                    shadow_end,
+                    lineColorRGB=[0.3, 0.3, 0.3],
+                    lineWidth=1.0,
+                    lifeTime=0,
+                    replaceItemUniqueId=self.drop_line_id,
+                    physicsClientId=self.client_id,
+                )
+
             self.fpv_osd.update(
                 t=t,
                 pos=pos_arr,

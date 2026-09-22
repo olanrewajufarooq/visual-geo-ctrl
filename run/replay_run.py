@@ -46,11 +46,15 @@ def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
 
     # Load racing gates
     gate_mgr = RaceGateManager(client_id=client_id)
+    z_off = ground_z if ground_z != 0 else 0.0
     if np.max(H_desired[:, 2, 3]) > 3.0:
-        gate_mgr.load_ratm_track(z_offset=ground_z if ground_z != 0 else 0.0)
+        gate_mgr.load_ratm_track(z_offset=z_off)
+    else:
+        gate_mgr.load_lemniscate_4gates(z_offset=z_off)
 
-    # Load high-detail multicopter URDF
-    urdf_path = str(REPO_ROOT / "assets" / "hexacopter.urdf")
+    # Load high-detail drone URDF (defaults to gym-pybullet-drones cf2)
+    cf2_path = REPO_ROOT / "assets" / "drone" / "cf2.urdf"
+    urdf_path = str(cf2_path if cf2_path.is_file() else (REPO_ROOT / "assets" / "hexacopter.urdf"))
     with suppress_c_stdout():
         uav = p.loadURDF(urdf_path, [0, 0, 0], [0, 0, 0, 1], flags=p.URDF_MERGE_FIXED_LINKS)
 

@@ -31,9 +31,10 @@ class PyBulletPlant:
         enable_pacing: bool = True,
         ground_z: float = -1.5,
         ground_style: str = "arena",
-        gates_mode: str = "ratm",
+        gates_mode: str = "lemniscate",
         cam_mode: str = "chase",
         enable_osd: bool = True,
+        drone_type: str = "pybullet_drones",
     ):
         self.dt = float(dt)
         self.gravity = np.asarray(gravity, dtype=float).ravel()
@@ -48,6 +49,7 @@ class PyBulletPlant:
         self.gates_mode = gates_mode
         self.cam_mode = cam_mode
         self.enable_osd = enable_osd
+        self.drone_type = str(drone_type)
 
         # Connect to PyBullet
         connection_mode = p.GUI if self.gui else p.DIRECT
@@ -101,10 +103,10 @@ class PyBulletPlant:
         r_com = h / m
 
         # Generate temporary URDF with exact physical parameters
-        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".urdf", prefix="uav_hexacopter_")
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".urdf", prefix="uav_drone_")
         os.close(tmp_fd)
         try:
-            generate_multicopter_urdf(pi, tmp_path)
+            generate_multicopter_urdf(pi, tmp_path, drone_type=self.drone_type)
             with suppress_c_stdout():
                 uav_id = p.loadURDF(
                     tmp_path,

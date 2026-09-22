@@ -17,8 +17,7 @@ def test_arena_scene_creation_and_cleanup():
     cid = p.connect(p.DIRECT)
     try:
         arena = ArenaScene(client_id=cid, ground_z=-1.5, style="arena")
-        assert len(arena.body_ids) >= 2  # Apron and racing floor
-        assert len(arena.debug_item_ids) > 0
+        assert len(arena.body_ids) >= 1  # Loaded arena scene multi-body
 
         # Test cleanup
         arena.close()
@@ -195,7 +194,7 @@ def test_high_fidelity_hexacopter_urdf_generation():
     os.close(fd)
 
     try:
-        generate_multicopter_urdf(pi, tmp_urdf)
+        generate_multicopter_urdf(pi, tmp_urdf, drone_type="hexacopter")
 
         with open(tmp_urdf, "r", encoding="utf-8") as f:
             content = f.read()
@@ -221,3 +220,70 @@ def test_high_fidelity_hexacopter_urdf_generation():
     finally:
         if os.path.exists(tmp_urdf):
             os.remove(tmp_urdf)
+
+
+def test_pybullet_drones_urdf_generation():
+    """Verify pybullet_drones model generates cf2.dae mesh visuals and preserves exact paper mass."""
+    pi = np.array([3.646, 0.0, 0.0, -0.00835, 0.04092, 0.04017, 0.06921, 5.656e-5, 1.313e-5, -6.494e-5])
+    fd, tmp_urdf = tempfile.mkstemp(suffix=".urdf", prefix="test_cf2_")
+    os.close(fd)
+
+    try:
+        generate_multicopter_urdf(pi, tmp_urdf, drone_type="pybullet_drones")
+
+        with open(tmp_urdf, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Verify cf2 mesh and 4 motor hubs
+        assert "cf2.dae" in content
+        assert "motor_1" in content
+        assert "motor_4" in content
+        assert "prop_front" in content
+        assert "prop_rear" in content
+
+        cid = p.connect(p.DIRECT)
+        try:
+            uav_id = p.loadURDF(tmp_urdf, [0, 0, 0], [0, 0, 0, 1], flags=p.URDF_MERGE_FIXED_LINKS, physicsClientId=cid)
+            dyn_info = p.getDynamicsInfo(uav_id, -1, physicsClientId=cid)
+            mass = dyn_info[0]
+            # Exact mass invariance check
+            assert np.isclose(mass, 3.646, atol=1e-4)
+        finally:
+            p.disconnect(cid)
+
+    finally:
+        if os.path.exists(tmp_urdf):
+            os.remove(tmp_urdf)
+
+
+def test_lemniscate_4gates_static_urdf():
+    """Verify RaceGateManager loads exactly 4 gates for the lemniscate circuit from static URDF."""
+    cid = p.connect(p.DIRECT)
+    try:
+        mgr = RaceGateManager(client_id=cid)
+        gates = mgr.load_lemniscate_4gates(z_offset=0.0)
+
+        assert len(gates) == 4
+        assert gates[0].gate_id == 1
+        assert np.isclose(gates[0].center[0], 3.5, atol=1e-2)
+        assert np.isclose(gates[0].center[1], 1.55, atol=1e-2)
+        assert np.isclose(gates[1].center[0], 3.5, atol=1e-2)
+        assert np.isclose(gates[1].center[1], -1.60, atol=1e-2)
+        assert np.isclose(gates[2].center[0], -3.5, atol=1e-2)
+        assert np.isclose(gates[2].center[1], 1.50, atol=1e-2)
+        assert gates[3].gate_id == 4
+        assert np.isclose(gates[3].center[0], -3.5, atol=1e-2)
+        assert np.isclose(gates[3].center[1], -1.70, atol=1e-2)
+
+        # Test traversal tracking
+        prev_p = np.array([3.4, 1.55, 0.75])
+        curr_p = np.array([3.6, 1.55, 0.75])
+        res = mgr.check_traversals(drone_pos=curr_p, prev_pos=prev_p, t=1.2)
+        assert res is not None
+        assert res[0] == 1  # Gate 1 cleared
+        assert np.isclose(res[1], 1.2)
+
+        mgr.clear()
+        assert len(mgr.gates) == 0
+    finally:
+        p.disconnect(cid)

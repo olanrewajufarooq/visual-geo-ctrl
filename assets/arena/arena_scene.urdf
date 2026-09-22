@@ -1,0 +1,152 @@
+<?xml version="1.0"?>
+<robot name="arena_scene">
+  <!-- Material Palette -->
+  <material name="apron_slate"><color rgba="0.08 0.09 0.10 1.0"/></material>
+  <material name="floor_epoxy"><color rgba="0.14 0.15 0.17 1.0"/></material>
+  <material name="stripe_white"><color rgba="0.88 0.90 0.94 1.0"/></material>
+  <material name="hazard_yellow"><color rgba="1.0 0.78 0.0 1.0"/></material>
+  <material name="hazard_dark"><color rgba="0.1 0.1 0.12 1.0"/></material>
+  <material name="pad_cyan"><color rgba="0.0 0.85 1.0 1.0"/></material>
+  <material name="pad_yellow"><color rgba="1.0 0.85 0.1 1.0"/></material>
+  <material name="pad_white"><color rgba="1.0 1.0 1.0 1.0"/></material>
+  <material name="arrow_green"><color rgba="0.0 1.0 0.4 1.0"/></material>
+  <material name="truss_metal"><color rgba="0.35 0.38 0.44 1.0"/></material>
+  <material name="cable_blue"><color rgba="0.25 0.40 0.60 1.0"/></material>
+
+  <!-- Base Link: Outer Runoff Apron -->
+  <link name="base_link">
+    <inertial>
+      <mass value="0.0"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -0.01"/>
+      <geometry><box size="31.0 16.0 0.02"/></geometry>
+      <material name="apron_slate"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.01"/>
+      <geometry><box size="31.0 16.0 0.02"/></geometry>
+    </collision>
+    <!-- Main 25m x 10m Flight Arena Surface -->
+    <visual>
+      <origin xyz="0 0 0.002"/>
+      <geometry><box size="25.0 10.0 0.004"/></geometry>
+      <material name="floor_epoxy"/>
+    </visual>
+  </link>
+
+  <!-- Perimeter Safety Hazard Border (25m x 10m) -->
+  <link name="border_north">
+    <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="0 5.0 0.005"/>
+      <geometry><box size="25.0 0.10 0.004"/></geometry>
+      <material name="hazard_yellow"/>
+    </visual>
+  </link>
+  <joint name="joint_border_north" type="fixed"><parent link="base_link"/><child link="border_north"/></joint>
+
+  <link name="border_south">
+    <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="0 -5.0 0.005"/>
+      <geometry><box size="25.0 0.10 0.004"/></geometry>
+      <material name="hazard_yellow"/>
+    </visual>
+  </link>
+  <joint name="joint_border_south" type="fixed"><parent link="base_link"/><child link="border_south"/></joint>
+
+  <link name="border_east">
+    <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="12.5 0 0.005"/>
+      <geometry><box size="0.10 10.0 0.004"/></geometry>
+      <material name="hazard_yellow"/>
+    </visual>
+  </link>
+  <joint name="joint_border_east" type="fixed"><parent link="base_link"/><child link="border_east"/></joint>
+
+  <link name="border_west">
+    <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual>
+      <origin xyz="-12.5 0 0.005"/>
+      <geometry><box size="0.10 10.0 0.004"/></geometry>
+      <material name="hazard_yellow"/>
+    </visual>
+  </link>
+  <joint name="joint_border_west" type="fixed"><parent link="base_link"/><child link="border_west"/></joint>
+
+  <!-- Longitudinal Runway Centerline Stripes -->
+  <link name="runway_stripes">
+    <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <!-- Stripe segments -->
+    <visual><origin xyz="-10.0 0 0.004"/><geometry><box size="1.2 0.08 0.002"/></geometry><material name="stripe_white"/></visual>
+    <visual><origin xyz="-7.5 0 0.004"/><geometry><box size="1.2 0.08 0.002"/></geometry><material name="stripe_white"/></visual>
+    <visual><origin xyz="-5.0 0 0.004"/><geometry><box size="1.2 0.08 0.002"/></geometry><material name="stripe_white"/></visual>
+    <visual><origin xyz="-2.5 0 0.004"/><geometry><box size="1.2 0.08 0.002"/></geometry><material name="stripe_white"/></visual>
+    <visual><origin xyz="2.5 0 0.004"/><geometry><box size="1.2 0.08 0.002"/></geometry><material name="stripe_white"/></visual>
+    <visual><origin xyz="5.0 0 0.004"/><geometry><box size="1.2 0.08 0.002"/></geometry><material name="stripe_white"/></visual>
+    <visual><origin xyz="7.5 0 0.004"/><geometry><box size="1.2 0.08 0.002"/></geometry><material name="stripe_white"/></visual>
+    <visual><origin xyz="10.0 0 0.004"/><geometry><box size="1.2 0.08 0.002"/></geometry><material name="stripe_white"/></visual>
+  </link>
+  <joint name="joint_runway_stripes" type="fixed"><parent link="base_link"/><child link="runway_stripes"/></joint>
+
+  <!-- Launch Pad / Helipad at Origin -->
+  <link name="launch_pad">
+    <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <!-- Outer Cyan Ring -->
+    <visual><origin xyz="0 0 0.005"/><geometry><cylinder radius="0.85" length="0.002"/></geometry><material name="pad_cyan"/></visual>
+    <!-- Middle Dark Spacer -->
+    <visual><origin xyz="0 0 0.006"/><geometry><cylinder radius="0.80" length="0.002"/></geometry><material name="floor_epoxy"/></visual>
+    <!-- Inner Yellow Ring -->
+    <visual><origin xyz="0 0 0.007"/><geometry><cylinder radius="0.55" length="0.002"/></geometry><material name="pad_yellow"/></visual>
+    <!-- Core Dark Disc -->
+    <visual><origin xyz="0 0 0.008"/><geometry><cylinder radius="0.50" length="0.002"/></geometry><material name="floor_epoxy"/></visual>
+    <!-- Landing "H" Markings -->
+    <visual><origin xyz="-0.18 0 0.009"/><geometry><box size="0.06 0.50 0.002"/></geometry><material name="pad_white"/></visual>
+    <visual><origin xyz="0.18 0 0.009"/><geometry><box size="0.06 0.50 0.002"/></geometry><material name="pad_white"/></visual>
+    <visual><origin xyz="0 0 0.009"/><geometry><box size="0.30 0.06 0.002"/></geometry><material name="pad_white"/></visual>
+    <!-- Forward Heading Pointer (+X) -->
+    <visual><origin xyz="1.05 0 0.008"/><geometry><box size="0.25 0.06 0.002"/></geometry><material name="arrow_green"/></visual>
+    <visual><origin xyz="1.15 0.08 0.008" rpy="0 0 -0.785"/><geometry><box size="0.16 0.04 0.002"/></geometry><material name="arrow_green"/></visual>
+    <visual><origin xyz="1.15 -0.08 0.008" rpy="0 0 0.785"/><geometry><box size="0.16 0.04 0.002"/></geometry><material name="arrow_green"/></visual>
+  </link>
+  <joint name="joint_launch_pad" type="fixed"><parent link="base_link"/><child link="launch_pad"/></joint>
+
+  <!-- 4 Vertical Enclosure Truss Columns (H = 6m) -->
+  <link name="truss_ne">
+    <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual><origin xyz="12.5 5.0 3.0"/><geometry><cylinder radius="0.07" length="6.0"/></geometry><material name="truss_metal"/></visual>
+  </link>
+  <joint name="joint_truss_ne" type="fixed"><parent link="base_link"/><child link="truss_ne"/></joint>
+
+  <link name="truss_nw">
+    <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual><origin xyz="-12.5 5.0 3.0"/><geometry><cylinder radius="0.07" length="6.0"/></geometry><material name="truss_metal"/></visual>
+  </link>
+  <joint name="joint_truss_nw" type="fixed"><parent link="base_link"/><child link="truss_nw"/></joint>
+
+  <link name="truss_se">
+    <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual><origin xyz="12.5 -5.0 3.0"/><geometry><cylinder radius="0.07" length="6.0"/></geometry><material name="truss_metal"/></visual>
+  </link>
+  <joint name="joint_truss_se" type="fixed"><parent link="base_link"/><child link="truss_se"/></joint>
+
+  <link name="truss_sw">
+    <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual><origin xyz="-12.5 -5.0 3.0"/><geometry><cylinder radius="0.07" length="6.0"/></geometry><material name="truss_metal"/></visual>
+  </link>
+  <joint name="joint_truss_sw" type="fixed"><parent link="base_link"/><child link="truss_sw"/></joint>
+
+  <!-- Top Boundary Cables at Z = 6m -->
+  <link name="top_cables">
+    <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
+    <visual><origin xyz="0 5.0 6.0"/><geometry><box size="25.0 0.02 0.02"/></geometry><material name="cable_blue"/></visual>
+    <visual><origin xyz="0 -5.0 6.0"/><geometry><box size="25.0 0.02 0.02"/></geometry><material name="cable_blue"/></visual>
+    <visual><origin xyz="12.5 0 6.0"/><geometry><box size="0.02 10.0 0.02"/></geometry><material name="cable_blue"/></visual>
+    <visual><origin xyz="-12.5 0 6.0"/><geometry><box size="0.02 10.0 0.02"/></geometry><material name="cable_blue"/></visual>
+  </link>
+  <joint name="joint_top_cables" type="fixed"><parent link="base_link"/><child link="top_cables"/></joint>
+</robot>

@@ -27,7 +27,8 @@ def main():
     parser.add_argument("--speed", type=float, default=1.0, help="GUI playback speed multiplier (e.g. 1.0 for real-time, 2.0 for 2x)")
     parser.add_argument("--no-pacing", action="store_true", help="Disable wall-clock real-time pacing")
     parser.add_argument("--ground", type=str, default="arena", choices=["arena", "grid", "plane"], help="Ground visual style")
-    parser.add_argument("--gates", type=str, default=None, choices=["ratm", "auto", "none"], help="Racing gates mode")
+    parser.add_argument("--gates", type=str, default=None, choices=["lemniscate", "ratm", "auto", "none"], help="Racing gates mode")
+    parser.add_argument("--drone-type", type=str, default="pybullet_drones", choices=["pybullet_drones", "hexacopter"], help="Visual drone model")
     parser.add_argument("--cam-mode", type=str, default="chase", choices=["chase", "fpv", "overview", "free"], help="Initial camera mode")
     parser.add_argument("--ground-z", type=float, default=None, help="Floor Z elevation (default: 0.0 for RATM tracks, -1.5 for synthetic)")
     parser.add_argument("--no-osd", action="store_true", help="Disable FPV OSD HUD overlay")
@@ -75,6 +76,7 @@ def main():
         gates_mode=args.gates,
         cam_mode=args.cam_mode,
         enable_osd=not args.no_osd,
+        drone_type=args.drone_type,
     )
 
     run, failure = run_scenario(scenario)

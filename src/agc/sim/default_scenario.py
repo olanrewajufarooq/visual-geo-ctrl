@@ -29,6 +29,7 @@ def default_scenario(
     gates_mode: Optional[str] = None,
     cam_mode: str = "chase",
     enable_osd: bool = True,
+    drone_type: str = "pybullet_drones",
 ) -> dict:
     """Build paper-validation benchmark scenario with 10s payload drop."""
     root = get_repository_root()
@@ -94,7 +95,12 @@ def default_scenario(
         initial_estimate = pseudo_from_pi(initial_estimate)
 
     if gates_mode is None:
-        gates_mode = "ratm" if "ratm" in replay_id.lower() else "auto"
+        if "lemniscate" in replay_id.lower():
+            gates_mode = "lemniscate"
+        elif "ratm" in replay_id.lower():
+            gates_mode = "ratm"
+        else:
+            gates_mode = "auto"
 
     return {
         "plantPi": pi,
@@ -117,4 +123,5 @@ def default_scenario(
         "gatesMode": gates_mode,
         "camMode": cam_mode,
         "enableOsd": enable_osd,
+        "droneType": drone_type,
     }
