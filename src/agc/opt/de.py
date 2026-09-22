@@ -67,6 +67,7 @@ class DifferentialEvolutionOptimizer:
             tol=self.tol,
             init=init_method,
             workers=workers,
+            updating="deferred",
             callback=_callback,
             polish=False,
             seed=self.seed,

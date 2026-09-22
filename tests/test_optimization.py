@@ -30,6 +30,7 @@ from agc.opt.objective import (
 )
 from agc.opt.bregman_profile import bregman_gamma_grid
 from agc.opt.pso import ParticleSwarmOptimizer
+from agc.opt.de import DifferentialEvolutionOptimizer
 from agc.opt.staged_optimizer import promote_gains_to_registry
 from agc.config.manual_gains import manual_gains
 from agc.sim.default_scenario import default_scenario
@@ -252,3 +253,28 @@ def test_pso_sphere_function_convergence():
     assert best_cost < 0.1
     assert best_cost < hist[0]  # strictly improved from initial
     assert np.allclose(best_x, np.zeros(3), atol=0.25)
+
+
+def test_de_explicitly_uses_deferred_updates_with_workers():
+    captured = {}
+
+    class Result:
+        x = np.array([0.0])
+        fun = 0.0
+
+    def fake_differential_evolution(*args, **kwargs):
+        captured.update(kwargs)
+        return Result()
+
+    with patch("agc.opt.de.differential_evolution", fake_differential_evolution):
+        optimizer = DifferentialEvolutionOptimizer(
+            cost_func=lambda x: float(np.sum(x**2)),
+            lower_bound=np.array([-1.0]),
+            upper_bound=np.array([1.0]),
+            parallel=True,
+            max_workers=2,
+            verbose=False,
+        )
+        optimizer.optimize()
+
+    assert captured["updating"] == "deferred"
