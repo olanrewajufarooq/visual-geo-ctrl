@@ -27,3 +27,4 @@ where = ["src"]
 minversion = "8.0"
 addopts = "-ra --basetemp=.pytest_tmp"
 testpaths = ["tests"]
+pythonpath = ["src"]

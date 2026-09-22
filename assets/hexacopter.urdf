@@ -1,69 +1,143 @@
 <?xml version="1.0"?>
 <robot name="hexacopter">
+  <!-- Realistic Material Palette -->
   <material name="dark_carbon"><color rgba="0.12 0.12 0.14 1.0"/></material>
-  <material name="arm_metal"><color rgba="0.25 0.25 0.28 1.0"/></material>
-  <material name="motor_silver"><color rgba="0.75 0.75 0.78 1.0"/></material>
-  <material name="prop_front"><color rgba="0.1 0.8 0.2 0.7"/></material>
-  <material name="prop_rear"><color rgba="0.85 0.2 0.1 0.7"/></material>
-  <material name="nose_cone"><color rgba="0.0 0.8 1.0 1.0"/></material>
-  <material name="landing_gear"><color rgba="0.18 0.18 0.2 1.0"/></material>
+  <material name="matte_carbon"><color rgba="0.18 0.18 0.20 1.0"/></material>
+  <material name="cnc_aluminum"><color rgba="0.55 0.58 0.62 1.0"/></material>
+  <material name="motor_stator"><color rgba="0.28 0.28 0.32 1.0"/></material>
+  <material name="motor_silver"><color rgba="0.80 0.82 0.86 1.0"/></material>
+  <material name="prop_front"><color rgba="0.0 0.90 0.35 0.65"/></material>
+  <material name="prop_rear"><color rgba="1.0 0.30 0.05 0.65"/></material>
+  <material name="camera_lens"><color rgba="0.05 0.05 0.08 1.0"/></material>
+  <material name="fpv_case"><color rgba="0.95 0.35 0.05 1.0"/></material>
+  <material name="landing_gear"><color rgba="0.15 0.15 0.17 1.0"/></material>
+  <material name="gps_mast"><color rgba="0.20 0.22 0.25 1.0"/></material>
+  <material name="led_green"><color rgba="0.0 1.0 0.2 1.0"/></material>
+  <material name="led_red"><color rgba="1.0 0.05 0.05 1.0"/></material>
+  <material name="led_cyan"><color rgba="0.0 0.9 1.0 1.0"/></material>
+  <material name="led_amber"><color rgba="1.0 0.7 0.0 1.0"/></material>
 
-  <!-- Base Link / Central Hub -->
   <link name="base_link">
     <inertial>
-      <mass value="3.646"/>
-      <origin xyz="0 0 -0.00229"/>
-      <inertia ixx="0.04092" ixy="5.656e-5" ixz="1.313e-5" iyy="0.04017" iyz="-6.494e-5" izz="0.06921"/>
+      <mass value="3.646000"/>
+      <origin xyz="0.000000 0.000000 -0.002290"/>
+      <inertia ixx="4.090088e-02" ixy="5.656000e-05" ixz="1.313000e-05"
+               iyy="4.015088e-02" iyz="-6.494000e-05" izz="6.921000e-02"/>
     </inertial>
-    <!-- Central Fuselage Top Dome -->
+
+    <!-- Lower Carbon-Fiber Deck Plate -->
     <visual>
-      <origin xyz="0 0 0.02"/>
-      <geometry><cylinder radius="0.12" length="0.04"/></geometry>
+      <origin xyz="0 0 -0.015"/>
+      <geometry><cylinder radius="0.13" length="0.003"/></geometry>
       <material name="dark_carbon"/>
     </visual>
-    <!-- Central Fuselage Core -->
+
+    <!-- Upper Carbon-Fiber Deck Plate -->
     <visual>
-      <origin xyz="0 0 0"/>
-      <geometry><box size="0.18 0.18 0.05"/></geometry>
+      <origin xyz="0 0 0.015"/>
+      <geometry><cylinder radius="0.13" length="0.003"/></geometry>
       <material name="dark_carbon"/>
     </visual>
-    <!-- Forward Heading Arrow/Nose Marker -->
+
+    <!-- Central Electronics Core / Flight Controller Stack -->
     <visual>
-      <origin xyz="0.12 0 0.01"/>
-      <geometry><box size="0.06 0.03 0.02"/></geometry>
-      <material name="nose_cone"/>
+      <origin xyz="0 0 0.0"/>
+      <geometry><box size="0.12 0.12 0.026"/></geometry>
+      <material name="matte_carbon"/>
     </visual>
+
+    <!-- Avionics Top Dome / Canopy -->
+    <visual>
+      <origin xyz="0 0 0.025"/>
+      <geometry><cylinder radius="0.08" length="0.020"/></geometry>
+      <material name="dark_carbon"/>
+    </visual>
+
+    <!-- GPS / Compass Mast & Antenna Puck -->
+    <visual>
+      <origin xyz="-0.05 0 0.045"/>
+      <geometry><cylinder radius="0.004" length="0.045"/></geometry>
+      <material name="gps_mast"/>
+    </visual>
+    <visual>
+      <origin xyz="-0.05 0 0.070"/>
+      <geometry><cylinder radius="0.025" length="0.010"/></geometry>
+      <material name="dark_carbon"/>
+    </visual>
+
+    <!-- Front FPV Racing Camera Pod (25 deg upward tilt) -->
+    <visual>
+      <origin xyz="0.13 0 0.012" rpy="0 -0.4363 0"/>
+      <geometry><box size="0.028 0.028 0.028"/></geometry>
+      <material name="fpv_case"/>
+    </visual>
+    <visual>
+      <origin xyz="0.145 0 0.019" rpy="0 -0.4363 0"/>
+      <geometry><cylinder radius="0.009" length="0.010"/></geometry>
+      <material name="camera_lens"/>
+    </visual>
+
+    <!-- Physical Collision Geometry -->
     <collision>
       <origin xyz="0 0 0"/>
-      <geometry><cylinder radius="0.15" length="0.06"/></geometry>
+      <geometry><cylinder radius="0.25" length="0.08"/></geometry>
     </collision>
   </link>
 
-  <!-- Macro for 6 arms, motors, and rotor blades -->
-
-  <!-- Arm 1 -->
+  <!-- Arm 1 (0.0 deg) -->
   <link name="arm_1">
     <inertial>
-      <mass value="0.001"/>
+      <mass value="0.0001"/>
       <origin xyz="0 0 0"/>
-      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
     </inertial>
+    <!-- Carbon Tube Boom -->
     <visual>
       <origin xyz="0.14000 0.00000 0.0" rpy="0 1.5707 0.00000"/>
-      <geometry><cylinder radius="0.012" length="0.2800"/></geometry>
-      <material name="arm_metal"/>
+      <geometry><cylinder radius="0.010" length="0.2800"/></geometry>
+      <material name="matte_carbon"/>
     </visual>
-    <!-- Motor 1 -->
+    <!-- CNC Aluminum Motor Mount -->
     <visual>
-      <origin xyz="0.28000 0.00000 0.025"/>
-      <geometry><cylinder radius="0.022" length="0.035"/></geometry>
+      <origin xyz="0.28000 0.00000 0.006"/>
+      <geometry><cylinder radius="0.024" length="0.012"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Brushless Motor Stator (Dark Gunmetal) -->
+    <visual>
+      <origin xyz="0.28000 0.00000 0.018"/>
+      <geometry><cylinder radius="0.021" length="0.016"/></geometry>
+      <material name="motor_stator"/>
+    </visual>
+    <!-- Brushless Motor Rotor Bell (Silver Chrome) -->
+    <visual>
+      <origin xyz="0.28000 0.00000 0.030"/>
+      <geometry><cylinder radius="0.022" length="0.014"/></geometry>
       <material name="motor_silver"/>
     </visual>
-    <!-- Propeller Disc 1 -->
+    <!-- Prop Locknut -->
+    <visual>
+      <origin xyz="0.28000 0.00000 0.042"/>
+      <geometry><cylinder radius="0.008" length="0.010"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
     <visual>
       <origin xyz="0.28000 0.00000 0.045"/>
-      <geometry><cylinder radius="0.12" length="0.004"/></geometry>
+      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
       <material name="prop_front"/>
+    </visual>
+    <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
+    <visual>
+      <origin xyz="0.28000 0.00000 0.046" rpy="0 0 0.7850"/>
+      <geometry><box size="0.25 0.022 0.002"/></geometry>
+      <material name="matte_carbon"/>
+    </visual>
+    <!-- Navigation Tip LED -->
+    <visual>
+      <origin xyz="0.30240 0.00000 0.015"/>
+      <geometry><box size="0.015 0.015 0.008"/></geometry>
+      <material name="led_cyan"/>
     </visual>
   </link>
   <joint name="joint_arm_1" type="fixed">
@@ -72,29 +146,60 @@
     <origin xyz="0 0 0"/>
   </joint>
 
-  <!-- Arm 2 -->
+  <!-- Arm 2 (60.0 deg) -->
   <link name="arm_2">
     <inertial>
-      <mass value="0.001"/>
+      <mass value="0.0001"/>
       <origin xyz="0 0 0"/>
-      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
     </inertial>
+    <!-- Carbon Tube Boom -->
     <visual>
       <origin xyz="0.07000 0.12124 0.0" rpy="0 1.5707 1.04720"/>
-      <geometry><cylinder radius="0.012" length="0.2800"/></geometry>
-      <material name="arm_metal"/>
+      <geometry><cylinder radius="0.010" length="0.2800"/></geometry>
+      <material name="matte_carbon"/>
     </visual>
-    <!-- Motor 2 -->
+    <!-- CNC Aluminum Motor Mount -->
     <visual>
-      <origin xyz="0.14000 0.24249 0.025"/>
-      <geometry><cylinder radius="0.022" length="0.035"/></geometry>
+      <origin xyz="0.14000 0.24249 0.006"/>
+      <geometry><cylinder radius="0.024" length="0.012"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Brushless Motor Stator (Dark Gunmetal) -->
+    <visual>
+      <origin xyz="0.14000 0.24249 0.018"/>
+      <geometry><cylinder radius="0.021" length="0.016"/></geometry>
+      <material name="motor_stator"/>
+    </visual>
+    <!-- Brushless Motor Rotor Bell (Silver Chrome) -->
+    <visual>
+      <origin xyz="0.14000 0.24249 0.030"/>
+      <geometry><cylinder radius="0.022" length="0.014"/></geometry>
       <material name="motor_silver"/>
     </visual>
-    <!-- Propeller Disc 2 -->
+    <!-- Prop Locknut -->
+    <visual>
+      <origin xyz="0.14000 0.24249 0.042"/>
+      <geometry><cylinder radius="0.008" length="0.010"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
     <visual>
       <origin xyz="0.14000 0.24249 0.045"/>
-      <geometry><cylinder radius="0.12" length="0.004"/></geometry>
+      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
       <material name="prop_front"/>
+    </visual>
+    <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
+    <visual>
+      <origin xyz="0.14000 0.24249 0.046" rpy="0 0 1.8322"/>
+      <geometry><box size="0.25 0.022 0.002"/></geometry>
+      <material name="matte_carbon"/>
+    </visual>
+    <!-- Navigation Tip LED -->
+    <visual>
+      <origin xyz="0.15120 0.26189 0.015"/>
+      <geometry><box size="0.015 0.015 0.008"/></geometry>
+      <material name="led_red"/>
     </visual>
   </link>
   <joint name="joint_arm_2" type="fixed">
@@ -103,29 +208,60 @@
     <origin xyz="0 0 0"/>
   </joint>
 
-  <!-- Arm 3 -->
+  <!-- Arm 3 (120.0 deg) -->
   <link name="arm_3">
     <inertial>
-      <mass value="0.001"/>
+      <mass value="0.0001"/>
       <origin xyz="0 0 0"/>
-      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
     </inertial>
+    <!-- Carbon Tube Boom -->
     <visual>
       <origin xyz="-0.07000 0.12124 0.0" rpy="0 1.5707 2.09440"/>
-      <geometry><cylinder radius="0.012" length="0.2800"/></geometry>
-      <material name="arm_metal"/>
+      <geometry><cylinder radius="0.010" length="0.2800"/></geometry>
+      <material name="matte_carbon"/>
     </visual>
-    <!-- Motor 3 -->
+    <!-- CNC Aluminum Motor Mount -->
     <visual>
-      <origin xyz="-0.14000 0.24249 0.025"/>
-      <geometry><cylinder radius="0.022" length="0.035"/></geometry>
+      <origin xyz="-0.14000 0.24249 0.006"/>
+      <geometry><cylinder radius="0.024" length="0.012"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Brushless Motor Stator (Dark Gunmetal) -->
+    <visual>
+      <origin xyz="-0.14000 0.24249 0.018"/>
+      <geometry><cylinder radius="0.021" length="0.016"/></geometry>
+      <material name="motor_stator"/>
+    </visual>
+    <!-- Brushless Motor Rotor Bell (Silver Chrome) -->
+    <visual>
+      <origin xyz="-0.14000 0.24249 0.030"/>
+      <geometry><cylinder radius="0.022" length="0.014"/></geometry>
       <material name="motor_silver"/>
     </visual>
-    <!-- Propeller Disc 3 -->
+    <!-- Prop Locknut -->
+    <visual>
+      <origin xyz="-0.14000 0.24249 0.042"/>
+      <geometry><cylinder radius="0.008" length="0.010"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
     <visual>
       <origin xyz="-0.14000 0.24249 0.045"/>
-      <geometry><cylinder radius="0.12" length="0.004"/></geometry>
+      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
       <material name="prop_rear"/>
+    </visual>
+    <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
+    <visual>
+      <origin xyz="-0.14000 0.24249 0.046" rpy="0 0 2.8794"/>
+      <geometry><box size="0.25 0.022 0.002"/></geometry>
+      <material name="matte_carbon"/>
+    </visual>
+    <!-- Navigation Tip LED -->
+    <visual>
+      <origin xyz="-0.15120 0.26189 0.015"/>
+      <geometry><box size="0.015 0.015 0.008"/></geometry>
+      <material name="led_red"/>
     </visual>
   </link>
   <joint name="joint_arm_3" type="fixed">
@@ -134,29 +270,60 @@
     <origin xyz="0 0 0"/>
   </joint>
 
-  <!-- Arm 4 -->
+  <!-- Arm 4 (180.0 deg) -->
   <link name="arm_4">
     <inertial>
-      <mass value="0.001"/>
+      <mass value="0.0001"/>
       <origin xyz="0 0 0"/>
-      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
     </inertial>
+    <!-- Carbon Tube Boom -->
     <visual>
       <origin xyz="-0.14000 0.00000 0.0" rpy="0 1.5707 3.14159"/>
-      <geometry><cylinder radius="0.012" length="0.2800"/></geometry>
-      <material name="arm_metal"/>
+      <geometry><cylinder radius="0.010" length="0.2800"/></geometry>
+      <material name="matte_carbon"/>
     </visual>
-    <!-- Motor 4 -->
+    <!-- CNC Aluminum Motor Mount -->
     <visual>
-      <origin xyz="-0.28000 0.00000 0.025"/>
-      <geometry><cylinder radius="0.022" length="0.035"/></geometry>
+      <origin xyz="-0.28000 0.00000 0.006"/>
+      <geometry><cylinder radius="0.024" length="0.012"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Brushless Motor Stator (Dark Gunmetal) -->
+    <visual>
+      <origin xyz="-0.28000 0.00000 0.018"/>
+      <geometry><cylinder radius="0.021" length="0.016"/></geometry>
+      <material name="motor_stator"/>
+    </visual>
+    <!-- Brushless Motor Rotor Bell (Silver Chrome) -->
+    <visual>
+      <origin xyz="-0.28000 0.00000 0.030"/>
+      <geometry><cylinder radius="0.022" length="0.014"/></geometry>
       <material name="motor_silver"/>
     </visual>
-    <!-- Propeller Disc 4 -->
+    <!-- Prop Locknut -->
+    <visual>
+      <origin xyz="-0.28000 0.00000 0.042"/>
+      <geometry><cylinder radius="0.008" length="0.010"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
     <visual>
       <origin xyz="-0.28000 0.00000 0.045"/>
-      <geometry><cylinder radius="0.12" length="0.004"/></geometry>
+      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
       <material name="prop_rear"/>
+    </visual>
+    <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
+    <visual>
+      <origin xyz="-0.28000 0.00000 0.046" rpy="0 0 3.9266"/>
+      <geometry><box size="0.25 0.022 0.002"/></geometry>
+      <material name="matte_carbon"/>
+    </visual>
+    <!-- Navigation Tip LED -->
+    <visual>
+      <origin xyz="-0.30240 0.00000 0.015"/>
+      <geometry><box size="0.015 0.015 0.008"/></geometry>
+      <material name="led_amber"/>
     </visual>
   </link>
   <joint name="joint_arm_4" type="fixed">
@@ -165,29 +332,60 @@
     <origin xyz="0 0 0"/>
   </joint>
 
-  <!-- Arm 5 -->
+  <!-- Arm 5 (240.0 deg) -->
   <link name="arm_5">
     <inertial>
-      <mass value="0.001"/>
+      <mass value="0.0001"/>
       <origin xyz="0 0 0"/>
-      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
     </inertial>
+    <!-- Carbon Tube Boom -->
     <visual>
       <origin xyz="-0.07000 -0.12124 0.0" rpy="0 1.5707 4.18879"/>
-      <geometry><cylinder radius="0.012" length="0.2800"/></geometry>
-      <material name="arm_metal"/>
+      <geometry><cylinder radius="0.010" length="0.2800"/></geometry>
+      <material name="matte_carbon"/>
     </visual>
-    <!-- Motor 5 -->
+    <!-- CNC Aluminum Motor Mount -->
     <visual>
-      <origin xyz="-0.14000 -0.24249 0.025"/>
-      <geometry><cylinder radius="0.022" length="0.035"/></geometry>
+      <origin xyz="-0.14000 -0.24249 0.006"/>
+      <geometry><cylinder radius="0.024" length="0.012"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Brushless Motor Stator (Dark Gunmetal) -->
+    <visual>
+      <origin xyz="-0.14000 -0.24249 0.018"/>
+      <geometry><cylinder radius="0.021" length="0.016"/></geometry>
+      <material name="motor_stator"/>
+    </visual>
+    <!-- Brushless Motor Rotor Bell (Silver Chrome) -->
+    <visual>
+      <origin xyz="-0.14000 -0.24249 0.030"/>
+      <geometry><cylinder radius="0.022" length="0.014"/></geometry>
       <material name="motor_silver"/>
     </visual>
-    <!-- Propeller Disc 5 -->
+    <!-- Prop Locknut -->
+    <visual>
+      <origin xyz="-0.14000 -0.24249 0.042"/>
+      <geometry><cylinder radius="0.008" length="0.010"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
     <visual>
       <origin xyz="-0.14000 -0.24249 0.045"/>
-      <geometry><cylinder radius="0.12" length="0.004"/></geometry>
+      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
       <material name="prop_rear"/>
+    </visual>
+    <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
+    <visual>
+      <origin xyz="-0.14000 -0.24249 0.046" rpy="0 0 4.9738"/>
+      <geometry><box size="0.25 0.022 0.002"/></geometry>
+      <material name="matte_carbon"/>
+    </visual>
+    <!-- Navigation Tip LED -->
+    <visual>
+      <origin xyz="-0.15120 -0.26189 0.015"/>
+      <geometry><box size="0.015 0.015 0.008"/></geometry>
+      <material name="led_green"/>
     </visual>
   </link>
   <joint name="joint_arm_5" type="fixed">
@@ -196,29 +394,60 @@
     <origin xyz="0 0 0"/>
   </joint>
 
-  <!-- Arm 6 -->
+  <!-- Arm 6 (300.0 deg) -->
   <link name="arm_6">
     <inertial>
-      <mass value="0.001"/>
+      <mass value="0.0001"/>
       <origin xyz="0 0 0"/>
-      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
     </inertial>
+    <!-- Carbon Tube Boom -->
     <visual>
       <origin xyz="0.07000 -0.12124 0.0" rpy="0 1.5707 5.23599"/>
-      <geometry><cylinder radius="0.012" length="0.2800"/></geometry>
-      <material name="arm_metal"/>
+      <geometry><cylinder radius="0.010" length="0.2800"/></geometry>
+      <material name="matte_carbon"/>
     </visual>
-    <!-- Motor 6 -->
+    <!-- CNC Aluminum Motor Mount -->
     <visual>
-      <origin xyz="0.14000 -0.24249 0.025"/>
-      <geometry><cylinder radius="0.022" length="0.035"/></geometry>
+      <origin xyz="0.14000 -0.24249 0.006"/>
+      <geometry><cylinder radius="0.024" length="0.012"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Brushless Motor Stator (Dark Gunmetal) -->
+    <visual>
+      <origin xyz="0.14000 -0.24249 0.018"/>
+      <geometry><cylinder radius="0.021" length="0.016"/></geometry>
+      <material name="motor_stator"/>
+    </visual>
+    <!-- Brushless Motor Rotor Bell (Silver Chrome) -->
+    <visual>
+      <origin xyz="0.14000 -0.24249 0.030"/>
+      <geometry><cylinder radius="0.022" length="0.014"/></geometry>
       <material name="motor_silver"/>
     </visual>
-    <!-- Propeller Disc 6 -->
+    <!-- Prop Locknut -->
+    <visual>
+      <origin xyz="0.14000 -0.24249 0.042"/>
+      <geometry><cylinder radius="0.008" length="0.010"/></geometry>
+      <material name="cnc_aluminum"/>
+    </visual>
+    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
     <visual>
       <origin xyz="0.14000 -0.24249 0.045"/>
-      <geometry><cylinder radius="0.12" length="0.004"/></geometry>
+      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
       <material name="prop_front"/>
+    </visual>
+    <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
+    <visual>
+      <origin xyz="0.14000 -0.24249 0.046" rpy="0 0 6.0210"/>
+      <geometry><box size="0.25 0.022 0.002"/></geometry>
+      <material name="matte_carbon"/>
+    </visual>
+    <!-- Navigation Tip LED -->
+    <visual>
+      <origin xyz="0.15120 -0.26189 0.015"/>
+      <geometry><box size="0.015 0.015 0.008"/></geometry>
+      <material name="led_green"/>
     </visual>
   </link>
   <joint name="joint_arm_6" type="fixed">
@@ -227,27 +456,30 @@
     <origin xyz="0 0 0"/>
   </joint>
 
-  <!-- Left Landing Gear -->
+  <!-- Left Landing Skid -->
   <link name="gear_left">
     <inertial>
-      <mass value="0.001"/>
+      <mass value="0.0001"/>
       <origin xyz="0 0 0"/>
-      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
     </inertial>
+    <!-- Vertical Struts -->
     <visual>
-      <origin xyz="0 0.10 -0.06"/>
-      <geometry><box size="0.01 0.01 0.10"/></geometry>
+      <origin xyz="0.08 0.10 -0.06"/>
+      <geometry><cylinder radius="0.005" length="0.10"/></geometry>
       <material name="landing_gear"/>
     </visual>
     <visual>
-      <origin xyz="0 0.10 -0.11"/>
-      <geometry><box size="0.26 0.015 0.01"/></geometry>
+      <origin xyz="-0.08 0.10 -0.06"/>
+      <geometry><cylinder radius="0.005" length="0.10"/></geometry>
       <material name="landing_gear"/>
     </visual>
-    <collision>
-      <origin xyz="0 0.10 -0.11"/>
-      <geometry><box size="0.26 0.015 0.01"/></geometry>
-    </collision>
+    <!-- Longitudinal Skid Runner -->
+    <visual>
+      <origin xyz="0 0.10 -0.11" rpy="0 1.5707 0"/>
+      <geometry><cylinder radius="0.007" length="0.28"/></geometry>
+      <material name="landing_gear"/>
+    </visual>
   </link>
   <joint name="joint_gear_left" type="fixed">
     <parent link="base_link"/>
@@ -255,27 +487,30 @@
     <origin xyz="0 0 0"/>
   </joint>
 
-  <!-- Right Landing Gear -->
+  <!-- Right Landing Skid -->
   <link name="gear_right">
     <inertial>
-      <mass value="0.001"/>
+      <mass value="0.0001"/>
       <origin xyz="0 0 0"/>
-      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
     </inertial>
+    <!-- Vertical Struts -->
     <visual>
-      <origin xyz="0 -0.10 -0.06"/>
-      <geometry><box size="0.01 0.01 0.10"/></geometry>
+      <origin xyz="0.08 -0.10 -0.06"/>
+      <geometry><cylinder radius="0.005" length="0.10"/></geometry>
       <material name="landing_gear"/>
     </visual>
     <visual>
-      <origin xyz="0 -0.10 -0.11"/>
-      <geometry><box size="0.26 0.015 0.01"/></geometry>
+      <origin xyz="-0.08 -0.10 -0.06"/>
+      <geometry><cylinder radius="0.005" length="0.10"/></geometry>
       <material name="landing_gear"/>
     </visual>
-    <collision>
-      <origin xyz="0 -0.10 -0.11"/>
-      <geometry><box size="0.26 0.015 0.01"/></geometry>
-    </collision>
+    <!-- Longitudinal Skid Runner -->
+    <visual>
+      <origin xyz="0 -0.10 -0.11" rpy="0 1.5707 0"/>
+      <geometry><cylinder radius="0.007" length="0.28"/></geometry>
+      <material name="landing_gear"/>
+    </visual>
   </link>
   <joint name="joint_gear_right" type="fixed">
     <parent link="base_link"/>

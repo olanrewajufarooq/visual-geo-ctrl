@@ -30,7 +30,12 @@ class PyBulletPlant:
         release_time: Optional[float] = None,
         sim_speed: float = 1.0,
         enable_pacing: bool = True,
-        ground_z: float = -1.5,
+        ground_z: float = 0.0,
+        ground_style: str = "arena",
+        gates_mode: str = "lemniscate",
+        cam_mode: str = "chase",
+        enable_osd: bool = False,
+        drone_type: str = "pybullet_drones",
     ):
         self.dt = float(dt)
         self.gravity = np.asarray(gravity, dtype=float).ravel()
@@ -41,6 +46,11 @@ class PyBulletPlant:
         self.sim_speed = float(sim_speed)
         self.enable_pacing = bool(enable_pacing)
         self.ground_z = float(ground_z)
+        self.ground_style = ground_style
+        self.gates_mode = gates_mode
+        self.cam_mode = cam_mode
+        self.enable_osd = enable_osd
+        self.drone_type = str(drone_type)
 
         # Connect to PyBullet
         connection_mode = p.GUI if self.gui else p.DIRECT
@@ -51,8 +61,8 @@ class PyBulletPlant:
         p.setTimeStep(self.dt, physicsClientId=self.client_id)
         p.setRealTimeSimulation(0, physicsClientId=self.client_id)
 
-        if self.gui:
-            # Add ground plane
+        if self.gui and self.ground_style == "plane":
+            # Add plane URDF only when plane ground style is explicitly requested
             with suppress_c_stdout():
                 self.plane_id = p.loadURDF("plane.urdf", [0, 0, self.ground_z], physicsClientId=self.client_id)
         else:
@@ -69,7 +79,10 @@ class PyBulletPlant:
                 uav_id=self.uav_id,
                 ground_z=self.ground_z,
                 sim_speed=self.sim_speed,
-                enable_pacing=self.enable_pacing,
+                ground_style=self.ground_style,
+                gates_mode=self.gates_mode,
+                cam_mode=self.cam_mode,
+                enable_osd=self.enable_osd,
                 dashboard_enabled=True,
             )
         else:
@@ -91,10 +104,10 @@ class PyBulletPlant:
         r_com = h / m
 
         # Generate temporary URDF with exact physical parameters
-        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".urdf", prefix="uav_hexacopter_")
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".urdf", prefix="uav_drone_")
         os.close(tmp_fd)
         try:
-            generate_multicopter_urdf(pi, tmp_path)
+            generate_multicopter_urdf(pi, tmp_path, drone_type=self.drone_type)
             with suppress_c_stdout():
                 uav_id = p.loadURDF(
                     tmp_path,
@@ -171,6 +184,10 @@ class PyBulletPlant:
             physicsClientId=self.client_id,
         )
 
+        # Disable collision with ground plane while attached to avoid ground penetration
+        if self.plane_id is not None:
+            p.setCollisionFilterPair(self.payload_id, self.plane_id, -1, -1, enableCollision=0, physicsClientId=self.client_id)
+
     def draw_reference_path(self, trajectory_fn, duration: float):
         """Pre-render reference trajectory if visualizer is active."""
         if self.visualizer is not None:
@@ -178,12 +195,28 @@ class PyBulletPlant:
 
     def update_viz(
         self,
-        snapshot: VisualizationSnapshot,
-        step_idx: int,
+        snapshot: Optional[VisualizationSnapshot] = None,
+        step_idx: int = 0,
+        mode: str = "BREGMAN",
+        coriolis: str = "C1",
+        **kwargs,
     ):
         """Update scheduled 3D and dashboard visualization."""
         if self.visualizer is not None:
-            self.visualizer.update_snapshot(snapshot, step_idx)
+            if snapshot is not None:
+                self.visualizer.update_snapshot(snapshot, step_idx, mode=mode, coriolis=coriolis)
+            else:
+                self.visualizer.update(
+                    t=kwargs.get("t", 0.0),
+                    pos_err=kwargs.get("pos_err", 0.0),
+                    s_norm=kwargs.get("s_norm", 0.0),
+                    est_m=kwargs.get("est_m", float(self.pi[0])),
+                    true_m=kwargs.get("true_m", float(self.pi[0])),
+                    payload_dropped=self.payload_dropped,
+                    step_idx=step_idx,
+                    mode=mode,
+                    coriolis=coriolis,
+                )
 
     def set_state(self, H: np.ndarray, V: np.ndarray):
         """Set floating UAV state in PyBullet."""
@@ -266,6 +299,8 @@ class PyBulletPlant:
             p.removeConstraint(self.constraint_id, physicsClientId=self.client_id)
             self.constraint_id = None
             self.payload_dropped = True
+            if self.plane_id is not None:
+                p.setCollisionFilterPair(self.payload_id, self.plane_id, -1, -1, enableCollision=1, physicsClientId=self.client_id)
 
     def step(self, time: Optional[float] = None):
         """Advance physical simulation by dt."""
@@ -289,9 +324,10 @@ class PyBulletPlant:
             )
 
     def close(self):
-        """Disconnect PyBullet session."""
-        if self.visualizer is not None:
+        """Disconnect PyBullet session and clean up visualizer."""
+        if hasattr(self, "visualizer") and self.visualizer is not None:
             self.visualizer.close()
+            self.visualizer = None
         if p.isConnected(physicsClientId=self.client_id):
             p.disconnect(physicsClientId=self.client_id)
 

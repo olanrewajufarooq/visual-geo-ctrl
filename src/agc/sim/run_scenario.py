@@ -69,6 +69,12 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
     gui = bool(scenario.get("gui", False))
     sim_speed = float(scenario.get("simSpeed", 1.0))
     enable_pacing = bool(scenario.get("enablePacing", True))
+    ground_z = float(scenario.get("groundZ", 0.0))
+    ground_style = str(scenario.get("groundStyle", "arena"))
+    gates_mode = str(scenario.get("gatesMode", "lemniscate"))
+    cam_mode = str(scenario.get("camMode", "chase"))
+    enable_osd = bool(scenario.get("enableOsd", False))
+    drone_type = str(scenario.get("droneType", "pybullet_drones"))
 
     from ..plant.pybullet_plant import PyBulletPlant
 
@@ -81,6 +87,12 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
         release_time=release_time,
         sim_speed=sim_speed,
         enable_pacing=enable_pacing,
+        ground_z=ground_z,
+        ground_style=ground_style,
+        gates_mode=gates_mode,
+        cam_mode=cam_mode,
+        enable_osd=enable_osd,
+        drone_type=drone_type,
     )
 
     if gui:
@@ -177,7 +189,7 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
                         min_pseudo_eigenvalue=run["minPseudoEigenvalue"][k],
                         event=event,
                     )
-                    plant.update_viz(snapshot=snapshot, step_idx=k)
+                    plant.update_viz(snapshot=snapshot, step_idx=k, mode=mode, coriolis=coriolis)
                 last_payload_dropped = plant.payload_dropped
 
                 # Advance physics plant

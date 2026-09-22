@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from typing import Optional
 import numpy as np
 
 from ..math.inertia import pseudo_from_pi
@@ -23,6 +24,13 @@ def default_scenario(
     gui: bool = False,
     sim_speed: float = 1.0,
     enable_pacing: bool = True,
+    ground_z: float = 0.0,
+    ground_style: str = "arena",
+    gates_mode: Optional[str] = None,
+    cam_mode: str = "chase",
+    enable_osd: bool = False,
+    drone_type: str = "pybullet_drones",
+    initial_offset: Optional[np.ndarray] = None,
 ) -> dict:
     """Build paper-validation benchmark scenario with 10s payload drop."""
     root = get_repository_root()
@@ -52,9 +60,10 @@ def default_scenario(
         "payload": payload,
     }
 
-    # Initial condition with offset
+    # Initial condition (starts directly on the ground / launch pad by default)
     initial_H = np.copy(desired0["H"])
-    initial_H[0:3, 3] += np.array([0.2, -0.1, 0.15])
+    if initial_offset is not None:
+        initial_H[0:3, 3] += np.asarray(initial_offset, dtype=float)
     initial_state = {"H": initial_H, "V": np.copy(desired0["V"])}
 
     # Gain selection
@@ -87,6 +96,14 @@ def default_scenario(
     if mode_lower == "bregman":
         initial_estimate = pseudo_from_pi(initial_estimate)
 
+    if gates_mode is None:
+        if "lemniscate" in replay_id.lower():
+            gates_mode = "lemniscate"
+        elif "ratm" in replay_id.lower():
+            gates_mode = "ratm"
+        else:
+            gates_mode = "auto"
+
     return {
         "plantPi": pi,
         "initial": initial_state,
@@ -103,4 +120,10 @@ def default_scenario(
         "simSpeed": sim_speed,
         "enablePacing": enable_pacing,
         "replayId": replay_id,
+        "groundZ": ground_z,
+        "groundStyle": ground_style,
+        "gatesMode": gates_mode,
+        "camMode": cam_mode,
+        "enableOsd": enable_osd,
+        "droneType": drone_type,
     }

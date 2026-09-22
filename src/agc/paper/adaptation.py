@@ -39,11 +39,16 @@ def bregman_step(J: np.ndarray, G: np.ndarray, gamma: float, dt: float) -> np.nd
     M_sym = 0.5 * (M + M.T)
     # Spectral decomposition of symmetric matrix exponential
     w_m, Q_m = np.linalg.eigh(M_sym)
-    # B = J_half @ Q_m @ diag(exp(0.5 * w_m))
-    B = J_half @ Q_m @ np.diag(np.exp(0.5 * w_m))
+    # Bound eigenvalues in Lie algebra to prevent float64 exponential overflow
+    w_m_safe = np.clip(w_m, -50.0, 50.0)
+    # B = J_half @ Q_m @ diag(exp(0.5 * w_m_safe))
+    B = J_half @ Q_m @ np.diag(np.exp(0.5 * w_m_safe))
     J_raw = B @ B.T
+    J_raw_sym = 0.5 * (J_raw + J_raw.T)
+    if not np.all(np.isfinite(J_raw_sym)):
+        return 0.5 * (J + J.T)
     # Clean floating-point roundoff to guarantee SPD
-    w_j, Q_j = np.linalg.eigh(0.5 * (J_raw + J_raw.T))
+    w_j, Q_j = np.linalg.eigh(J_raw_sym)
     w_j = np.maximum(w_j, 1e-14 * np.max(w_j))
     J_next = Q_j @ np.diag(w_j) @ Q_j.T
     return 0.5 * (J_next + J_next.T)

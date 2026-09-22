@@ -16,6 +16,11 @@ from agc.math.se3 import rotm_to_quat
 from agc.plant.suppress import suppress_c_stdout
 
 
+from agc.viz.arena_scene import ArenaScene
+from agc.viz.race_gates import RaceGateManager
+from agc.viz.fpv_osd import FpvOsd
+
+
 def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
     """Replay saved run poses in interactive PyBullet GUI with full multicopter visuals."""
     run = load_run(run_dir)
@@ -29,22 +34,27 @@ def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
+    p.configureDebugVisualizer(p.COV_ENABLE_KEYBOARD_SHORTCUTS, 1)
 
-    ground_z = -1.5
+    # Detect floor level: if trajectory reaches near 0, ground is at 0.0
+    ground_z = 0.0 if np.min(H_actual[:, 2, 3]) >= -0.2 else -1.5
     with suppress_c_stdout():
         p.loadURDF("plane.urdf", [0, 0, ground_z])
 
-    # Draw coordinate ground grid
-    size = 8.0
-    step = 1.0
-    coords = np.arange(-size, size + step * 0.5, step)
-    for x in coords:
-        p.addUserDebugLine([float(x), -size, ground_z], [float(x), size, ground_z], [0.35, 0.38, 0.42], 1.0)
-    for y in coords:
-        p.addUserDebugLine([-size, float(y), ground_z], [size, float(y), ground_z], [0.35, 0.38, 0.42], 1.0)
+    # Realistic flight arena scene
+    arena = ArenaScene(client_id=client_id, ground_z=ground_z, style="arena")
 
-    # Load high-detail multicopter URDF
-    urdf_path = str(REPO_ROOT / "assets" / "hexacopter.urdf")
+    # Load racing gates
+    gate_mgr = RaceGateManager(client_id=client_id)
+    z_off = ground_z if ground_z != 0 else 0.0
+    if np.max(H_desired[:, 2, 3]) > 3.0:
+        gate_mgr.load_ratm_track(z_offset=z_off)
+    else:
+        gate_mgr.load_lemniscate_4gates(z_offset=z_off)
+
+    # Load high-detail drone URDF (defaults to gym-pybullet-drones cf2)
+    cf2_path = REPO_ROOT / "assets" / "drone" / "cf2.urdf"
+    urdf_path = str(cf2_path if cf2_path.is_file() else (REPO_ROOT / "assets" / "hexacopter.urdf"))
     with suppress_c_stdout():
         uav = p.loadURDF(urdf_path, [0, 0, 0], [0, 0, 0, 1], flags=p.URDF_MERGE_FIXED_LINKS)
 
@@ -57,6 +67,8 @@ def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
     des_pts = H_desired[:, 0:3, 3]
     for i in range(0, len(des_pts) - 10, 10):
         p.addUserDebugLine(des_pts[i].tolist(), des_pts[i + 10].tolist(), [0.1, 0.75, 1.0], lineWidth=2.5)
+
+    fpv_osd = FpvOsd(client_id=client_id, enabled=True)
 
     print("=" * 60)
     print(f"Replaying {run_dir} in PyBullet 3D GUI at {playback_speed:.1f}x speed.")
@@ -97,6 +109,9 @@ def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
                 cameraTargetPosition=cam_target.tolist(),
             )
 
+            # Check gate traversal
+            gate_mgr.check_traversals(drone_pos=pos, prev_pos=prev_trail_pos, t=curr_t)
+
             # Flown trajectory trail (amber/gold, decimated)
             if prev_trail_pos is None:
                 prev_trail_pos = pos
@@ -113,16 +128,23 @@ def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
                 replaceItemUniqueId=drop_line_id if drop_line_id is not None else -1,
             )
 
-            # HUD overlay
-            if k % (frame_stride * 5) == 0:
-                pos_err = np.linalg.norm(pos - H_desired[k, 0:3, 3])
-                hud_text = f"T = {curr_t:5.2f}s | Speed: {playback_speed:.1f}x\n||e_p|| = {pos_err:.3f} m"
-                hud_id = p.addUserDebugText(
-                    hud_text,
-                    [pos[0], pos[1], pos[2] + 0.45],
-                    textColorRGB=[1.0, 1.0, 0.3],
-                    textSize=1.1,
-                    replaceItemUniqueId=hud_id if hud_id is not None else -1,
+            # FPV OSD overlay
+            if k % (frame_stride * 3) == 0:
+                pos_err = float(np.linalg.norm(pos - H_desired[k, 0:3, 3]))
+                vel_k = run["V"][k, 3:6] if "V" in run else np.zeros(3)
+                fpv_osd.update(
+                    t=curr_t,
+                    pos=pos,
+                    R=R,
+                    vel=vel_k,
+                    pos_err=pos_err,
+                    s_norm=float(np.linalg.norm(run["s"][k])) if "s" in run else 0.0,
+                    est_m=float(run["estimatePi"][k, 0]) if "estimatePi" in run else 3.65,
+                    true_m=float(run["activePlantPi"][k, 0]) if "activePlantPi" in run else 3.65,
+                    payload_dropped=bool(curr_t >= 10.0),
+                    mode=str(run.get("mode", "BREGMAN")).upper(),
+                    coriolis=str(run.get("coriolis", "C1")).upper(),
+                    sim_speed=playback_speed,
                 )
 
             # Wall-clock pacing
