@@ -33,7 +33,11 @@ def objective_weights() -> Dict[str, float]:
         "linVel": 0.5,
         "angVel": 0.5,
         "inertia": 1.5,
-        "effort": 0.01,
+        # Effort weight raised from 0.01: at 0.01 the wrenchRMS term was
+        # negligible (~0.026) vs the tracking/estimation terms (~9+), giving
+        # the optimizer free rein to drive gains — and therefore wrench — as
+        # high as needed.  0.5 makes effort a real trade-off.
+        "effort": 0.5,
         "failure": 1e6,
     }
 

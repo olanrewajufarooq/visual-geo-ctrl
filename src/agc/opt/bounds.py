@@ -29,8 +29,11 @@ def gain_bounds(mode: str) -> Tuple[np.ndarray, np.ndarray]:
         np.log10(50.0),                                    # ks
     ]
 
-    # Coordinate 15: alpha in physical coordinates [0.05, 0.95]
-    lb = pos_lb + [0.05]
+    # Coordinate 15: alpha in physical coordinates [0.30, 0.95].
+    # Lower bound raised from 0.05: near-zero alpha makes ks*||s||^(alpha-1)
+    # diverge as ||s|| -> 0, causing sign-flipping torque chattering every
+    # control tick.  alpha >= 0.30 keeps the power-law finite.
+    lb = pos_lb + [0.30]
     ub = pos_ub + [0.95]
 
     if mode == "euclidean":
