@@ -41,5 +41,5 @@ def test_end_to_end_simulation_and_figure_export(tmp_path):
 
     # Test figure export
     export_run_figures(run, save_dir)
-    assert os.path.isfile(os.path.join(save_dir, "tracking_performance.png"))
-    assert os.path.isfile(os.path.join(save_dir, "parameter_adaptation.png"))
+    assert os.path.isfile(os.path.join(save_dir, "figures", "total-sim", "position.png"))
+    assert os.path.isfile(os.path.join(save_dir, "figures", "total-sim", "attitude.png"))

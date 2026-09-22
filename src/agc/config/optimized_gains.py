@@ -1,5 +1,5 @@
 """Optimized per-scenario gain registry.
-Last promotion: 2026-09-22 01:07:42 (Stage: sliding_dissipation, Cost: 2755.24)
+Last promotion: 2026-09-22 08:40:08 (Stage: all, Cost: 90175.3)
 """
 
 import numpy as np
@@ -40,13 +40,13 @@ def optimized_gains(mode: str, coriolis: str) -> dict:
             "gammaB": 0.001,
         },
         "euclidean_c2": {
-            "KRdiag": np.array([4.0, 5.0, 6.0]),
-            "Kxidiag": np.array([3.0, 3.0, 4.0]),
-            "LambdaDiag": np.array([2.0, 2.0, 2.0, 2.0, 2.0, 2.0]),
-            "kd": 1,
-            "ks": 0.5,
-            "alpha": 0.5,
-            "gammaE": np.array([0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]),
+            "KRdiag": np.array([0.001003, 0.02792, 0.06612]),
+            "Kxidiag": np.array([0.04397, 0.168, 0.2117]),
+            "LambdaDiag": np.array([0.9909, 3.077, 9.063, 0.02129, 5.775, 0.02663]),
+            "kd": 4.331,
+            "ks": 5.188,
+            "alpha": 0.7088,
+            "gammaE": np.array([0.000164, 2e-05, 1.6e-05, 5.6e-05, 0.000329, 0.000117, 0.004221, 0.001884, 1.2e-05, 0.000286]),
             "gammaB": 0.001,
         },
         "bregman_c1": {

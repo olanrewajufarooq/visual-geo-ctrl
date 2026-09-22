@@ -48,9 +48,14 @@ def _release_time(run: Dict[str, Any]) -> Optional[float]:
 
 
 def _save(fig, path: Path, visible: bool) -> Dict[str, Any]:
-    fig.set_visible(bool(visible))
+    # `visible` controls whether callers request interactive display; it must
+    # never control the figure's artist visibility.  Hiding the Figure before
+    # savefig produces a valid-looking, completely blank PNG in the default
+    # headless mode (`visible=False`).
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=300, format="png")
+    if visible:
+        plt.show(block=False)
     plt.close(fig)
     return {"name": path.stem, "directory": str(path.parent), "files": {"png": str(path)}}
 
