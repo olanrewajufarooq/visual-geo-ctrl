@@ -37,13 +37,14 @@ def main():
     parser.add_argument(
         "--method",
         type=str,
-        default="pso",
+        default="de",
         choices=["pso", "de"],
         help="Global search method: 'pso' (Particle Swarm) or 'de' (Differential Evolution)",
     )
     parser.add_argument(
         "--polish",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help="Run local Nelder-Mead simplex polish on the final 'all' stage",
     )
     parser.add_argument(
