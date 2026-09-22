@@ -7,7 +7,6 @@ import pytest
 
 from agc.config.manual_gains import manual_gains as agc_manual_gains
 from agc.config.optimized_gains import optimized_gains as agc_optimized_gains
-import config
 from agc.opt.staged_optimizer import promote_gains_to_registry
 from agc.math import is_spd
 
@@ -32,20 +31,6 @@ def test_manual_and_optimized_gains_have_matching_interface(mode, coriolis):
         assert np.all(g["Kxidiag"] > 0)
         assert np.all(g["LambdaDiag"] > 0)
         assert is_spd(np.diag(g["LambdaDiag"]))
-
-
-def test_root_config_reexports_match_package():
-    for mode in ["nominal", "euclidean", "bregman"]:
-        for coriolis in ["c1", "c2"]:
-            pkg_m = agc_manual_gains(mode, coriolis)
-            root_m = config.manual_gains(mode, coriolis)
-            np.testing.assert_allclose(pkg_m["KRdiag"], root_m["KRdiag"])
-            np.testing.assert_allclose(pkg_m["LambdaDiag"], root_m["LambdaDiag"])
-
-            pkg_o = agc_optimized_gains(mode, coriolis)
-            root_o = config.optimized_gains(mode, coriolis)
-            np.testing.assert_allclose(pkg_o["KRdiag"], root_o["KRdiag"])
-            np.testing.assert_allclose(pkg_o["LambdaDiag"], root_o["LambdaDiag"])
 
 
 def test_gain_promotion_writes_valid_python(tmp_path):

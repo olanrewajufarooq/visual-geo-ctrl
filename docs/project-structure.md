@@ -6,10 +6,6 @@
 adaptive-geo-ctrl-pybullet/
 |-- assets/
 |   `-- hexacopter_description/urdf/
-|-- config/
-|   |-- __init__.py
-|   |-- manual_gains.py
-|   `-- optimized_gains.py
 |-- docs/
 |   |-- architecture.md
 |   |-- batch-simulations.md
