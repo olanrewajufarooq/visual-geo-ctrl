@@ -25,7 +25,7 @@ LIMITS: Dict[str, Tuple[Any, Any]] = {
     "linear_acceleration": (-100.0, 100.0),
     "angular_acceleration": (-50.0, 50.0),
     "force": (-125.0, 125.0),
-    "torque": (-2.0, 2.0),
+    "torque": (-10.0, 10.0),
     "position_error": (0.0, 2.0),
     "attitude_error": (0.0, 180.0),
     "sliding_norm": (0.0, 2.0),
@@ -185,7 +185,7 @@ def plot_time_series(
             plotted_values,
             color=color,
             linestyle=line_style_for_series(label),
-            linewidth=1.4,
+            linewidth=0.8,
             label=label,
         )
         plotted.append(line)

@@ -74,10 +74,26 @@ def _render_run(run, scenario, output_dir: Path, visible=False, suffix="", horiz
     if horizon is None:
         horizon = get_time_horizon(run)
     out = []
-    def tp(name, series, labels, title, ylabel, family):
-        rec = _time_plot(t, series, labels, title + suffix, ylabel, family, output_dir / f"{name}.png", horizon, rel, failure_time, visible)
+    def tp(name, series, labels, title, ylabel, family, t_use=None):
+        t_plot = t if t_use is None else t_use
+        rec = _time_plot(t_plot, series, labels, title + suffix, ylabel, family, output_dir / f"{name}.png", horizon, rel, failure_time, visible)
         out.append(rec)
-    # Trajectory views
+    # The simulation logs at 500 Hz for numerical fidelity.  Plotting every sample at 300 DPI
+    # produces sub-pixel strokes that merge into solid painted blobs.  Instead, keep at most
+    # PLOT_MAX_POINTS evenly-spaced samples: stride = len(t) // PLOT_MAX_POINTS.  The values
+    # plotted are the true logged values at those instants — no smoothing, no interpolation.
+    PLOT_MAX_POINTS = 500
+    s = max(1, len(t) // PLOT_MAX_POINTS)
+    t_ds = t[::s]
+    V_ds = np.asarray(run["V"])[::s]
+    Vd_ds = np.asarray(run["Vdesired"])[::s]
+    wrench_ds = np.asarray(run["wrench"])[::s]
+    pos_ds = d["position"][::s]; desPos_ds = d["desiredPosition"][::s]
+    rpy_ds = d["rpy"][::s]; desRpy_ds = d["desiredRpy"][::s]
+    sNorm_ds = d["slidingNorm"][::s]
+    Psi_ds = np.asarray(run["Psi"])[::s]
+    Vs_ds = d["Vs"][::s]
+    # Trajectory views (keep full resolution — no time axis, so no paint issue)
     fig = plt.figure(figsize=(8, 6)); ax = fig.add_subplot(111, projection="3d")
     ax.plot(d["desiredPosition"][:, 0], d["desiredPosition"][:, 1], d["desiredPosition"][:, 2], color=COMPONENT_COLORS[0], linestyle="--", label="desired")
     ax.plot(d["position"][:, 0], d["position"][:, 1], d["position"][:, 2], color=COMPONENT_COLORS[0], label="actual")
@@ -85,23 +101,23 @@ def _render_run(run, scenario, output_dir: Path, visible=False, suffix="", horiz
     ax.set(title="Trajectory" + suffix, xlabel="x (m)", ylabel="y (m)", zlabel="z (m)"); ax.grid(True); ax.legend()
     out.append(_save(fig, output_dir / "trajectory_3d.png", visible))
     fig, ax = plt.subplots(figsize=(8, 6)); ax.plot(d["desiredPosition"][:, 0], d["desiredPosition"][:, 1], color=COMPONENT_COLORS[0], linestyle="--", label="desired"); ax.plot(d["position"][:, 0], d["position"][:, 1], color=COMPONENT_COLORS[0], label="actual"); ax.set(title="XY trajectory" + suffix, xlabel="x (m)", ylabel="y (m)"); ax.set_xlim(*limit_for("trajectory_x")); ax.set_ylim(*limit_for("trajectory_y")); ax.grid(True); ax.legend(); out.append(_save(fig, output_dir / "trajectory_xy.png", visible))
-    tp("altitude", [d["position"][:, 2], d["desiredPosition"][:, 2]], ["actual", "desired"], "Altitude", "z (m)", "altitude")
-    tp("position", [d["position"][:, i] for i in range(3)] + [d["desiredPosition"][:, i] for i in range(3)], ["x", "y", "z", "x desired", "y desired", "z desired"], "Cartesian position", "p (m)", "position")
-    tp("attitude", [wrap_degrees(np.degrees(d["rpy"][:, i])) for i in range(3)] + [wrap_degrees(np.degrees(d["desiredRpy"][:, i])) for i in range(3)], ["roll", "pitch", "yaw", "roll desired", "pitch desired", "yaw desired"], "Attitude", "angle (deg)", "orientation")
-    tp("linear_velocity", [run["V"][:, i] for i in range(3, 6)] + [run["Vdesired"][:, i] for i in range(3, 6)], ["v_x", "v_y", "v_z", "v_x desired", "v_y desired", "v_z desired"], "Body linear velocity", "v (m/s)", "linear_velocity")
-    tp("angular_velocity", [run["V"][:, i] for i in range(3)] + [run["Vdesired"][:, i] for i in range(3)], ["omega_x", "omega_y", "omega_z", "omega_x desired", "omega_y desired", "omega_z desired"], "Body angular velocity", "omega (rad/s)", "angular_velocity")
-    tp("wrench_force", [run["wrench"][:, i] for i in range(3, 6)], ["F_x", "F_y", "F_z"], "Control force", "force (N)", "force")
-    tp("wrench_torque", [run["wrench"][:, i] for i in range(3)], ["tau_x", "tau_y", "tau_z"], "Control torque", "torque (Nm)", "torque")
-    tp("sliding_norm", [d["slidingNorm"]], ["||s||"], "Sliding residual", "||s||", "sliding_norm")
-    tp("potential", [run["Psi"]], ["Psi"], "Configuration potential", "Psi", "potential")
-    tp("transverse_energy", [d["Vs"]], ["V_s"], "Transverse energy", "V_s", "transverse_energy")
+    tp("altitude", [pos_ds[:, 2], desPos_ds[:, 2]], ["actual", "desired"], "Altitude", "z (m)", "altitude", t_ds)
+    tp("position", [pos_ds[:, i] for i in range(3)] + [desPos_ds[:, i] for i in range(3)], ["x", "y", "z", "x desired", "y desired", "z desired"], "Cartesian position", "p (m)", "position", t_ds)
+    tp("attitude", [wrap_degrees(np.degrees(rpy_ds[:, i])) for i in range(3)] + [wrap_degrees(np.degrees(desRpy_ds[:, i])) for i in range(3)], ["roll", "pitch", "yaw", "roll desired", "pitch desired", "yaw desired"], "Attitude", "angle (deg)", "orientation", t_ds)
+    tp("linear_velocity", [V_ds[:, i] for i in range(3, 6)] + [Vd_ds[:, i] for i in range(3, 6)], ["v_x", "v_y", "v_z", "v_x desired", "v_y desired", "v_z desired"], "Body linear velocity", "v (m/s)", "linear_velocity", t_ds)
+    tp("angular_velocity", [V_ds[:, i] for i in range(3)] + [Vd_ds[:, i] for i in range(3)], ["omega_x", "omega_y", "omega_z", "omega_x desired", "omega_y desired", "omega_z desired"], "Body angular velocity", "omega (rad/s)", "angular_velocity", t_ds)
+    tp("wrench_force", [wrench_ds[:, i] for i in range(3, 6)], ["F_x", "F_y", "F_z"], "Control force", "force (N)", "force", t_ds)
+    tp("wrench_torque", [wrench_ds[:, i] for i in range(3)], ["tau_x", "tau_y", "tau_z"], "Control torque", "torque (Nm)", "torque", t_ds)
+    tp("sliding_norm", [sNorm_ds], ["||s||"], "Sliding residual", "||s||", "sliding_norm", t_ds)
+    tp("potential", [Psi_ds], ["Psi"], "Configuration potential", "Psi", "potential", t_ds)
+    tp("transverse_energy", [Vs_ds], ["V_s"], "Transverse energy", "V_s", "transverse_energy", t_ds)
     if str(run.get("mode", "")).lower() != "nominal":
-        tp("parameter_error", [d["parameterError"]], ["normalized parameter error"], "Parameter error", "normalized error", "parameter_error")
-        tp("pseudo_inertia_margin", [d["pseudoMargin"]], ["min eig(Jhat)"], "Pseudo-inertia margin", "minimum eigenvalue", "pseudo_margin")
-        tp("mass", [d["estimatePi"][:, 0], d["truePi"][:, 0]], ["estimate", "true"], "Mass estimate", "mass (kg)", "mass")
-        tp("cog", [d["cog"][:, i] for i in range(3)] + [d["trueCog"][:, i] for i in range(3)], ["rx", "ry", "rz", "rx true", "ry true", "rz true"], "Center of mass", "CoG (m)", "cog")
-    tp("inertia_principal", [d["estimatePi"][:, i] for i in range(4, 7)] + [d["truePi"][:, i] for i in range(4, 7)], ["Ixx", "Iyy", "Izz", "Ixx true", "Iyy true", "Izz true"], "Principal inertia", "inertia (kg m^2)", "inertia_principal")
-    tp("inertia_off_diagonal", [d["estimatePi"][:, i] for i in range(7, 10)] + [d["truePi"][:, i] for i in range(7, 10)], ["Ixy", "Ixz", "Iyz", "Ixy true", "Ixz true", "Iyz true"], "Off-diagonal inertia", "inertia (kg m^2)", "inertia_off_diagonal")
+        tp("parameter_error", [d["parameterError"][::s]], ["normalized parameter error"], "Parameter error", "normalized error", "parameter_error", t_ds)
+        tp("pseudo_inertia_margin", [d["pseudoMargin"][::s]], ["min eig(Jhat)"], "Pseudo-inertia margin", "minimum eigenvalue", "pseudo_margin", t_ds)
+        tp("mass", [d["estimatePi"][::s, 0], d["truePi"][::s, 0]], ["estimate", "true"], "Mass estimate", "mass (kg)", "mass", t_ds)
+        tp("cog", [d["cog"][::s, i] for i in range(3)] + [d["trueCog"][::s, i] for i in range(3)], ["rx", "ry", "rz", "rx true", "ry true", "rz true"], "Center of mass", "CoG (m)", "cog", t_ds)
+    tp("inertia_principal", [d["estimatePi"][::s, i] for i in range(4, 7)] + [d["truePi"][::s, i] for i in range(4, 7)], ["Ixx", "Iyy", "Izz", "Ixx true", "Iyy true", "Izz true"], "Principal inertia", "inertia (kg m^2)", "inertia_principal", t_ds)
+    tp("inertia_off_diagonal", [d["estimatePi"][::s, i] for i in range(7, 10)] + [d["truePi"][::s, i] for i in range(7, 10)], ["Ixy", "Ixz", "Iyz", "Ixy true", "Ixz true", "Iyz true"], "Off-diagonal inertia", "inertia (kg m^2)", "inertia_off_diagonal", t_ds)
     return out
 
 
