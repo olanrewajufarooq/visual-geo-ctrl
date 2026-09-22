@@ -103,9 +103,12 @@ def promote_gains_to_registry(
             key = f"{m}_{f}"
             registry[key] = get_current_gains(m, f)
 
-    # Update active key with rounded gains
+    # Update active key with rounded gains and persist its objective value.
     target_key = f"{mode.lower()}_{coriolis.lower()}"
-    registry[target_key] = round_gains(gains, sig_figs=4)
+    updated = round_gains(gains, sig_figs=4)
+    if metadata is not None and metadata.get("cost") is not None:
+        updated["optimizationCost"] = float(metadata["cost"])
+    registry[target_key] = updated
 
     # Write formatted python file
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -143,6 +146,11 @@ def promote_gains_to_registry(
             lines.append(f'            "gammaB": {float(v["gammaB"]):.6g},')
         else:
             lines.append('            "gammaB": 0.001,')
+        cost = v.get("optimizationCost")
+        if cost is None:
+            lines.append('            "optimizationCost": None,')
+        else:
+            lines.append(f'            "optimizationCost": {float(cost):.12g},')
         lines.append("        },")
 
     lines.extend([

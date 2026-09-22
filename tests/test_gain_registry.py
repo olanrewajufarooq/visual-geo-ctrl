@@ -58,3 +58,10 @@ def test_gain_promotion_writes_valid_python(tmp_path):
     loaded_func = namespace["optimized_gains"]
     loaded = loaded_func("bregman", "c1")
     assert abs(loaded["kd"] - 2.457) < 1e-2
+    assert loaded["optimizationCost"] == pytest.approx(12.34)
+
+
+def test_optimized_registry_exposes_persisted_cost():
+    gains = agc_optimized_gains("bregman", "c2")
+    assert "optimizationCost" in gains
+    assert np.isfinite(gains["optimizationCost"])
