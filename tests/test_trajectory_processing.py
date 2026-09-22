@@ -95,7 +95,7 @@ def test_npz_canonical_artifacts_load_and_sample():
     root = Path(__file__).resolve().parent.parent
     processed_dir = root / "trajectories" / "processed"
 
-    for traj_id in ["ellipse_01_auto", "lemniscate_01_auto", "RATM_01_auto"]:
+    for traj_id in ["lemniscate_01_auto", "lemniscate_02_auto", "lemniscate_03_auto", "lemniscate_04_auto"]:
         npz_file = processed_dir / f"{traj_id}.npz"
         assert npz_file.is_file(), f"Missing canonical .npz artifact: {npz_file}"
 
