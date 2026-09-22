@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
 <robot name="lemniscate_gates">
+  <!-- High-Contrast Authentic Race Gate Palette -->
   <material name="neon_orange"><color rgba="1.0 0.35 0.05 1.0"/></material>
   <material name="electric_blue"><color rgba="0.05 0.50 1.0 1.0"/></material>
-  <material name="gate_frame"><color rgba="0.22 0.24 0.26 1.0"/></material>
+  <material name="gate_frame"><color rgba="0.68 0.70 0.74 1.0"/></material>
   <material name="marker_silver"><color rgba="0.95 0.95 0.98 1.0"/></material>
   <material name="badge_gold"><color rgba="1.0 0.85 0.1 1.0"/></material>
 
@@ -13,23 +14,28 @@
   <!-- GATE 1 (East Outbound: pos=[3.5, 1.55, 0.75], yaw=0.0 deg) -->
   <link name="gate_1">
     <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
-    <!-- Left Upright Post -->
-    <visual><origin xyz="0 -0.797 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
-    <!-- Right Upright Post -->
-    <visual><origin xyz="0 0.797 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
+    <!-- Left Upright Post (Extends from top lintel down to arena floor z=-0.75) -->
+    <visual><origin xyz="0 -0.797 0.106"/><geometry><cylinder radius="0.042" length="1.712"/></geometry><material name="gate_frame"/></visual>
+    <!-- Right Upright Post (Extends down to arena floor z=-0.75) -->
+    <visual><origin xyz="0 0.797 0.106"/><geometry><cylinder radius="0.042" length="1.712"/></geometry><material name="gate_frame"/></visual>
+    <!-- Heavy Circular Ground Base Plates / Footers on Floor -->
+    <visual><origin xyz="0 -0.797 -0.745"/><geometry><cylinder radius="0.14" length="0.010"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 0.797 -0.745"/><geometry><cylinder radius="0.14" length="0.010"/></geometry><material name="gate_frame"/></visual>
+    <!-- Floor Ground Threshold Stabilizer Bar -->
+    <visual><origin xyz="0 0 -0.745" rpy="1.5707 0 0"/><geometry><cylinder radius="0.020" length="1.594"/></geometry><material name="gate_frame"/></visual>
     <!-- Top Horizontal Lintel Crossbar -->
-    <visual><origin xyz="0 0 0.962" rpy="1.5707 0 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 0 0.962" rpy="1.5707 0 0"/><geometry><cylinder radius="0.042" length="1.678"/></geometry><material name="gate_frame"/></visual>
     <!-- Top Fabric Banner -->
     <visual><origin xyz="0 0 0.862"/><geometry><box size="0.015 1.524 0.20"/></geometry><material name="neon_orange"/></visual>
-    <!-- Left Fabric Banner -->
-    <visual><origin xyz="0 -0.862 0"/><geometry><box size="0.015 0.20 1.524"/></geometry><material name="neon_orange"/></visual>
-    <!-- Right Fabric Banner -->
-    <visual><origin xyz="0 0.862 0"/><geometry><box size="0.015 0.20 1.524"/></geometry><material name="neon_orange"/></visual>
+    <!-- Left Fabric Banner (Reaches floor footer) -->
+    <visual><origin xyz="0 -0.862 0.061"/><geometry><box size="0.015 0.20 1.602"/></geometry><material name="neon_orange"/></visual>
+    <!-- Right Fabric Banner (Reaches floor footer) -->
+    <visual><origin xyz="0 0.862 0.061"/><geometry><box size="0.015 0.20 1.602"/></geometry><material name="neon_orange"/></visual>
     <!-- 4 Corner MoCap Markers -->
-    <visual><origin xyz="0 -0.762 -0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 0.762 -0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 0.762 0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 -0.762 0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 -0.762 -0.740"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 0.762 -0.740"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 0.762 0.762"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 -0.762 0.762"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
     <!-- Gate ID Badge Box -->
     <visual><origin xyz="0 0 1.08"/><geometry><box size="0.02 0.35 0.12"/></geometry><material name="badge_gold"/></visual>
   </link>
@@ -43,22 +49,27 @@
   <link name="gate_2">
     <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
     <!-- Left Upright Post -->
-    <visual><origin xyz="0 -0.797 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 -0.797 0.106"/><geometry><cylinder radius="0.042" length="1.712"/></geometry><material name="gate_frame"/></visual>
     <!-- Right Upright Post -->
-    <visual><origin xyz="0 0.797 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 0.797 0.106"/><geometry><cylinder radius="0.042" length="1.712"/></geometry><material name="gate_frame"/></visual>
+    <!-- Ground Base Plates / Footers on Floor -->
+    <visual><origin xyz="0 -0.797 -0.745"/><geometry><cylinder radius="0.14" length="0.010"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 0.797 -0.745"/><geometry><cylinder radius="0.14" length="0.010"/></geometry><material name="gate_frame"/></visual>
+    <!-- Floor Ground Threshold Stabilizer Bar -->
+    <visual><origin xyz="0 0 -0.745" rpy="1.5707 0 0"/><geometry><cylinder radius="0.020" length="1.594"/></geometry><material name="gate_frame"/></visual>
     <!-- Top Horizontal Lintel Crossbar -->
-    <visual><origin xyz="0 0 0.962" rpy="1.5707 0 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 0 0.962" rpy="1.5707 0 0"/><geometry><cylinder radius="0.042" length="1.678"/></geometry><material name="gate_frame"/></visual>
     <!-- Top Fabric Banner -->
     <visual><origin xyz="0 0 0.862"/><geometry><box size="0.015 1.524 0.20"/></geometry><material name="electric_blue"/></visual>
     <!-- Left Fabric Banner -->
-    <visual><origin xyz="0 -0.862 0"/><geometry><box size="0.015 0.20 1.524"/></geometry><material name="electric_blue"/></visual>
+    <visual><origin xyz="0 -0.862 0.061"/><geometry><box size="0.015 0.20 1.602"/></geometry><material name="electric_blue"/></visual>
     <!-- Right Fabric Banner -->
-    <visual><origin xyz="0 0.862 0"/><geometry><box size="0.015 0.20 1.524"/></geometry><material name="electric_blue"/></visual>
+    <visual><origin xyz="0 0.862 0.061"/><geometry><box size="0.015 0.20 1.602"/></geometry><material name="electric_blue"/></visual>
     <!-- 4 Corner MoCap Markers -->
-    <visual><origin xyz="0 -0.762 -0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 0.762 -0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 0.762 0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 -0.762 0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 -0.762 -0.740"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 0.762 -0.740"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 0.762 0.762"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 -0.762 0.762"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
     <!-- Gate ID Badge Box -->
     <visual><origin xyz="0 0 1.08"/><geometry><box size="0.02 0.35 0.12"/></geometry><material name="badge_gold"/></visual>
   </link>
@@ -72,22 +83,27 @@
   <link name="gate_3">
     <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
     <!-- Left Upright Post -->
-    <visual><origin xyz="0 -0.797 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 -0.797 0.106"/><geometry><cylinder radius="0.042" length="1.712"/></geometry><material name="gate_frame"/></visual>
     <!-- Right Upright Post -->
-    <visual><origin xyz="0 0.797 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 0.797 0.106"/><geometry><cylinder radius="0.042" length="1.712"/></geometry><material name="gate_frame"/></visual>
+    <!-- Ground Base Plates / Footers on Floor -->
+    <visual><origin xyz="0 -0.797 -0.745"/><geometry><cylinder radius="0.14" length="0.010"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 0.797 -0.745"/><geometry><cylinder radius="0.14" length="0.010"/></geometry><material name="gate_frame"/></visual>
+    <!-- Floor Ground Threshold Stabilizer Bar -->
+    <visual><origin xyz="0 0 -0.745" rpy="1.5707 0 0"/><geometry><cylinder radius="0.020" length="1.594"/></geometry><material name="gate_frame"/></visual>
     <!-- Top Horizontal Lintel Crossbar -->
-    <visual><origin xyz="0 0 0.962" rpy="1.5707 0 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 0 0.962" rpy="1.5707 0 0"/><geometry><cylinder radius="0.042" length="1.678"/></geometry><material name="gate_frame"/></visual>
     <!-- Top Fabric Banner -->
     <visual><origin xyz="0 0 0.862"/><geometry><box size="0.015 1.524 0.20"/></geometry><material name="neon_orange"/></visual>
     <!-- Left Fabric Banner -->
-    <visual><origin xyz="0 -0.862 0"/><geometry><box size="0.015 0.20 1.524"/></geometry><material name="neon_orange"/></visual>
+    <visual><origin xyz="0 -0.862 0.061"/><geometry><box size="0.015 0.20 1.602"/></geometry><material name="neon_orange"/></visual>
     <!-- Right Fabric Banner -->
-    <visual><origin xyz="0 0.862 0"/><geometry><box size="0.015 0.20 1.524"/></geometry><material name="neon_orange"/></visual>
+    <visual><origin xyz="0 0.862 0.061"/><geometry><box size="0.015 0.20 1.602"/></geometry><material name="neon_orange"/></visual>
     <!-- 4 Corner MoCap Markers -->
-    <visual><origin xyz="0 -0.762 -0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 0.762 -0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 0.762 0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 -0.762 0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 -0.762 -0.740"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 0.762 -0.740"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 0.762 0.762"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 -0.762 0.762"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
     <!-- Gate ID Badge Box -->
     <visual><origin xyz="0 0 1.08"/><geometry><box size="0.02 0.35 0.12"/></geometry><material name="badge_gold"/></visual>
   </link>
@@ -101,22 +117,27 @@
   <link name="gate_4">
     <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
     <!-- Left Upright Post -->
-    <visual><origin xyz="0 -0.797 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 -0.797 0.106"/><geometry><cylinder radius="0.042" length="1.712"/></geometry><material name="gate_frame"/></visual>
     <!-- Right Upright Post -->
-    <visual><origin xyz="0 0.797 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 0.797 0.106"/><geometry><cylinder radius="0.042" length="1.712"/></geometry><material name="gate_frame"/></visual>
+    <!-- Ground Base Plates / Footers on Floor -->
+    <visual><origin xyz="0 -0.797 -0.745"/><geometry><cylinder radius="0.14" length="0.010"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 0.797 -0.745"/><geometry><cylinder radius="0.14" length="0.010"/></geometry><material name="gate_frame"/></visual>
+    <!-- Floor Ground Threshold Stabilizer Bar -->
+    <visual><origin xyz="0 0 -0.745" rpy="1.5707 0 0"/><geometry><cylinder radius="0.020" length="1.594"/></geometry><material name="gate_frame"/></visual>
     <!-- Top Horizontal Lintel Crossbar -->
-    <visual><origin xyz="0 0 0.962" rpy="1.5707 0 0"/><geometry><cylinder radius="0.035" length="1.924"/></geometry><material name="gate_frame"/></visual>
+    <visual><origin xyz="0 0 0.962" rpy="1.5707 0 0"/><geometry><cylinder radius="0.042" length="1.678"/></geometry><material name="gate_frame"/></visual>
     <!-- Top Fabric Banner -->
     <visual><origin xyz="0 0 0.862"/><geometry><box size="0.015 1.524 0.20"/></geometry><material name="electric_blue"/></visual>
     <!-- Left Fabric Banner -->
-    <visual><origin xyz="0 -0.862 0"/><geometry><box size="0.015 0.20 1.524"/></geometry><material name="electric_blue"/></visual>
+    <visual><origin xyz="0 -0.862 0.061"/><geometry><box size="0.015 0.20 1.602"/></geometry><material name="electric_blue"/></visual>
     <!-- Right Fabric Banner -->
-    <visual><origin xyz="0 0.862 0"/><geometry><box size="0.015 0.20 1.524"/></geometry><material name="electric_blue"/></visual>
+    <visual><origin xyz="0 0.862 0.061"/><geometry><box size="0.015 0.20 1.602"/></geometry><material name="electric_blue"/></visual>
     <!-- 4 Corner MoCap Markers -->
-    <visual><origin xyz="0 -0.762 -0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 0.762 -0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 0.762 0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
-    <visual><origin xyz="0 -0.762 0.762"/><geometry><sphere radius="0.028"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 -0.762 -0.740"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 0.762 -0.740"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 0.762 0.762"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
+    <visual><origin xyz="0 -0.762 0.762"/><geometry><sphere radius="0.030"/></geometry><material name="marker_silver"/></visual>
     <!-- Gate ID Badge Box -->
     <visual><origin xyz="0 0 1.08"/><geometry><box size="0.02 0.35 0.12"/></geometry><material name="badge_gold"/></visual>
   </link>

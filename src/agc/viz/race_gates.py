@@ -281,7 +281,7 @@ class RaceGateManager:
         # Colors: High-contrast racing banner (Electric Blue & Neon Orange)
         banner_blue = [0.05, 0.45, 0.95, 0.95]
         banner_orange = [1.0, 0.35, 0.05, 0.95]
-        frame_color = [0.2, 0.2, 0.22, 1.0]
+        frame_color = [0.68, 0.70, 0.74, 1.0]  # Light aluminium frame (high contrast against dark floor)
 
         # Alternating gate colors for visual distinction
         primary_color = banner_orange if gate.gate_id % 2 == 1 else banner_blue
@@ -318,26 +318,27 @@ class RaceGateManager:
             np.array([0.0, -(half_w + border), -(half_h + border)]),
             np.array([0.0, (half_w + border), -(half_h + border)]),
             np.array([0.0, (half_w + border), (half_h + border)]),
-            np.array([0.0, -(half_w + border), (half_h + border)]),
+            np.array([0.0, (half_w + border), (half_h + border)]),
         ]
         outer_corners_world = [c + R @ cl for cl in outer_corners_local]
 
         # Outer border
-        self._add_line(gate, outer_corners_world[0], outer_corners_world[1], frame_color[:3], width=2.0)
-        self._add_line(gate, outer_corners_world[1], outer_corners_world[2], frame_color[:3], width=2.0)
-        self._add_line(gate, outer_corners_world[2], outer_corners_world[3], frame_color[:3], width=2.0)
-        self._add_line(gate, outer_corners_world[3], outer_corners_world[0], frame_color[:3], width=2.0)
+        self._add_line(gate, outer_corners_world[0], outer_corners_world[1], frame_color[:3], width=2.5)
+        self._add_line(gate, outer_corners_world[1], outer_corners_world[2], frame_color[:3], width=2.5)
+        self._add_line(gate, outer_corners_world[2], outer_corners_world[3], frame_color[:3], width=2.5)
+        self._add_line(gate, outer_corners_world[3], outer_corners_world[0], frame_color[:3], width=2.5)
 
         # Diagonals on banner corners
         for i in range(4):
             self._add_line(gate, corners_world[i], outer_corners_world[i], primary_color[:3], width=3.0)
 
-        # 2. Ground Support Legs extending down to floor
+        # 2. Ground Support Legs extending down to floor with ground threshold stabilizer
         z_floor = self.ground_z
         leg_l_bottom = np.array([corners_world[0][0], corners_world[0][1], z_floor])
         leg_r_bottom = np.array([corners_world[1][0], corners_world[1][1], z_floor])
-        self._add_line(gate, corners_world[0], leg_l_bottom, [0.3, 0.32, 0.35], width=3.0)
-        self._add_line(gate, corners_world[1], leg_r_bottom, [0.3, 0.32, 0.35], width=3.0)
+        self._add_line(gate, corners_world[0], leg_l_bottom, frame_color[:3], width=4.0)
+        self._add_line(gate, corners_world[1], leg_r_bottom, frame_color[:3], width=4.0)
+        self._add_line(gate, leg_l_bottom, leg_r_bottom, frame_color[:3], width=4.0)
 
         # 3. Retroreflective MoCap Corner Markers (White/Silver spheres at 4 corners)
         marker_positions = list(gate.markers.values()) if gate.markers else corners_world

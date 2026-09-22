@@ -146,13 +146,13 @@ class PyBulletVisualizer:
         times = np.arange(0.0, duration + dt_sample * 0.5, dt_sample)
         pts = [trajectory_fn(t)["H"][0:3, 3] for t in times]
 
-        path_color = [0.1, 0.75, 1.0]  # Sky cyan
+        path_color = [0.72, 0.30, 1.0]  # Electric Neon Violet (distinct from cyan props and blue/orange gates)
         for i in range(len(pts) - 1):
             p.addUserDebugLine(
                 pts[i].tolist(),
                 pts[i + 1].tolist(),
                 lineColorRGB=path_color,
-                lineWidth=2.5,
+                lineWidth=3.0,
                 lifeTime=0,
                 physicsClientId=self.client_id,
             )
@@ -217,7 +217,7 @@ class PyBulletVisualizer:
         pos_arr = np.array(pos, dtype=float)
         R = np.array(p.getMatrixFromQuaternion(quat), dtype=float).reshape(3, 3)
 
-        # 1. Update flown trail (amber/gold, decimated to prevent buffer lag)
+        # 1. Update flown trail (Vivid Hot Pink / Magenta, distinct from yellow boundary and orange gates)
         if self.prev_trail_pos is None:
             self.prev_trail_pos = pos_arr
         else:
@@ -226,8 +226,8 @@ class PyBulletVisualizer:
                 p.addUserDebugLine(
                     self.prev_trail_pos.tolist(),
                     pos_arr.tolist(),
-                    lineColorRGB=[1.0, 0.78, 0.15],  # Amber gold
-                    lineWidth=2.0,
+                    lineColorRGB=[1.0, 0.15, 0.60],  # Vivid Hot Pink / Magenta
+                    lineWidth=2.5,
                     lifeTime=0,
                     physicsClientId=self.client_id,
                 )

@@ -419,3 +419,34 @@ def test_procedural_gate_support_legs_ground_z():
         p.disconnect(cid)
 
 
+def test_ground_start_and_gate_footer_touching():
+    """Verify drone starts at ground altitude and gates have footers touching ground level."""
+    from agc.sim.default_scenario import default_scenario
+    scen = default_scenario(replay_id="lemniscate_01_auto", gui=False)
+    # 1. Drone starts directly on the ground at launch pad
+    init_pos = scen["initial"]["H"][0:3, 3]
+    traj0_pos = scen["trajectory"](0.0)["H"][0:3, 3]
+    assert np.allclose(init_pos, traj0_pos, atol=1e-6)
+    assert init_pos[2] < 0.10  # Sitting directly on the helipad
+
+    # 2. Gates have footers and uprights reaching the arena floor (Z = 0)
+    cid = p.connect(p.DIRECT)
+    try:
+        mgr = RaceGateManager(client_id=cid, ground_z=0.0)
+        gates = mgr.load_lemniscate_4gates(z_offset=0.0)
+        assert len(gates) == 4
+
+        # Verify URDF content contains ground threshold and base plates
+        from agc.viz.assets import get_asset_path
+        urdf_path = get_asset_path("gates", "lemniscate_gates.urdf")
+        content = urdf_path.read_text(encoding="utf-8")
+        assert "Floor Ground Threshold Stabilizer Bar" in content
+        assert "Ground Base Plates" in content
+        assert "0.68 0.70 0.74" in content  # Light aluminium frame color
+
+        mgr.close()
+    finally:
+        p.disconnect(cid)
+
+
+

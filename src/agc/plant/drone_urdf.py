@@ -64,8 +64,8 @@ def _generate_pybullet_drones_urdf(
     motors = [
         (1, arm_dist, arm_dist, "prop_front", "led_cyan", 0.0),
         (2, -arm_dist, arm_dist, "prop_rear", "led_red", np.pi / 2),
-        (3, -arm_dist, -arm_dist, "prop_rear", "led_amber", np.pi),
-        (4, arm_dist, -arm_dist, "prop_front", "led_green", -np.pi / 2),
+        (3, -arm_dist, -arm_dist, "prop_rear", "led_red", np.pi),
+        (4, arm_dist, -arm_dist, "prop_front", "led_cyan", -np.pi / 2),
     ]
 
     motors_urdf = ""
@@ -90,10 +90,10 @@ def _generate_pybullet_drones_urdf(
       <geometry><cylinder radius="0.007" length="0.009"/></geometry>
       <material name="cnc_aluminum"/>
     </visual>
-    <!-- Aerodynamic Propeller Blur Disc -->
+    <!-- Aerodynamic Propeller Disc (Opaque, Saturated Color) -->
     <visual>
       <origin xyz="{mx:.5f} {my:.5f} 0.027"/>
-      <geometry><cylinder radius="0.10" length="0.003"/></geometry>
+      <geometry><cylinder radius="0.125" length="0.006"/></geometry>
       <material name="{prop_mat}"/>
     </visual>
     <!-- Spinning Propeller Blades Silhouette -->
@@ -122,11 +122,11 @@ def _generate_pybullet_drones_urdf(
   <material name="dark_carbon"><color rgba="0.12 0.12 0.14 1.0"/></material>
   <material name="matte_carbon"><color rgba="0.18 0.18 0.20 1.0"/></material>
   <material name="cnc_aluminum"><color rgba="0.55 0.58 0.62 1.0"/></material>
-  <material name="prop_front"><color rgba="0.0 0.90 0.35 0.65"/></material>
-  <material name="prop_rear"><color rgba="1.0 0.30 0.05 0.65"/></material>
+  <material name="prop_front"><color rgba="0.0 0.85 1.0 1.0"/></material>
+  <material name="prop_rear"><color rgba="1.0 0.08 0.08 1.0"/></material>
   <material name="led_green"><color rgba="0.0 1.0 0.2 1.0"/></material>
   <material name="led_red"><color rgba="1.0 0.05 0.05 1.0"/></material>
-  <material name="led_cyan"><color rgba="0.0 0.9 1.0 1.0"/></material>
+  <material name="led_cyan"><color rgba="0.0 0.85 1.0 1.0"/></material>
   <material name="led_amber"><color rgba="1.0 0.7 0.0 1.0"/></material>
 
   <link name="base_link">
@@ -178,17 +178,7 @@ def _generate_hexacopter_urdf(
 
         is_front = (deg <= 60.0 or deg >= 300.0)
         prop_mat = "prop_front" if is_front else "prop_rear"
-
-        if deg in (300.0, 0.0):
-            led_mat = "led_green" if sin_a < 0 else "led_cyan"
-        elif deg == 60.0:
-            led_mat = "led_red" if sin_a > 0 else "led_cyan"
-        elif deg == 180.0:
-            led_mat = "led_amber"
-        elif deg == 120.0:
-            led_mat = "led_red"
-        else:
-            led_mat = "led_green"
+        led_mat = "led_cyan" if is_front else "led_red"
 
         arms_urdf += f"""
   <!-- Arm {i} ({deg} deg) -->
@@ -228,10 +218,10 @@ def _generate_hexacopter_urdf(
       <geometry><cylinder radius="0.008" length="0.010"/></geometry>
       <material name="cnc_aluminum"/>
     </visual>
-    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
+    <!-- Propeller Disc (Opaque, Saturated Color) -->
     <visual>
       <origin xyz="{m_x:.5f} {m_y:.5f} 0.045"/>
-      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
+      <geometry><cylinder radius="0.135" length="0.006"/></geometry>
       <material name="{prop_mat}"/>
     </visual>
     <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
@@ -262,15 +252,15 @@ def _generate_hexacopter_urdf(
   <material name="cnc_aluminum"><color rgba="0.55 0.58 0.62 1.0"/></material>
   <material name="motor_stator"><color rgba="0.28 0.28 0.32 1.0"/></material>
   <material name="motor_silver"><color rgba="0.80 0.82 0.86 1.0"/></material>
-  <material name="prop_front"><color rgba="0.0 0.90 0.35 0.65"/></material>
-  <material name="prop_rear"><color rgba="1.0 0.30 0.05 0.65"/></material>
+  <material name="prop_front"><color rgba="0.0 0.85 1.0 1.0"/></material>
+  <material name="prop_rear"><color rgba="1.0 0.08 0.08 1.0"/></material>
   <material name="camera_lens"><color rgba="0.05 0.05 0.08 1.0"/></material>
   <material name="fpv_case"><color rgba="0.95 0.35 0.05 1.0"/></material>
   <material name="landing_gear"><color rgba="0.15 0.15 0.17 1.0"/></material>
   <material name="gps_mast"><color rgba="0.20 0.22 0.25 1.0"/></material>
   <material name="led_green"><color rgba="0.0 1.0 0.2 1.0"/></material>
   <material name="led_red"><color rgba="1.0 0.05 0.05 1.0"/></material>
-  <material name="led_cyan"><color rgba="0.0 0.9 1.0 1.0"/></material>
+  <material name="led_cyan"><color rgba="0.0 0.85 1.0 1.0"/></material>
   <material name="led_amber"><color rgba="1.0 0.7 0.0 1.0"/></material>
 
   <link name="base_link">

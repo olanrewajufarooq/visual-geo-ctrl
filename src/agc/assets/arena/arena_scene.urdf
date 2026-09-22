@@ -92,8 +92,8 @@
   <!-- Launch Pad / Helipad at Origin -->
   <link name="launch_pad">
     <inertial><mass value="0"/><origin xyz="0 0 0"/><inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/></inertial>
-    <!-- Outer Cyan Ring -->
-    <visual><origin xyz="0 0 0.005"/><geometry><cylinder radius="0.85" length="0.002"/></geometry><material name="pad_cyan"/></visual>
+    <!-- Outer Ring (White/Silver) -->
+    <visual><origin xyz="0 0 0.005"/><geometry><cylinder radius="0.85" length="0.002"/></geometry><material name="pad_white"/></visual>
     <!-- Middle Dark Spacer -->
     <visual><origin xyz="0 0 0.006"/><geometry><cylinder radius="0.80" length="0.002"/></geometry><material name="floor_epoxy"/></visual>
     <!-- Inner Yellow Ring -->
