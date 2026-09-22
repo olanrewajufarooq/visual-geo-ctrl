@@ -1,9 +1,13 @@
 """High-fidelity 3D visualization utilities for PyBullet simulation."""
 
 import time
+import warnings
 from typing import Optional, Callable, Dict, Any, List
 import numpy as np
 import pybullet as p
+
+from .live_dashboard import LiveDashboard
+from .live_telemetry import VisualizationSnapshot
 
 
 class PyBulletVisualizer:
@@ -16,12 +20,23 @@ class PyBulletVisualizer:
         ground_z: float = -1.5,
         sim_speed: float = 1.0,
         enable_pacing: bool = True,
+        dashboard_enabled: bool = False,
     ):
         self.client_id = client_id
         self.uav_id = uav_id
         self.ground_z = float(ground_z)
         self.sim_speed = max(0.1, float(sim_speed))
         self.enable_pacing = bool(enable_pacing)
+        self.dashboard: Optional[LiveDashboard] = None
+        if dashboard_enabled:
+            try:
+                self.dashboard = LiveDashboard()
+            except Exception as exc:
+                warnings.warn(
+                    f"Live dashboard could not be started; continuing with PyBullet-only GUI: {exc}",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
 
         # Real-time pacing clock
         self.wall_start_time: Optional[float] = None
@@ -37,6 +52,8 @@ class PyBulletVisualizer:
         # Flown trail state
         self.prev_trail_pos: Optional[np.ndarray] = None
         self.trail_points: List[np.ndarray] = []
+        self.trail_ids: List[int] = []
+        self.max_trail_segments = 600
         self.min_trail_dist = 0.03  # 3 cm decimation
 
         # Ground drop-line ID
@@ -282,14 +299,96 @@ class PyBulletVisualizer:
                 )
 
         # 5. Wall-Clock Real-Time Pacing
-        if self.enable_pacing:
-            now = time.perf_counter()
-            if self.wall_start_time is None:
-                self.wall_start_time = now
-                self.sim_start_time = t
+        self._pace(t)
+
+    def update_snapshot(self, snapshot: VisualizationSnapshot, step_idx: int):
+        """Render a scheduled snapshot and publish it without blocking simulation."""
+        position = snapshot.actual_H[:3, 3]
+        self._update_spatial_state(position, snapshot, step_idx)
+        if self.dashboard is not None:
+            self.dashboard.publish(snapshot)
+        self._pace(snapshot.t)
+
+    def _pace(self, t: float):
+        """Pace GUI playback without coupling headless or fast runs to rendering."""
+        if not self.enable_pacing:
+            return
+        now = time.perf_counter()
+        if self.wall_start_time is None:
+            self.wall_start_time = now
+            self.sim_start_time = t
+            return
+        elapsed_sim = (t - self.sim_start_time) / self.sim_speed
+        elapsed_wall = now - self.wall_start_time
+        sleep_needed = elapsed_sim - elapsed_wall
+        if sleep_needed > 0.001:
+            time.sleep(sleep_needed)
+
+    def _update_spatial_state(
+        self,
+        pos_arr: np.ndarray,
+        snapshot: VisualizationSnapshot,
+        step_idx: int,
+    ):
+        """Update bounded 3D annotations using an already sampled position."""
+        if self.prev_trail_pos is None:
+            self.prev_trail_pos = pos_arr.copy()
+        else:
+            dist = np.linalg.norm(pos_arr - self.prev_trail_pos)
+            if dist >= self.min_trail_dist:
+                trail_id = p.addUserDebugLine(
+                    self.prev_trail_pos.tolist(),
+                    pos_arr.tolist(),
+                    lineColorRGB=[1.0, 0.78, 0.15],
+                    lineWidth=2.0,
+                    lifeTime=0,
+                    physicsClientId=self.client_id,
+                )
+                self.trail_ids.append(trail_id)
+                if len(self.trail_ids) > self.max_trail_segments:
+                    old_id = self.trail_ids.pop(0)
+                    p.removeUserDebugItem(old_id, physicsClientId=self.client_id)
+                self.prev_trail_pos = pos_arr.copy()
+
+        shadow_start = pos_arr.tolist()
+        shadow_end = [pos_arr[0], pos_arr[1], self.ground_z]
+        if self.drop_line_id is None:
+            self.drop_line_id = p.addUserDebugLine(
+                shadow_start,
+                shadow_end,
+                lineColorRGB=[0.3, 0.3, 0.3],
+                lineWidth=1.0,
+                lifeTime=0,
+                physicsClientId=self.client_id,
+            )
+        else:
+            self.drop_line_id = p.addUserDebugLine(
+                shadow_start,
+                shadow_end,
+                lineColorRGB=[0.3, 0.3, 0.3],
+                lineWidth=1.0,
+                replaceItemUniqueId=self.drop_line_id,
+                physicsClientId=self.client_id,
+            )
+
+        if step_idx - self.last_cam_update_step >= 8:
+            self.last_cam_update_step = step_idx
+            self.cam_target = 0.92 * self.cam_target + 0.08 * pos_arr
+            cam_info = p.getDebugVisualizerCamera(physicsClientId=self.client_id)
+            if cam_info is not None and len(cam_info) >= 11:
+                user_yaw, user_pitch, user_dist = cam_info[8:11]
             else:
-                elapsed_sim = (t - self.sim_start_time) / self.sim_speed
-                elapsed_wall = now - self.wall_start_time
-                sleep_needed = elapsed_sim - elapsed_wall
-                if sleep_needed > 0.001:
-                    time.sleep(sleep_needed)
+                user_yaw, user_pitch, user_dist = self.cam_yaw, self.cam_pitch, self.cam_dist
+            p.resetDebugVisualizerCamera(
+                cameraDistance=user_dist,
+                cameraYaw=user_yaw,
+                cameraPitch=user_pitch,
+                cameraTargetPosition=self.cam_target.tolist(),
+                physicsClientId=self.client_id,
+            )
+
+    def close(self):
+        """Close child dashboard resources."""
+        if self.dashboard is not None:
+            self.dashboard.close()
+            self.dashboard = None

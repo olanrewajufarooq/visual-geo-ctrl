@@ -8,7 +8,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from .diagnostics import derive_diagnostics, slice_release_window
-from .plot_style import COLOR_BLACK, COMPONENT_COLORS, get_time_horizon, limit_for, plot_time_series
+from .plot_style import COMPONENT_COLORS, color_for_series, get_time_horizon, limit_for, plot_time_series, wrap_degrees
 from ..io.persistence import load_run
 
 BASE_FIGURES = [
@@ -79,15 +79,15 @@ def _render_run(run, scenario, output_dir: Path, visible=False, suffix="", horiz
         out.append(rec)
     # Trajectory views
     fig = plt.figure(figsize=(8, 6)); ax = fig.add_subplot(111, projection="3d")
-    ax.plot(d["desiredPosition"][:, 0], d["desiredPosition"][:, 1], d["desiredPosition"][:, 2], color=COLOR_BLACK, linestyle="--", label="desired")
+    ax.plot(d["desiredPosition"][:, 0], d["desiredPosition"][:, 1], d["desiredPosition"][:, 2], color=COMPONENT_COLORS[0], linestyle="--", label="desired")
     ax.plot(d["position"][:, 0], d["position"][:, 1], d["position"][:, 2], color=COMPONENT_COLORS[0], label="actual")
-    ax.set_xlim(*limit_for("position", 0)); ax.set_ylim(*limit_for("position", 1)); ax.set_zlim(*limit_for("position", 2))
+    ax.set_xlim(*limit_for("trajectory_x")); ax.set_ylim(*limit_for("trajectory_y")); ax.set_zlim(*limit_for("trajectory_z"))
     ax.set(title="Trajectory" + suffix, xlabel="x (m)", ylabel="y (m)", zlabel="z (m)"); ax.grid(True); ax.legend()
     out.append(_save(fig, output_dir / "trajectory_3d.png", visible))
-    fig, ax = plt.subplots(figsize=(8, 6)); ax.plot(d["desiredPosition"][:, 0], d["desiredPosition"][:, 1], color=COLOR_BLACK, linestyle="--", label="desired"); ax.plot(d["position"][:, 0], d["position"][:, 1], color=COMPONENT_COLORS[0], label="actual"); ax.set(title="XY trajectory" + suffix, xlabel="x (m)", ylabel="y (m)"); ax.set_xlim(*limit_for("position", 0)); ax.set_ylim(*limit_for("position", 1)); ax.grid(True); ax.legend(); out.append(_save(fig, output_dir / "trajectory_xy.png", visible))
-    tp("altitude", [d["position"][:, 2], d["desiredPosition"][:, 2]], ["actual", "desired"], "Altitude", "z (m)", "position")
+    fig, ax = plt.subplots(figsize=(8, 6)); ax.plot(d["desiredPosition"][:, 0], d["desiredPosition"][:, 1], color=COMPONENT_COLORS[0], linestyle="--", label="desired"); ax.plot(d["position"][:, 0], d["position"][:, 1], color=COMPONENT_COLORS[0], label="actual"); ax.set(title="XY trajectory" + suffix, xlabel="x (m)", ylabel="y (m)"); ax.set_xlim(*limit_for("trajectory_x")); ax.set_ylim(*limit_for("trajectory_y")); ax.grid(True); ax.legend(); out.append(_save(fig, output_dir / "trajectory_xy.png", visible))
+    tp("altitude", [d["position"][:, 2], d["desiredPosition"][:, 2]], ["actual", "desired"], "Altitude", "z (m)", "altitude")
     tp("position", [d["position"][:, i] for i in range(3)] + [d["desiredPosition"][:, i] for i in range(3)], ["x", "y", "z", "x desired", "y desired", "z desired"], "Cartesian position", "p (m)", "position")
-    tp("attitude", [np.degrees(d["rpy"][:, i]) for i in range(3)] + [np.degrees(d["desiredRpy"][:, i]) for i in range(3)], ["roll", "pitch", "yaw", "roll desired", "pitch desired", "yaw desired"], "Attitude", "angle (deg)", "orientation")
+    tp("attitude", [wrap_degrees(np.degrees(d["rpy"][:, i])) for i in range(3)] + [wrap_degrees(np.degrees(d["desiredRpy"][:, i])) for i in range(3)], ["roll", "pitch", "yaw", "roll desired", "pitch desired", "yaw desired"], "Attitude", "angle (deg)", "orientation")
     tp("linear_velocity", [run["V"][:, i] for i in range(3, 6)] + [run["Vdesired"][:, i] for i in range(3, 6)], ["v_x", "v_y", "v_z", "v_x desired", "v_y desired", "v_z desired"], "Body linear velocity", "v (m/s)", "linear_velocity")
     tp("angular_velocity", [run["V"][:, i] for i in range(3)] + [run["Vdesired"][:, i] for i in range(3)], ["omega_x", "omega_y", "omega_z", "omega_x desired", "omega_y desired", "omega_z desired"], "Body angular velocity", "omega (rad/s)", "angular_velocity")
     tp("wrench_force", [run["wrench"][:, i] for i in range(3, 6)], ["F_x", "F_y", "F_z"], "Control force", "force (N)", "force")
@@ -100,8 +100,8 @@ def _render_run(run, scenario, output_dir: Path, visible=False, suffix="", horiz
         tp("pseudo_inertia_margin", [d["pseudoMargin"]], ["min eig(Jhat)"], "Pseudo-inertia margin", "minimum eigenvalue", "pseudo_margin")
         tp("mass", [d["estimatePi"][:, 0], d["truePi"][:, 0]], ["estimate", "true"], "Mass estimate", "mass (kg)", "mass")
         tp("cog", [d["cog"][:, i] for i in range(3)] + [d["trueCog"][:, i] for i in range(3)], ["rx", "ry", "rz", "rx true", "ry true", "rz true"], "Center of mass", "CoG (m)", "cog")
-        tp("inertia_principal", [d["estimatePi"][:, i] for i in range(4, 7)] + [d["truePi"][:, i] for i in range(4, 7)], ["Ixx", "Iyy", "Izz", "Ixx true", "Iyy true", "Izz true"], "Principal inertia", "inertia (kg m^2)", "inertia")
-        tp("inertia_off_diagonal", [d["estimatePi"][:, i] for i in range(7, 10)] + [d["truePi"][:, i] for i in range(7, 10)], ["Ixy", "Ixz", "Iyz", "Ixy true", "Ixz true", "Iyz true"], "Off-diagonal inertia", "inertia (kg m^2)", "inertia")
+    tp("inertia_principal", [d["estimatePi"][:, i] for i in range(4, 7)] + [d["truePi"][:, i] for i in range(4, 7)], ["Ixx", "Iyy", "Izz", "Ixx true", "Iyy true", "Izz true"], "Principal inertia", "inertia (kg m^2)", "inertia_principal")
+    tp("inertia_off_diagonal", [d["estimatePi"][:, i] for i in range(7, 10)] + [d["truePi"][:, i] for i in range(7, 10)], ["Ixy", "Ixz", "Iyz", "Ixy true", "Ixz true", "Iyz true"], "Off-diagonal inertia", "inertia (kg m^2)", "inertia_off_diagonal")
     return out
 
 
@@ -143,8 +143,8 @@ def export_suite_comparison_figures(suite_dir: str, visible: bool = False, expor
             comparison_horizon = (0.0, max(get_time_horizon(run)[1] for run in pairs))
             fig3 = plt.figure(figsize=(8, 6)); ax3 = fig3.add_subplot(111, projection="3d")
             for run, label in zip(pairs, ("C1", "C2")):
-                d = derive_diagnostics(run, _scenario_from_run(run)); ax3.plot(d["position"][:, 0], d["position"][:, 1], d["position"][:, 2], color=COLOR_BLACK if label == "C2" else COMPONENT_COLORS[0], label=label)
-            ax3.set_xlim(*limit_for("position", 0)); ax3.set_ylim(*limit_for("position", 1)); ax3.set_zlim(*limit_for("position", 2))
+                d = derive_diagnostics(run, _scenario_from_run(run)); ax3.plot(d["position"][:, 0], d["position"][:, 1], d["position"][:, 2], color=color_for_series(label), linestyle="--" if label == "C2" else "-", label=label)
+            ax3.set_xlim(*limit_for("trajectory_x")); ax3.set_ylim(*limit_for("trajectory_y")); ax3.set_zlim(*limit_for("trajectory_z"))
             ax3.set(title=f"{ctrl} C1/C2 trajectory", xlabel="x (m)", ylabel="y (m)", zlabel="z (m)"); ax3.legend(); ax3.grid(True); out.append(_save(fig3, suite / "comparisons" / "total-sim" / f"{ctrl}_trajectory_c1_c2.png", visible))
             fig, axes = plt.subplots(3, 2, figsize=(12, 9), sharex=True)
             for row, key in enumerate(("positionError", "attitudeError", "slidingNorm")):
@@ -210,5 +210,5 @@ def export_suite_comparison_figures(suite_dir: str, visible: bool = False, expor
     successful = {k: v for k, v in runs.items() if v.get("metrics")}
     for metric, title, ylabel in (("positionRMSE", "Position RMSE", "RMSE (m)"), ("attitudeRMSE", "Attitude RMSE", "RMSE (rad)"), ("wrenchRMS", "Control-wrench RMS", "RMS wrench")):
         if not successful: continue
-        fig, ax = plt.subplots(figsize=(10, 5)); labels = list(successful); values = [float(successful[k]["metrics"][metric]) for k in labels]; ax.bar(labels, values, color=COLOR_BLACK); ax.set(title=title, ylabel=ylabel); ax.tick_params(axis="x", rotation=35); ax.grid(True, axis="y", linestyle=":"); out.append(_save(fig, suite / "comparisons" / "performance" / f"performance_{metric}.png", visible))
+        fig, ax = plt.subplots(figsize=(10, 5)); labels = list(successful); values = [float(successful[k]["metrics"][metric]) for k in labels]; ax.bar(labels, values, color=COMPONENT_COLORS[0]); ax.set(title=title, ylabel=ylabel); ax.tick_params(axis="x", rotation=35); ax.grid(True, axis="y", linestyle=":"); out.append(_save(fig, suite / "comparisons" / "performance" / f"performance_{metric}.png", visible))
     return out

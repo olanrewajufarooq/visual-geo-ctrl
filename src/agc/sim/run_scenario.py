@@ -6,6 +6,7 @@ import numpy as np
 
 from ..paper.controller import controller
 from ..math.inertia import pi_from_pseudo
+from ..viz.live_telemetry import make_snapshot
 from .validation import validate_scenario
 
 
@@ -96,6 +97,8 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
     last_s = np.zeros(6, dtype=float)
     last_psi = 0.0
     last_vs = 0.0
+    last_payload_dropped = False
+    viz_every = max(1, int(round((1.0 / 30.0) / dt_plant)))
 
     logged_steps = 0
     failure_time = 0.0
@@ -155,20 +158,27 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
 
                 logged_steps = k + 1
 
-                # Update live GUI 3D visualizer and pacing if enabled
-                if gui:
-                    pos_err = float(np.linalg.norm(state["H"][0:3, 3] - desired["H"][0:3, 3]))
-                    s_norm = float(np.linalg.norm(last_s))
-                    est_m = float(run["estimatePi"][k, 0])
-                    true_m = float(active_pi[0])
-                    plant.update_viz(
+                # Update live visualization at a bounded rate, independently of physics.
+                if gui and (k % viz_every == 0 or k == n - 1):
+                    event = None
+                    if plant.payload_dropped and not last_payload_dropped:
+                        event = "payload_drop"
+                    snapshot = make_snapshot(
                         t=t,
-                        pos_err=pos_err,
-                        s_norm=s_norm,
-                        est_m=est_m,
-                        true_m=true_m,
-                        step_idx=k,
+                        actual_H=state["H"],
+                        desired_H=desired["H"],
+                        actual_V=state["V"],
+                        desired_V=desired["V"],
+                        sliding=last_s,
+                        wrench=last_wrench,
+                        estimate_pi=run["estimatePi"][k],
+                        true_pi=active_pi,
+                        payload_dropped=plant.payload_dropped,
+                        min_pseudo_eigenvalue=run["minPseudoEigenvalue"][k],
+                        event=event,
                     )
+                    plant.update_viz(snapshot=snapshot, step_idx=k)
+                last_payload_dropped = plant.payload_dropped
 
                 # Advance physics plant
                 if k < n - 1:

@@ -14,6 +14,7 @@ from ..math.se3 import quat_to_rotm, rotm_to_quat, skew
 from ..math.inertia import inertia_from_pi
 from .drone_urdf import generate_multicopter_urdf
 from ..viz.pybullet_viz import PyBulletVisualizer
+from ..viz.live_telemetry import VisualizationSnapshot
 
 
 class PyBulletPlant:
@@ -69,6 +70,7 @@ class PyBulletPlant:
                 ground_z=self.ground_z,
                 sim_speed=self.sim_speed,
                 enable_pacing=self.enable_pacing,
+                dashboard_enabled=True,
             )
         else:
             self.visualizer = None
@@ -176,24 +178,12 @@ class PyBulletPlant:
 
     def update_viz(
         self,
-        t: float,
-        pos_err: float,
-        s_norm: float,
-        est_m: float,
-        true_m: float,
+        snapshot: VisualizationSnapshot,
         step_idx: int,
     ):
-        """Update live camera tracking, trail, HUD, and wall-clock pacing."""
+        """Update scheduled 3D and dashboard visualization."""
         if self.visualizer is not None:
-            self.visualizer.update(
-                t=t,
-                pos_err=pos_err,
-                s_norm=s_norm,
-                est_m=est_m,
-                true_m=true_m,
-                payload_dropped=self.payload_dropped,
-                step_idx=step_idx,
-            )
+            self.visualizer.update_snapshot(snapshot, step_idx)
 
     def set_state(self, H: np.ndarray, V: np.ndarray):
         """Set floating UAV state in PyBullet."""
@@ -300,6 +290,8 @@ class PyBulletPlant:
 
     def close(self):
         """Disconnect PyBullet session."""
+        if self.visualizer is not None:
+            self.visualizer.close()
         if p.isConnected(physicsClientId=self.client_id):
             p.disconnect(physicsClientId=self.client_id)
 

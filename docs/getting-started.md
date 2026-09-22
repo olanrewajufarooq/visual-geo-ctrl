@@ -38,6 +38,16 @@ Run an adaptive tracking experiment in the 3D PyBullet GUI:
 python run/run_theory_suite.py --mode bregman --coriolis c1 --gui --speed 1.0
 ```
 
+GUI mode opens the PyBullet scene together with a live Matplotlib diagnostics
+window. The dashboard shows reference-versus-actual position, geometric
+attitude error, linear and angular velocity, commanded wrench, sliding
+variables, and estimated-versus-active mass, CoM, and inertia parameters.
+Physics continues at the normal 500 Hz plant rate while visualization samples
+at a lower rate, so stale dashboard frames may be dropped to preserve
+simulation speed. The 3D scene keeps the reference path, vehicle trail, body
+axes, altitude cue, and payload state visible; heavier vector overlays remain
+optional future extensions.
+
 ### 2. Fast Headless Simulation
 Run headlessly and generate paper figures:
 
