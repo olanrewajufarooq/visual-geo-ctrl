@@ -37,6 +37,7 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from agc.sim.replay_trajectory import ReplayTrajectory
+from agc.viz.plot_style import COMPONENT_COLORS, limit_for, plot_time_series
 
 # ── canonical ordering matches manifest.json ──────────────────────────────────
 ALL_IDS = ["ellipse_01_auto", "lemniscate_01_auto", "RATM_01_auto"]
@@ -117,8 +118,9 @@ def _plot_one(traj_id: str, out_dir: Path) -> None:
 
     # ── 3-D path ──────────────────────────────────────────────────────────────
     ax3d.plot(s.p[:, 0], s.p[:, 1], s.p[:, 2], "k-", linewidth=1.4, label="path")
-    ax3d.plot(*s.p[0],   "go", markersize=7, markerfacecolor="g", label="start")
-    ax3d.plot(*s.p[-1],  "rd", markersize=7, markerfacecolor="r", label="end")
+    ax3d.plot(*s.p[0],   marker="o", color=COMPONENT_COLORS[0], markersize=7, label="start")
+    ax3d.plot(*s.p[-1],  marker="d", color=COMPONENT_COLORS[2], markersize=7, label="end")
+    ax3d.set_xlim(*limit_for("position", 0)); ax3d.set_ylim(*limit_for("position", 1)); ax3d.set_zlim(*limit_for("position", 2))
     ax3d.set_xlabel("x (m)")
     ax3d.set_ylabel("y (m)")
     ax3d.set_zlabel("z (m)")
@@ -130,8 +132,15 @@ def _plot_one(traj_id: str, out_dir: Path) -> None:
     for grid_pos, (title, data) in zip(panel_positions, channels):
         ax = fig.add_subplot(3, 3, grid_pos)
         labels = CHANNEL_LABELS[title]
-        for j, lbl in enumerate(labels):
-            ax.plot(s.t, data[:, j], linewidth=1.2, label=lbl)
+        family = {
+            "position": "position",
+            "orientation (ZYX)": "orientation",
+            "body lin. velocity": "linear_velocity",
+            "body ang. velocity": "angular_velocity",
+            "body lin. accel.": "linear_acceleration",
+            "body ang. accel.": "angular_acceleration",
+        }[title]
+        plot_time_series(ax, s.t, [data[:, j] for j in range(data.shape[1])], labels, family, (float(s.t[0]), float(s.t[-1])))
         ax.set_title(title.capitalize(), fontsize=9)
         ax.set_ylabel(CHANNEL_UNITS[title], fontsize=8)
         ax.set_xlabel("time (s)", fontsize=8)
