@@ -287,3 +287,135 @@ def test_lemniscate_4gates_static_urdf():
         assert len(mgr.gates) == 0
     finally:
         p.disconnect(cid)
+
+
+def test_lemniscate_gate_alignment_with_scenario():
+    """Verify default scenario ground_z=0.0 and lemniscate gate centers align with cruise altitude."""
+    from agc.sim.default_scenario import default_scenario
+    scen = default_scenario(replay_id="lemniscate_01_auto", gui=False)
+    assert scen["groundZ"] == 0.0
+
+    cid = p.connect(p.DIRECT)
+    try:
+        mgr = RaceGateManager(client_id=cid, ground_z=scen["groundZ"])
+        gates = mgr.load_lemniscate_4gates(z_offset=0.0)
+        assert len(gates) == 4
+
+        # Gate centers should be at Z=0.75
+        for g in gates:
+            assert np.isclose(g.center[2], 0.75, atol=1e-3)
+
+        # Cruise altitude from trajectory around t=15.0 should be near 0.75m (cruising envelope is [0.66, 0.78])
+        cruise_sample = scen["trajectory"](15.0)
+        cruise_z = cruise_sample["H"][2, 3]
+        assert np.isclose(cruise_z, 0.75, atol=0.10)
+        # All gates apertures (height 1.524m centered at 0.75m) comfortably contain cruise altitude
+        assert abs(cruise_z - 0.75) < (gates[0].height_inner / 2.0)
+        mgr.close()
+    finally:
+        p.disconnect(cid)
+
+
+def test_arena_scene_zero_collision_shapes():
+    """Verify ArenaScene body has zero collision shapes to prevent duplicate floor collisions."""
+    cid = p.connect(p.DIRECT)
+    try:
+        arena = ArenaScene(client_id=cid, ground_z=0.0, style="arena")
+        assert len(arena.body_ids) >= 1
+        body_id = arena.body_ids[0]
+
+        # Query collision shapes of base link (-1) and any links
+        col_data = p.getCollisionShapeData(body_id, -1, physicsClientId=cid)
+        assert len(col_data) == 0, f"Expected 0 collision shapes on arena base, got {len(col_data)}"
+
+        num_joints = p.getNumJoints(body_id, physicsClientId=cid)
+        for j in range(num_joints):
+            j_col = p.getCollisionShapeData(body_id, j, physicsClientId=cid)
+            assert len(j_col) == 0, f"Expected 0 collision shapes on joint {j}, got {len(j_col)}"
+
+        arena.close()
+    finally:
+        p.disconnect(cid)
+
+
+def test_gate_directional_and_ordered_traversal():
+    """Verify gates enforce forward directional crossing and sequential order."""
+    cid = p.connect(p.DIRECT)
+    try:
+        mgr = RaceGateManager(client_id=cid)
+        gates = mgr.load_lemniscate_4gates(z_offset=0.0)
+        # Gate 1: center=[3.5, 1.55, 0.75], normal=[1, 0, 0] (yaw=0)
+        # Gate 2: center=[3.5, -1.60, 0.75], normal=[-1, 0, 0] (yaw=pi)
+
+        # 1. Reverse traversal through Gate 1: drone flies backwards (X: 3.6 -> 3.4)
+        p_ahead = np.array([3.6, 1.55, 0.75])
+        p_behind = np.array([3.4, 1.55, 0.75])
+        rev_result = mgr.check_traversals(drone_pos=p_behind, prev_pos=p_ahead, t=1.0, ordered=True)
+        assert rev_result is None, "Reverse crossing should be rejected"
+        assert not gates[0].cleared
+        assert mgr.active_gate_index == 0
+
+        # 2. Out-of-order forward attempt: try to clear Gate 2 before Gate 1
+        # Gate 2 normal is [-1, 0, 0]. Forward crossing is X: 3.6 -> 3.4
+        p2_before = np.array([3.6, -1.60, 0.75])
+        p2_after = np.array([3.4, -1.60, 0.75])
+        ooo_result = mgr.check_traversals(drone_pos=p2_after, prev_pos=p2_before, t=1.5, ordered=True)
+        assert ooo_result is None, "Out-of-order Gate 2 crossing should be rejected when Gate 1 is active"
+        assert not gates[1].cleared
+        assert mgr.active_gate_index == 0
+
+        # 3. Valid forward crossing for Gate 1 (X: 3.4 -> 3.6)
+        valid_g1 = mgr.check_traversals(drone_pos=p_ahead, prev_pos=p_behind, t=2.0, ordered=True)
+        assert valid_g1 is not None
+        assert valid_g1[0] == 1
+        assert gates[0].cleared
+        assert mgr.active_gate_index == 1
+
+        # 4. Now valid forward crossing for Gate 2
+        valid_g2 = mgr.check_traversals(drone_pos=p2_after, prev_pos=p2_before, t=3.0, ordered=True)
+        assert valid_g2 is not None
+        assert valid_g2[0] == 2
+        assert gates[1].cleared
+        assert mgr.active_gate_index == 2
+
+        mgr.close()
+    finally:
+        p.disconnect(cid)
+
+
+def test_asset_path_resolution():
+    """Verify get_asset_path locates bundled assets correctly."""
+    from agc.viz.assets import get_asset_path
+    arena_urdf = get_asset_path("arena", "arena_scene.urdf")
+    assert arena_urdf.exists()
+
+    cf2_mesh = get_asset_path("drone", "cf2.dae")
+    assert cf2_mesh.exists()
+
+    gates_urdf = get_asset_path("gates", "lemniscate_gates.urdf")
+    assert gates_urdf.exists()
+
+
+def test_procedural_gate_support_legs_ground_z():
+    """Verify procedural gate support legs extend down to the specified ground_z."""
+    cid = p.connect(p.DIRECT)
+    try:
+        custom_ground = -2.5
+        mgr = RaceGateManager(client_id=cid, ground_z=custom_ground)
+
+        def dummy_traj(t):
+            H = np.eye(4)
+            H[0:3, 3] = [0.0, 0.0, 1.5]
+            return {"H": H, "V": np.zeros(6)}
+
+        # Procedural gate generator calls _build_visual_gates() -> _render_single_gate()
+        gates = mgr.generate_path_adaptive_gates(dummy_traj, duration=5.0, num_gates=1)
+        assert len(gates) == 1
+        assert mgr.ground_z == custom_ground
+        assert len(gates[0].debug_ids) > 0
+
+        mgr.close()
+    finally:
+        p.disconnect(cid)
+
+

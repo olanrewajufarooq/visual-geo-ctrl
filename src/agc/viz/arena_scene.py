@@ -14,6 +14,9 @@ import numpy as np
 import pybullet as p
 
 
+from .assets import get_asset_path
+
+
 class ArenaScene:
     """Manages the visual flight arena floor, launch pad, safety boundaries, and enclosure."""
 
@@ -44,8 +47,7 @@ class ArenaScene:
         half_w = self.width / 2.0
 
         if self.style == "arena":
-            repo_root = Path(__file__).resolve().parents[3]
-            arena_urdf = (repo_root / "assets" / "arena" / "arena_scene.urdf").resolve()
+            arena_urdf = get_asset_path("arena", "arena_scene.urdf")
             if arena_urdf.exists():
                 arena_id = p.loadURDF(
                     str(arena_urdf).replace("\\", "/"),
@@ -63,21 +65,16 @@ class ArenaScene:
         # style "plane" leaves default plane only
 
     def _build_procedural_fallback(self, half_l: float, half_w: float):
-        """Procedural geometric boxes fallback if URDF file is missing."""
+        """Procedural visual geometric floor fallback if URDF file is missing."""
         vis_floor = p.createVisualShape(
             p.GEOM_BOX,
             halfExtents=[half_l, half_w, 0.005],
             rgbaColor=[0.14, 0.15, 0.17, 1.0],
             physicsClientId=self.client_id,
         )
-        col_floor = p.createCollisionShape(
-            p.GEOM_BOX,
-            halfExtents=[half_l, half_w, 0.005],
-            physicsClientId=self.client_id,
-        )
         floor_id = p.createMultiBody(
             baseMass=0.0,
-            baseCollisionShapeIndex=col_floor,
+            baseCollisionShapeIndex=-1,  # Visual-only: do not duplicate collision plane
             baseVisualShapeIndex=vis_floor,
             basePosition=[0.0, 0.0, self.ground_z - 0.005],
             physicsClientId=self.client_id,

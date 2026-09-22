@@ -24,7 +24,7 @@ def default_scenario(
     gui: bool = False,
     sim_speed: float = 1.0,
     enable_pacing: bool = True,
-    ground_z: float = -1.5,
+    ground_z: float = 0.0,
     ground_style: str = "arena",
     gates_mode: Optional[str] = None,
     cam_mode: str = "chase",

@@ -39,8 +39,8 @@ def generate_multicopter_urdf(
     I_com[2, 2] = max(I_com[2, 2], 1e-5)
 
     if drone_type == "pybullet_drones":
-        repo_root = Path(__file__).resolve().parents[3]
-        mesh_path = (repo_root / "assets" / "drone" / "cf2.dae").resolve()
+        from ..viz.assets import get_asset_path
+        mesh_path = get_asset_path("drone", "cf2.dae").resolve()
         if mesh_path.exists():
             urdf = _generate_pybullet_drones_urdf(m, r_com, I_com, str(mesh_path).replace("\\", "/"))
         else:

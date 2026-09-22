@@ -50,3 +50,45 @@ def test_plant_with_gui_flag_in_direct_mode():
     state = plant.get_state()
     assert state["H"].shape == (4, 4)
     plant.close()
+
+
+def test_visualizer_osd_update_cadence():
+    """Verify that PyBulletVisualizer updates FPV OSD on each visualization call without aliasing."""
+    pi = np.array([2.0, 0.0, 0.0, 0.0, 0.1, 0.12, 0.14, 0.0, 0.0, 0.0])
+    cid = p.connect(p.DIRECT)
+    uav_id = p.createMultiBody(baseMass=2.0, physicsClientId=cid)
+
+    viz = PyBulletVisualizer(
+        client_id=cid,
+        uav_id=uav_id,
+        ground_z=0.0,
+        enable_pacing=False,
+    )
+
+    update_counts = []
+    original_osd_update = viz.fpv_osd.update
+
+    def mock_update(*args, **kwargs):
+        update_counts.append(kwargs.get("t", 0.0))
+        return original_osd_update(*args, **kwargs)
+
+    viz.fpv_osd.update = mock_update
+
+    # Simulate 30 Hz updates coming from run_scenario (step_idx spaced by 17)
+    viz_every = 17
+    for k in range(0, 17 * 5, viz_every):
+        viz.update(
+            t=k * 0.002,
+            pos_err=0.01,
+            s_norm=0.05,
+            est_m=2.0,
+            true_m=2.0,
+            payload_dropped=False,
+            step_idx=k,
+        )
+
+    # Must have updated on each of the 5 visualization calls, NOT aliased/skipped
+    assert len(update_counts) == 5
+
+    p.disconnect(cid)
+

@@ -13,6 +13,8 @@ from typing import Dict, List, Optional, Tuple, Callable, Any
 import numpy as np
 import pybullet as p
 
+from .assets import get_asset_path
+
 
 @dataclass
 class RaceGate:
@@ -125,10 +127,12 @@ RATM_GATES_DATA = [
 class RaceGateManager:
     """Manages spawning, rendering, and traversal tracking for 3D racing gates."""
 
-    def __init__(self, client_id: int):
+    def __init__(self, client_id: int, ground_z: float = 0.0):
         self.client_id = client_id
+        self.ground_z = float(ground_z)
         self.gates: List[RaceGate] = []
         self.last_cleared_gate: Optional[int] = None
+        self.active_gate_index: int = 0
         self.lap_count: int = 0
         self.gate_split_times: Dict[int, float] = {}
 
@@ -172,8 +176,7 @@ class RaceGateManager:
     def load_lemniscate_4gates(self, z_offset: float = 0.0) -> List[RaceGate]:
         """Load the authentic 4-gate lemniscate racing circuit from static URDF."""
         self.clear()
-        repo_root = Path(__file__).resolve().parents[3]
-        urdf_path = (repo_root / "assets" / "gates" / "lemniscate_gates.urdf").resolve()
+        urdf_path = get_asset_path("gates", "lemniscate_gates.urdf")
         body_id = None
         if urdf_path.exists():
             body_id = p.loadURDF(
@@ -330,7 +333,7 @@ class RaceGateManager:
             self._add_line(gate, corners_world[i], outer_corners_world[i], primary_color[:3], width=3.0)
 
         # 2. Ground Support Legs extending down to floor
-        z_floor = 0.0
+        z_floor = self.ground_z
         leg_l_bottom = np.array([corners_world[0][0], corners_world[0][1], z_floor])
         leg_r_bottom = np.array([corners_world[1][0], corners_world[1][1], z_floor])
         self._add_line(gate, corners_world[0], leg_l_bottom, [0.3, 0.32, 0.35], width=3.0)
@@ -378,15 +381,19 @@ class RaceGateManager:
         drone_pos: np.ndarray,
         prev_pos: Optional[np.ndarray] = None,
         t: float = 0.0,
+        ordered: bool = True,
     ) -> Optional[Tuple[int, float]]:
-        """Check whether the drone has crossed through any gate aperture."""
-        if prev_pos is None:
+        """Check whether the drone has crossed through the active gate aperture (directional & ordered)."""
+        if prev_pos is None or not self.gates:
             return None
 
-        for gate in self.gates:
-            if gate.cleared:
-                continue
+        # Determine which gate(s) to check
+        if ordered:
+            gates_to_check = [self.gates[self.active_gate_index]]
+        else:
+            gates_to_check = [g for g in self.gates if not g.cleared]
 
+        for gate in gates_to_check:
             # Vector from gate center to drone positions
             d_curr = drone_pos - gate.center
             d_prev = prev_pos - gate.center
@@ -395,10 +402,11 @@ class RaceGateManager:
             s_curr = np.dot(d_curr, gate.normal)
             s_prev = np.dot(d_prev, gate.normal)
 
-            # Check if drone passed through the gate plane (sign change)
-            if s_prev * s_curr <= 0.0 and abs(s_prev - s_curr) > 1e-4:
+            # Directional traversal check: must cross forward from entry (s <= 0) to exit (s > 0)
+            if s_prev <= 0.0 and s_curr > 0.0:
                 # Interpolate exact in-plane crossing position
-                alpha = abs(s_prev) / (abs(s_prev) + abs(s_curr) + 1e-9)
+                denom = abs(s_prev) + abs(s_curr)
+                alpha = abs(s_prev) / (denom if denom > 1e-9 else 1.0)
                 cross_pt = prev_pos + alpha * (drone_pos - prev_pos)
                 cross_rel = cross_pt - gate.center
 
@@ -416,11 +424,18 @@ class RaceGateManager:
                     self.gate_split_times[gate.gate_id] = t
                     self._flash_gate_cleared(gate)
 
-                    # Multi-lap support: reset cleared flags when full circuit is completed
-                    if all(g.cleared for g in self.gates):
-                        self.lap_count += 1
-                        for g in self.gates:
-                            g.cleared = False
+                    if ordered:
+                        self.active_gate_index = (self.active_gate_index + 1) % len(self.gates)
+                        if self.active_gate_index == 0:
+                            self.lap_count += 1
+                            for g in self.gates:
+                                g.cleared = False
+                    else:
+                        # Multi-lap support: reset cleared flags when all gates are cleared
+                        if all(g.cleared for g in self.gates):
+                            self.lap_count += 1
+                            for g in self.gates:
+                                g.cleared = False
 
                     return gate.gate_id, t
 
@@ -470,6 +485,8 @@ class RaceGateManager:
                     removed_bodies.add(b_id)
         self.gates.clear()
         self.last_cleared_gate = None
+        self.active_gate_index = 0
+        self.lap_count = 0
         self.gate_split_times.clear()
 
     def close(self):

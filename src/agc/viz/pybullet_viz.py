@@ -88,7 +88,7 @@ class PyBulletVisualizer:
             ground_z=self.ground_z,
             style=self.ground_style,
         )
-        self.gate_manager = RaceGateManager(client_id=self.client_id)
+        self.gate_manager = RaceGateManager(client_id=self.client_id, ground_z=self.ground_z)
         self.fpv_osd = FpvOsd(client_id=self.client_id, enabled=self.enable_osd)
 
     def _setup_scene(self):
@@ -167,8 +167,8 @@ class PyBulletVisualizer:
             physicsClientId=self.client_id,
         )
 
-        # Spawn Racing Gate Passages
-        z_offset = self.ground_z if abs(self.ground_z) > 0.1 else 0.0
+        # Spawn Racing Gate Passages (aligned with world coordinates where trajectory resides)
+        z_offset = 0.0
         if self.gates_mode == "lemniscate":
             self.gate_manager.load_lemniscate_4gates(z_offset=z_offset)
         elif self.gates_mode == "ratm":
@@ -193,7 +193,7 @@ class PyBulletVisualizer:
                     if self.gate_manager.gates:
                         self.gate_manager.clear()
                     else:
-                        z_off = self.ground_z if abs(self.ground_z) > 0.1 else 0.0
+                        z_off = 0.0
                         if self.gates_mode == "lemniscate":
                             self.gate_manager.load_lemniscate_4gates(z_offset=z_off)
                         else:
@@ -251,50 +251,48 @@ class PyBulletVisualizer:
         # 3. Check Keyboard Events
         self._handle_keyboard()
 
-        # 4. Multi-Camera Director (Updated at ~60 Hz rate)
-        if step_idx - self.last_cam_update_step >= 8:  # ~60 Hz at 500 Hz physics
-            self.last_cam_update_step = step_idx
-            self._update_camera_director(pos_arr, R)
+        # 4. Multi-Camera Director (Updated smoothly on every visualization step)
+        self.last_cam_update_step = step_idx
+        self._update_camera_director(pos_arr, R)
 
-        # 5. FPV Racing OSD & HUD Overlay (Updated at ~20 Hz rate)
-        if step_idx % 25 == 0:
-            # Ground drop shadow line (shows altitude above floor)
-            shadow_start = pos_arr.tolist()
-            shadow_end = [pos_arr[0], pos_arr[1], self.ground_z]
-            if self.drop_line_id is None:
-                self.drop_line_id = p.addUserDebugLine(
-                    shadow_start,
-                    shadow_end,
-                    lineColorRGB=[0.3, 0.3, 0.3],
-                    lineWidth=1.0,
-                    lifeTime=0,
-                    physicsClientId=self.client_id,
-                )
-            else:
-                self.drop_line_id = p.addUserDebugLine(
-                    shadow_start,
-                    shadow_end,
-                    lineColorRGB=[0.3, 0.3, 0.3],
-                    lineWidth=1.0,
-                    lifeTime=0,
-                    replaceItemUniqueId=self.drop_line_id,
-                    physicsClientId=self.client_id,
-                )
-
-            self.fpv_osd.update(
-                t=t,
-                pos=pos_arr,
-                R=R,
-                vel=np.array(vel_lin, dtype=float),
-                pos_err=pos_err,
-                s_norm=s_norm,
-                est_m=est_m,
-                true_m=true_m,
-                payload_dropped=payload_dropped,
-                mode=mode,
-                coriolis=coriolis,
-                sim_speed=self.sim_speed,
+        # 5. FPV Racing OSD & HUD Overlay (Updated on every visualization step at ~30 Hz)
+        # Ground drop shadow line (shows altitude above floor)
+        shadow_start = pos_arr.tolist()
+        shadow_end = [pos_arr[0], pos_arr[1], self.ground_z]
+        if self.drop_line_id is None:
+            self.drop_line_id = p.addUserDebugLine(
+                shadow_start,
+                shadow_end,
+                lineColorRGB=[0.3, 0.3, 0.3],
+                lineWidth=1.0,
+                lifeTime=0,
+                physicsClientId=self.client_id,
             )
+        else:
+            self.drop_line_id = p.addUserDebugLine(
+                shadow_start,
+                shadow_end,
+                lineColorRGB=[0.3, 0.3, 0.3],
+                lineWidth=1.0,
+                lifeTime=0,
+                replaceItemUniqueId=self.drop_line_id,
+                physicsClientId=self.client_id,
+            )
+
+        self.fpv_osd.update(
+            t=t,
+            pos=pos_arr,
+            R=R,
+            vel=np.array(vel_lin, dtype=float),
+            pos_err=pos_err,
+            s_norm=s_norm,
+            est_m=est_m,
+            true_m=true_m,
+            payload_dropped=payload_dropped,
+            mode=mode,
+            coriolis=coriolis,
+            sim_speed=self.sim_speed,
+        )
 
         # 7. Wall-Clock Real-Time Pacing
         self._pace(t)
