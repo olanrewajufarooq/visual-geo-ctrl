@@ -5,6 +5,7 @@ and multi-camera director (Chase, FPV Cockpit, Overview, Free).
 """
 
 import time
+import warnings
 from typing import Optional, Callable, Dict, Any, List
 import numpy as np
 import pybullet as p
@@ -12,6 +13,8 @@ import pybullet as p
 from .arena_scene import ArenaScene
 from .race_gates import RaceGateManager
 from .fpv_osd import FpvOsd
+from .live_dashboard import LiveDashboard
+from .live_telemetry import VisualizationSnapshot
 
 
 class PyBulletVisualizer:
@@ -28,6 +31,7 @@ class PyBulletVisualizer:
         gates_mode: str = "lemniscate",
         cam_mode: str = "chase",
         enable_osd: bool = True,
+        dashboard_enabled: bool = False,
     ):
         self.client_id = client_id
         self.uav_id = uav_id
@@ -38,6 +42,17 @@ class PyBulletVisualizer:
         self.gates_mode = str(gates_mode).lower()
         self.cam_mode = str(cam_mode).lower()
         self.enable_osd = bool(enable_osd)
+
+        self.dashboard: Optional[LiveDashboard] = None
+        if dashboard_enabled:
+            try:
+                self.dashboard = LiveDashboard()
+            except Exception as exc:
+                warnings.warn(
+                    f"Live dashboard could not be started; continuing with PyBullet-only GUI: {exc}",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
 
         # Real-time pacing clock
         self.wall_start_time: Optional[float] = None
@@ -56,6 +71,8 @@ class PyBulletVisualizer:
         # Flown trail state
         self.prev_trail_pos: Optional[np.ndarray] = None
         self.trail_points: List[np.ndarray] = []
+        self.trail_ids: List[int] = []
+        self.max_trail_segments = 600
         self.min_trail_dist = 0.03  # 3 cm decimation
 
         # Tracking previous drone position for gate traversal checks
@@ -340,8 +357,30 @@ class PyBulletVisualizer:
                     physicsClientId=self.client_id,
                 )
 
+    def update_snapshot(
+        self,
+        snapshot: VisualizationSnapshot,
+        step_idx: int,
+        mode: str = "BREGMAN",
+        coriolis: str = "C1",
+    ):
+        """Render a scheduled snapshot, update 3D GUI, and publish to dashboard."""
+        self.update(
+            t=snapshot.t,
+            pos_err=snapshot.position_error_norm,
+            s_norm=snapshot.sliding_norm,
+            est_m=float(snapshot.estimate_pi[0]),
+            true_m=float(snapshot.true_pi[0]),
+            payload_dropped=snapshot.payload_dropped,
+            step_idx=step_idx,
+            mode=mode,
+            coriolis=coriolis,
+        )
+        if self.dashboard is not None:
+            self.dashboard.publish(snapshot)
+
     def _pace(self, t: float):
-        """Pace GUI playback to match wall clock times."""
+        """Pace GUI playback without coupling headless or fast runs to rendering."""
         if not self.enable_pacing:
             return
         now = time.perf_counter()
@@ -356,10 +395,16 @@ class PyBulletVisualizer:
             time.sleep(sleep_needed)
 
     def close(self):
-        """Clean up scene, gates, OSD, and resources."""
-        if hasattr(self, "arena_scene"):
+        """Clean up scene, gates, OSD, and child dashboard resources."""
+        if hasattr(self, "arena_scene") and self.arena_scene is not None:
             self.arena_scene.close()
-        if hasattr(self, "gate_manager"):
+            self.arena_scene = None
+        if hasattr(self, "gate_manager") and self.gate_manager is not None:
             self.gate_manager.close()
-        if hasattr(self, "fpv_osd"):
+            self.gate_manager = None
+        if hasattr(self, "fpv_osd") and self.fpv_osd is not None:
             self.fpv_osd.close()
+            self.fpv_osd = None
+        if self.dashboard is not None:
+            self.dashboard.close()
+            self.dashboard = None
