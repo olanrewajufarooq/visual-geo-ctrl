@@ -22,8 +22,7 @@ from .encoding import (
 )
 from .objective import (
     objective_weights,
-    objective_scales,
-    evaluate_scenario_candidate,
+    evaluate_scenario_set_candidate,
     best_feasible_candidate,
 )
 from .pso import ParticleSwarmOptimizer
@@ -31,6 +30,26 @@ from .de import DifferentialEvolutionOptimizer, nelder_mead_polish
 from .bregman_profile import profile_bregman_gain
 from ..sim.default_scenario import default_scenario, get_repository_root
 from ..io.persistence import default_results_root, load_best_gain, save_best_gain
+
+
+DEFAULT_TRAINING_REPLAY_IDS = ("lemniscate_02_auto", "lemniscate_03_auto", "lemniscate_04_auto")
+DEFAULT_TRAINING_PAYLOAD_PROFILES = ("flat_light", "tall_heavy")
+
+
+def default_training_conditions(
+    replay_ids: Optional[List[str]] = None,
+    payload_profiles: Optional[List[str]] = None,
+) -> List[Dict[str, str]]:
+    """Return the Cartesian product of replay and payload conditions for gain tuning."""
+    selected_replays = list(DEFAULT_TRAINING_REPLAY_IDS) if replay_ids is None else replay_ids
+    selected_profiles = list(DEFAULT_TRAINING_PAYLOAD_PROFILES) if payload_profiles is None else payload_profiles
+    if not selected_replays or not selected_profiles:
+        raise ValueError("Training requires at least one replay ID and payload profile.")
+    return [
+        {"replayId": str(replay_id), "payloadProfile": str(profile)}
+        for replay_id in selected_replays
+        for profile in selected_profiles
+    ]
 
 
 def is_strictly_improved(candidate: Dict[str, Any], reference: Dict[str, Any]) -> bool:
@@ -47,15 +66,15 @@ def is_strictly_improved(candidate: Dict[str, Any], reference: Dict[str, Any]) -
 class BlockCostEvaluator:
     """Picklable top-level worker for evaluating block-coordinate candidates."""
 
-    def __init__(self, incumbent_candidate: np.ndarray, block: str, scenario: Dict[str, Any], weights: Dict[str, float]):
+    def __init__(self, incumbent_candidate: np.ndarray, block: str, scenarios: List[Dict[str, Any]], weights: Dict[str, float]):
         self.incumbent_candidate = np.asarray(incumbent_candidate, dtype=float)
         self.block = block
-        self.scenario = scenario
+        self.scenarios = scenarios
         self.weights = weights
 
     def __call__(self, block_x: np.ndarray) -> float:
-        sc = apply_gain_block(block_x, self.incumbent_candidate, self.block, self.scenario)
-        rec = evaluate_scenario_candidate(encode_scenario_gains(sc), self.scenario, self.weights, label=self.block)
+        sc = apply_gain_block(block_x, self.incumbent_candidate, self.block, self.scenarios[0])
+        rec = evaluate_scenario_set_candidate(encode_scenario_gains(sc), self.scenarios, self.weights, label=self.block)
         return float(rec["cost"])
 
 
@@ -144,7 +163,9 @@ def run_staged_optimization(
     method: str = "pso",
     polish: bool = False,
     duration: float = 30.0,
-    replay_id: str = "lemniscate_01_auto",
+    replay_id: Optional[str] = None,
+    training_replay_ids: Optional[List[str]] = None,
+    training_payload_profiles: Optional[List[str]] = None,
     swarm_size: int = 50,
     max_iter: int = 20,
     max_stall: int = 10,
@@ -158,9 +179,11 @@ def run_staged_optimization(
     """Execute staged block-coordinate optimization for selected scenarios."""
     variants = expand_scenario_selection(mode, coriolis)
     weights = objective_weights()
-    scales = objective_scales()
     root = get_repository_root()
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if replay_id is not None and training_replay_ids is None:
+        training_replay_ids = [replay_id]
+    training_conditions = default_training_conditions(training_replay_ids, training_payload_profiles)
 
     overall_results = {}
 
@@ -168,33 +191,32 @@ def run_staged_optimization(
         print("=" * 70)
         print(f"Optimizing {sel_mode}/{sel_coriolis} ({var_idx} of {len(variants)})")
         print(f"Schedule: {schedule} | Method: {method.upper()} | Polish: {polish} | Parallel: {parallel}")
+        print(f"Training conditions: {len(training_conditions)}")
         print("=" * 70)
 
         # 1. Evaluate baseline seed candidates
-        manual_scenario = default_scenario(
-            replay_id=replay_id,
-            mode=sel_mode,
-            coriolis=sel_coriolis,
-            duration=duration,
-            gain_source="manual",
-            gui=False,
-            enable_pacing=False,
-        )
-        reg_scenario = default_scenario(
-            replay_id=replay_id,
-            mode=sel_mode,
-            coriolis=sel_coriolis,
-            duration=duration,
-            gain_source="optimized",
-            gui=False,
-            enable_pacing=False,
-        )
+        manual_scenarios = [
+            default_scenario(
+                replay_id=condition["replayId"], mode=sel_mode, coriolis=sel_coriolis,
+                duration=duration, gain_source="manual", gui=False, enable_pacing=False,
+                payload_profile=condition["payloadProfile"],
+            )
+            for condition in training_conditions
+        ]
+        reg_scenarios = [
+            default_scenario(
+                replay_id=condition["replayId"], mode=sel_mode, coriolis=sel_coriolis,
+                duration=duration, gain_source="optimized", gui=False, enable_pacing=False,
+                payload_profile=condition["payloadProfile"],
+            )
+            for condition in training_conditions
+        ]
 
-        manual_cand = encode_scenario_gains(manual_scenario)
-        reg_cand = encode_scenario_gains(reg_scenario)
+        manual_cand = encode_scenario_gains(manual_scenarios[0])
+        reg_cand = encode_scenario_gains(reg_scenarios[0])
 
-        manual_rec = evaluate_scenario_candidate(manual_cand, manual_scenario, weights, label="manual")
-        reg_rec = evaluate_scenario_candidate(reg_cand, manual_scenario, weights, label="registered")
+        manual_rec = evaluate_scenario_set_candidate(manual_cand, manual_scenarios, weights, label="manual")
+        reg_rec = evaluate_scenario_set_candidate(reg_cand, manual_scenarios, weights, label="registered")
 
         incumbent = best_feasible_candidate(manual_rec, reg_rec)
         promoted = reg_rec
@@ -205,8 +227,8 @@ def run_staged_optimization(
         saved_best = load_best_gain(best_gain_path)
         if saved_best is not None and "candidate" in saved_best:
             saved_candidate = np.asarray(saved_best["candidate"], dtype=float)
-            saved_rec = evaluate_scenario_candidate(
-                saved_candidate, manual_scenario, weights, label="persisted-best"
+            saved_rec = evaluate_scenario_set_candidate(
+                saved_candidate, manual_scenarios, weights, label="persisted-best"
             )
             incumbent = best_feasible_candidate(incumbent, saved_rec)
             promoted = best_feasible_candidate(promoted, saved_rec)
@@ -246,7 +268,7 @@ def run_staged_optimization(
                 # 1D log-grid scan for scalar gammaB
                 seed_vals = 10.0 ** unique_seeds_full[:, 15]
                 profile = profile_bregman_gain(
-                    base_scenario=manual_scenario,
+                    base_scenarios=manual_scenarios,
                     incumbent_candidate=incumbent["candidate"],
                     seed_values=seed_vals.tolist(),
                     weights=weights,
@@ -264,7 +286,7 @@ def run_staged_optimization(
                 block_seeds = np.unique(unique_seeds_full[:, indices], axis=0)
 
                 # Picklable cost evaluator for block
-                block_cost = BlockCostEvaluator(incumbent["candidate"], s_name, manual_scenario, weights)
+                block_cost = BlockCostEvaluator(incumbent["candidate"], s_name, manual_scenarios, weights)
 
                 # Run optimizer on block
                 if method.lower() == "de":
@@ -312,7 +334,7 @@ def run_staged_optimization(
                 # Assemble full contender
                 full_cand = np.copy(incumbent["candidate"])
                 full_cand[indices] = best_block_x
-                contender = evaluate_scenario_candidate(full_cand, manual_scenario, weights, label=s_name)
+                contender = evaluate_scenario_set_candidate(full_cand, manual_scenarios, weights, label=s_name)
                 stage_result = {
                     "method": method,
                     "block": s_name,
@@ -342,6 +364,7 @@ def run_staged_optimization(
                 "coriolis": sel_coriolis,
                 "schedule": schedule,
                 "method": method,
+                "trainingConditions": training_conditions,
                 "stage_index": s_idx,
                 "stages": stages_log,
                 "incumbent_cost": float(incumbent["cost"]),

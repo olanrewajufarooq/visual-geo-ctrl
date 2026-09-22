@@ -1,9 +1,16 @@
 """Tests for trajectory processing, SE(3) smoother, and .npz artifact replay."""
 
 import json
+import subprocess
+import sys
+from unittest.mock import patch
 from pathlib import Path
 import numpy as np
 import pytest
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "src"))
+sys.path.insert(0, str(REPO_ROOT))
 
 from agc.math.se3 import exp_se3, log_se3, log_so3, expm_so3
 from agc.sim.replay_trajectory import ReplayTrajectory
@@ -15,6 +22,44 @@ from trajectories.replay_scripts import (
     ReplayTraj,
     write_replay_artifact,
 )
+
+
+def test_trajectory_preprocessing_cli_bootstraps_the_agc_package():
+    """The documented preprocessing CLI must run without an installed package."""
+    root = Path(__file__).resolve().parent.parent
+    result = subprocess.run(
+        [sys.executable, str(root / "trajectories" / "process_trajectories.py"), "--help"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "Build canonical SE(3) replay artifacts" in result.stdout
+
+
+def test_replay_processing_applies_cli_postprocessing_overrides(tmp_path):
+    """Routine preprocessing must pass its bounded WNOJ settings to each replay."""
+    manifest = {
+        "test_replay": {
+            "source_file": "source.csv",
+            "artifact_file": "test_replay.npz",
+        }
+    }
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (tmp_path / "source.csv").write_text("placeholder", encoding="utf-8")
+
+    with patch.object(ReplayKinematics, "process_single", return_value={}) as process_single:
+        with patch("trajectories.replay_scripts.replay_processing_core.write_replay_artifact"):
+            ReplayProcessingCore.process_all(
+                root_dir=tmp_path,
+                manifest_path=manifest_path,
+                trajectory_ids=["test_replay"],
+                postprocessing_options={"knotIntervalSeconds": 0.25, "maxIterations": 10},
+            )
+
+    entry = process_single.call_args.args[2]
+    assert entry["postprocessing"]["wnoj"] == {"knotIntervalSeconds": 0.25, "maxIterations": 10}
 
 
 def test_se3_exp_log_roundtrip():
@@ -192,4 +237,3 @@ def test_wnoj_batch_smoother_nonlinear_optimization():
     residuals = smoother.validate()
     assert np.isfinite(residuals["maxPoseTwistResidual"])
     assert np.isfinite(residuals["maxTwistAccelerationResidual"])
-

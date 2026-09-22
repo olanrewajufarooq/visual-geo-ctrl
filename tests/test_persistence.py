@@ -1,9 +1,13 @@
 """Unit tests for Python persistence utilities (Task 7)."""
 
 import json
+import sys
 import pytest
 import numpy as np
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from agc.sim.default_scenario import default_scenario
 from agc.sim.run_scenario import run_scenario
@@ -53,6 +57,17 @@ def test_best_gain_roundtrips_in_one_optimization_folder(tmp_path):
     assert loaded["stage"] == "sliding_dissipation"
 
 
+def test_saved_metadata_includes_payload_profile(tmp_path):
+    scenario = default_scenario(duration=0.02, payload_profile="flat_light")
+    run = {"t": np.array([0.0]), "H": np.eye(4)[None, :, :]}
+
+    save_run(str(tmp_path), run, {"positionRMSE": 0.0}, scenario)
+
+    with open(tmp_path / "metadata.json", "r", encoding="utf-8") as f:
+        metadata = json.load(f)
+    assert metadata["payloadProfile"] == "flat_light"
+
+
 def test_save_and_load_run_with_metadata(tmp_path):
     """Verify save_run produces run.npz and metadata.json and load_run restores them."""
     scen = default_scenario(duration=0.05)
@@ -71,6 +86,7 @@ def test_save_and_load_run_with_metadata(tmp_path):
         meta = json.load(f)
     assert meta["schemaVersion"] == "1.0"
     assert meta["variant"] == "bregman_c1"
+    assert meta["payloadProfile"] == "evaluation"
     assert meta["completionStatus"] == "completed"
     assert "metrics" in meta and meta["metrics"] is not None
 

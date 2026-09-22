@@ -42,6 +42,15 @@ $$J = w_p \left(\frac{\text{RMSE}_p}{\sigma_p}\right)^2 + w_R \left(\frac{\text{
 
 Priority is given to mass and center-of-mass estimation, followed by attitude/position tracking and control effort.
 
+## Generalization Training Set
+
+By default, each gain candidate is evaluated on the mean cost over six training
+conditions: `lemniscate_02_auto`, `lemniscate_03_auto`, and
+`lemniscate_04_auto`, each with `flat_light` (0.60 kg, 0.16 x 0.10 x 0.06 m)
+and `tall_heavy` (0.90 kg, 0.10 x 0.10 x 0.16 m) cuboid payloads. A failure in
+any condition rejects the candidate. The normal runners remain held out on
+`lemniscate_01_auto` with the 0.75 kg evaluation payload.
+
 ## Running Optimization
 
 ```powershell
@@ -50,6 +59,9 @@ python run/optimize_gains.py --mode bregman --coriolis c1 --schedule hierarchica
 
 # Run Differential Evolution with Nelder-Mead polish for Euclidean C2
 python run/optimize_gains.py --mode euclidean --coriolis c2 --method de --polish --seed 42
+
+# Override the default training conditions
+python run/optimize_gains.py --train-replay-ids lemniscate_02_auto,lemniscate_03_auto --training-payload-profiles flat_light
 ```
 
 ## Gain Promotion

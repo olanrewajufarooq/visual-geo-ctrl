@@ -56,8 +56,11 @@ Canonical smoothed trajectory artifacts are stored in `trajectories/processed/*.
 Raw 500 Hz CSV telemetry files are processed into canonical `.npz` reference artifacts using `trajectories/process_trajectories.py` and the `trajectories.replay_scripts` package:
 
 ```powershell
-# Preprocess default benchmark trajectories (ellipse, lemniscate, RATM)
+# Preprocess the held-out lemniscate and three optimization lemniscates
 python trajectories/process_trajectories.py
+
+# Use the legacy high-resolution WNOJ fit (much slower)
+python trajectories/process_trajectories.py --full-precision
 
 # Force re-processing from raw CSV flight recordings
 python trajectories/process_trajectories.py --clear-cache

@@ -64,6 +64,24 @@ def test_payload_drop_parameters():
     assert np.allclose(drop["payload"]["center"], np.array([0.20, 0.05, -0.12]))
 
 
+def test_payload_profiles_separate_optimization_from_evaluation_conditions():
+    """Training payloads must differ physically while evaluation stays unchanged."""
+    evaluation = default_scenario(duration=0.02, payload_profile="evaluation")
+    flat_light = default_scenario(duration=0.02, payload_profile="flat_light")
+    tall_heavy = default_scenario(duration=0.02, payload_profile="tall_heavy")
+
+    assert evaluation["payloadProfile"] == "evaluation"
+    assert evaluation["payloadDrop"]["payload"]["mass"] == 0.75
+    assert np.allclose(evaluation["payloadDrop"]["payload"]["dimensions"], [0.12, 0.12, 0.08])
+
+    assert flat_light["payloadDrop"]["payload"]["mass"] == 0.60
+    assert np.allclose(flat_light["payloadDrop"]["payload"]["dimensions"], [0.16, 0.10, 0.06])
+    assert tall_heavy["payloadDrop"]["payload"]["mass"] == 0.90
+    assert np.allclose(tall_heavy["payloadDrop"]["payload"]["dimensions"], [0.10, 0.10, 0.16])
+    assert flat_light["payloadDrop"]["loadedPi"][0] == pytest.approx(4.246)
+    assert tall_heavy["payloadDrop"]["loadedPi"][0] == pytest.approx(4.546)
+
+
 def test_exact_release_timing():
     """Verify active parameters transition from loaded to bare exactly at releaseTime."""
     duration = 1.0

@@ -22,6 +22,7 @@ from agc.opt.encoding import (
     round_gains,
 )
 from agc.opt.objective import (
+    aggregate_scenario_records,
     objective_scales,
     objective_weights,
     optimization_options,
@@ -32,6 +33,7 @@ from agc.opt.pso import ParticleSwarmOptimizer
 from agc.opt.staged_optimizer import promote_gains_to_registry
 from agc.config.manual_gains import manual_gains
 from agc.sim.default_scenario import default_scenario
+from agc.opt.staged_optimizer import default_training_conditions
 
 
 def test_default_convergence_uses_ten_stalled_iterations_at_one_milliunit():
@@ -142,6 +144,42 @@ def test_incumbent_selection_retains_feasible_lower_cost_candidate():
     assert best_feasible_candidate(incumbent, worse) == incumbent
     assert best_feasible_candidate(incumbent, failed) == incumbent
     assert best_feasible_candidate(incumbent, better) == better
+
+
+def test_training_conditions_default_to_three_replays_and_two_payloads():
+    conditions = default_training_conditions()
+
+    assert [(c["replayId"], c["payloadProfile"]) for c in conditions] == [
+        ("lemniscate_02_auto", "flat_light"),
+        ("lemniscate_02_auto", "tall_heavy"),
+        ("lemniscate_03_auto", "flat_light"),
+        ("lemniscate_03_auto", "tall_heavy"),
+        ("lemniscate_04_auto", "flat_light"),
+        ("lemniscate_04_auto", "tall_heavy"),
+    ]
+
+
+def test_training_conditions_reject_explicitly_empty_overrides():
+    with pytest.raises(ValueError, match="at least one replay"):
+        default_training_conditions(replay_ids=[])
+    with pytest.raises(ValueError, match="at least one replay"):
+        default_training_conditions(payload_profiles=[])
+
+
+def test_training_cost_averages_all_finite_conditions_and_rejects_any_failure():
+    records = [
+        {"cost": 2.0, "failed": False, "label": "candidate"},
+        {"cost": 8.0, "failed": False, "label": "candidate"},
+    ]
+    aggregate = aggregate_scenario_records(records, label="candidate")
+
+    assert aggregate["cost"] == pytest.approx(5.0)
+    assert aggregate["failed"] is False
+    assert aggregate["conditionRecords"] == records
+
+    failed = aggregate_scenario_records(records + [{"cost": 1e6, "failed": True}], label="candidate")
+    assert failed["failed"] is True
+    assert failed["cost"] == pytest.approx(1e6)
 
 
 def test_staged_schedule_hierarchical_and_classic():

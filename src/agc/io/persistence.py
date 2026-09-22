@@ -121,6 +121,7 @@ def save_run(
         "mode": mode,
         "coriolis": coriolis,
         "replayId": scenario.get("replayId", "unknown"),
+        "payloadProfile": scenario.get("payloadProfile", "evaluation"),
         "timing": {
             "duration": float(scenario["duration"]),
             "dtPlant": float(scenario["dtPlant"]),

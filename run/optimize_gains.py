@@ -55,8 +55,20 @@ def main():
     parser.add_argument(
         "--replay-id",
         type=str,
-        default="lemniscate_01_auto",
-        help="Trajectory benchmark ID",
+        default=None,
+        help="Deprecated single training replay override",
+    )
+    parser.add_argument(
+        "--train-replay-ids",
+        type=str,
+        default="lemniscate_02_auto,lemniscate_03_auto,lemniscate_04_auto",
+        help="Comma-separated replay IDs used to train each gain candidate",
+    )
+    parser.add_argument(
+        "--training-payload-profiles",
+        type=str,
+        default="flat_light,tall_heavy",
+        help="Comma-separated named payload profiles used for training",
     )
     parser.add_argument(
         "--swarm-size",
@@ -124,6 +136,12 @@ def main():
         polish=args.polish,
         duration=args.duration,
         replay_id=args.replay_id,
+        training_replay_ids=(
+            [args.replay_id]
+            if args.replay_id is not None
+            else [value.strip() for value in args.train_replay_ids.split(",") if value.strip()]
+        ),
+        training_payload_profiles=[value.strip() for value in args.training_payload_profiles.split(",") if value.strip()],
         swarm_size=args.swarm_size,
         max_iter=args.max_iter,
         max_stall=args.max_stall,

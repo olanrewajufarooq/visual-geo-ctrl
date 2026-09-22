@@ -137,6 +137,46 @@ def evaluate_scenario_candidate(
     }
 
 
+def aggregate_scenario_records(
+    records: list[Dict[str, Any]],
+    label: str = "candidate",
+    failure_cost: float = 1e6,
+) -> Dict[str, Any]:
+    """Aggregate a training set, rejecting a gain candidate when any condition fails."""
+    if not records:
+        raise ValueError("At least one scenario record is required for aggregation.")
+    costs = np.asarray([record["cost"] for record in records], dtype=float)
+    failed = any(record.get("failed", True) for record in records) or not np.all(np.isfinite(costs))
+    return {
+        "cost": float(failure_cost if failed else np.mean(costs)),
+        "failed": bool(failed),
+        "label": str(label),
+        "conditionRecords": records,
+    }
+
+
+def evaluate_scenario_set_candidate(
+    candidate: np.ndarray,
+    scenarios: list[Dict[str, Any]],
+    weights: Optional[Dict[str, float]] = None,
+    label: str = "candidate",
+) -> Dict[str, Any]:
+    """Score one gain candidate across independent training conditions."""
+    records = []
+    for scenario in scenarios:
+        record = evaluate_scenario_candidate(candidate, scenario, weights=weights, label=label)
+        record["condition"] = {
+            "replayId": scenario.get("replayId", "unknown"),
+            "payloadProfile": scenario.get("payloadProfile", "unknown"),
+        }
+        records.append(record)
+    failure_cost = (weights or objective_weights())["failure"]
+    aggregate = aggregate_scenario_records(records, label=label, failure_cost=failure_cost)
+    aggregate["candidate"] = records[0]["candidate"]
+    aggregate["gains"] = records[0]["gains"]
+    return aggregate
+
+
 def best_feasible_candidate(incumbent: Dict[str, Any], contender: Dict[str, Any]) -> Dict[str, Any]:
     """Return the better candidate, prioritizing feasibility and strictly lower cost."""
     contender_valid = (not contender["failed"]) and np.isfinite(contender["cost"])

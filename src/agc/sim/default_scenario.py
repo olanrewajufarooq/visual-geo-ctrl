@@ -10,6 +10,39 @@ from ..plant.compound_pi import compound_pi
 from .replay_trajectory import ReplayTrajectory
 
 
+PAYLOAD_PROFILES = {
+    "evaluation": {
+        "mass": 0.75,
+        "dimensions": np.array([0.12, 0.12, 0.08]),
+        "center": np.array([0.20, 0.05, -0.12]),
+    },
+    "flat_light": {
+        "mass": 0.60,
+        "dimensions": np.array([0.16, 0.10, 0.06]),
+        "center": np.array([0.20, 0.05, -0.12]),
+    },
+    "tall_heavy": {
+        "mass": 0.90,
+        "dimensions": np.array([0.10, 0.10, 0.16]),
+        "center": np.array([0.20, 0.05, -0.12]),
+    },
+}
+
+
+def get_payload_profile(name: str) -> dict:
+    """Return an independent payload definition for a named benchmark profile."""
+    key = str(name).lower()
+    if key not in PAYLOAD_PROFILES:
+        choices = ", ".join(PAYLOAD_PROFILES)
+        raise ValueError(f"Unknown payload profile {name!r}; expected one of: {choices}.")
+    profile = PAYLOAD_PROFILES[key]
+    return {
+        "mass": float(profile["mass"]),
+        "dimensions": np.array(profile["dimensions"], dtype=float),
+        "center": np.array(profile["center"], dtype=float),
+    }
+
+
 def get_repository_root() -> Path:
     # 3 levels up from src/agc/sim/default_scenario.py is repo root
     return Path(__file__).resolve().parent.parent.parent.parent
@@ -31,6 +64,7 @@ def default_scenario(
     enable_osd: bool = False,
     drone_type: str = "pybullet_drones",
     initial_offset: Optional[np.ndarray] = None,
+    payload_profile: str = "evaluation",
 ) -> dict:
     """Build paper-validation benchmark scenario with 10s payload drop."""
     root = get_repository_root()
@@ -46,12 +80,9 @@ def default_scenario(
     I = np.array([0.04092, 0.04017, 0.06921, 5.656e-5, 1.313e-5, -6.494e-5])
     pi = np.concatenate([[m], m * cog, I])
 
-    # Asymmetric cuboid payload
-    payload = {
-        "mass": 0.75,
-        "dimensions": np.array([0.12, 0.12, 0.08]),
-        "center": np.array([0.20, 0.05, -0.12]),
-    }
+    # Named cuboid payload profile; its compound inertia is derived below.
+    selected_payload_profile = str(payload_profile).lower()
+    payload = get_payload_profile(selected_payload_profile)
     loaded_pi = compound_pi(pi, payload)
     payload_drop = {
         "releaseTime": 10.0,
@@ -126,4 +157,5 @@ def default_scenario(
         "camMode": cam_mode,
         "enableOsd": enable_osd,
         "droneType": drone_type,
+        "payloadProfile": selected_payload_profile,
     }

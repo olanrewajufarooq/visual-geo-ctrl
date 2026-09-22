@@ -56,6 +56,7 @@ class ReplayProcessingCore:
         clear_cache: bool = False,
         trajectory_ids: Optional[List[str]] = None,
         output_format: str = "npz",
+        postprocessing_options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Convert manifest-listed raw CSV files into .npz (or .mat) artifacts."""
         root_dir = Path(root_dir) if root_dir else ReplayProcessingCore.default_root_dir()
@@ -75,7 +76,13 @@ class ReplayProcessingCore:
         entries = []
 
         for tid in ids:
-            entry = manifest[tid]
+            entry = dict(manifest[tid])
+            if postprocessing_options is not None:
+                postprocessing = dict(entry.get("postprocessing", {}))
+                wnoj_options = dict(postprocessing.get("wnoj", {}))
+                wnoj_options.update(postprocessing_options)
+                postprocessing["wnoj"] = wnoj_options
+                entry["postprocessing"] = postprocessing
             entries.append(entry)
             raw_path = ReplayProcessingCore.resolve_source_path(root_dir, entry["source_file"])
             raw_paths.append(raw_path)
@@ -100,6 +107,7 @@ class ReplayProcessingCore:
         if pending:
             print(f"[replay] Preprocessing {len(pending)} pending trajectories...")
             for idx in pending:
+                print(f"[replay {idx+1}/{n}] Starting {ids[idx]}...", flush=True)
                 t0 = time.perf_counter()
                 try:
                     traj = ReplayKinematics.process_single(raw_paths[idx], ids[idx], entries[idx])
@@ -107,6 +115,8 @@ class ReplayProcessingCore:
                 except Exception as exc:
                     errors[idx] = str(exc)
                 elapsed[idx] = time.perf_counter() - t0
+                if errors[idx] is None:
+                    print(f"[replay {idx+1}/{n}] Finished {ids[idx]} in {elapsed[idx]:.1f} s", flush=True)
         else:
             print("[replay] Cache hit for all trajectories.")
 

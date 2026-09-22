@@ -17,6 +17,7 @@ class ReplayProcessor:
         manifest_path: Optional[Union[str, Path]] = None,
         use_parallel: bool = True,
         output_format: str = "npz",
+        postprocessing_options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Convert manifest-listed raw CSV flight files into canonical artifacts."""
         return ReplayProcessingCore.process_all(
@@ -26,6 +27,7 @@ class ReplayProcessor:
             clear_cache=clear_cache,
             trajectory_ids=trajectory_ids,
             output_format=output_format,
+            postprocessing_options=postprocessing_options,
         )
 
     @staticmethod
