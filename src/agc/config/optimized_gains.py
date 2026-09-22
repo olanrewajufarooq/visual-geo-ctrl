@@ -1,5 +1,5 @@
 """Optimized per-scenario gain registry.
-Last promotion: 2026-09-22 09:12:48 (Stage: tracking, Cost: 73662.7)
+Last promotion: 2026-09-22 10:39:36 (Stage: tracking, Cost: 73.1479)
 """
 
 import numpy as np
@@ -40,24 +40,24 @@ def optimized_gains(mode: str, coriolis: str) -> dict:
             "gammaB": 0.001,
         },
         "euclidean_c2": {
-            "KRdiag": np.array([0.002898, 0.003431, 0.02099]),
-            "Kxidiag": np.array([0.246, 0.1743, 0.1338]),
-            "LambdaDiag": np.array([0.9909, 3.077, 9.063, 0.02129, 5.775, 0.02663]),
-            "kd": 4.331,
-            "ks": 5.188,
-            "alpha": 0.7088,
-            "gammaE": np.array([0.000164, 2e-05, 1.6e-05, 5.6e-05, 0.000329, 0.000117, 0.004221, 0.001884, 1.2e-05, 0.000286]),
+            "KRdiag": np.array([4.0, 5.0, 6.0]),
+            "Kxidiag": np.array([3.0, 3.0, 4.0]),
+            "LambdaDiag": np.array([2.0, 2.0, 2.0, 2.0, 2.0, 2.0]),
+            "kd": 1,
+            "ks": 0.5,
+            "alpha": 0.5,
+            "gammaE": np.array([0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]),
             "gammaB": 0.001,
         },
         "bregman_c1": {
-            "KRdiag": np.array([0.9401, 0.01072, 1.282]),
-            "Kxidiag": np.array([11.31, 3.765, 5.802]),
-            "LambdaDiag": np.array([18.28, 18.77, 14.41, 0.7082, 0.3636, 0.7342]),
-            "kd": 6.108,
-            "ks": 12.93,
-            "alpha": 0.4534,
+            "KRdiag": np.array([0.1569, 17.72, 0.01048]),
+            "Kxidiag": np.array([151.7, 16.16, 9.713]),
+            "LambdaDiag": np.array([11.73, 53.14, 4.718, 0.07414, 0.2575, 0.06828]),
+            "kd": 12.59,
+            "ks": 3.994,
+            "alpha": 0.5619,
             "gammaE": np.array([0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]),
-            "gammaB": 0.09003,
+            "gammaB": 0.09952,
         },
         "bregman_c2": {
             "KRdiag": np.array([0.01887, 0.00132, 0.001561]),
