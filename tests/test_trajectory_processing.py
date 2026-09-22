@@ -147,3 +147,49 @@ def test_write_and_reload_replay_artifact(tmp_path):
     assert np.allclose(sampler.p, p)
     sample = sampler.sample(0.5)
     assert np.allclose(sample["H"][0:3, 0:3], np.eye(3))
+
+
+def test_wnoj_batch_smoother_nonlinear_optimization():
+    """Verify full nonlinear SE(3) WNOJ batch smoother with LM optimization."""
+    t = np.linspace(0.0, 1.0, 50)
+    p = np.zeros((50, 3))
+    p[:, 0] = np.sin(2.0 * np.pi * t)
+    p[:, 1] = np.cos(2.0 * np.pi * t)
+    p[:, 2] = 0.5 * t
+
+    R = np.zeros((3, 3, 50))
+    for i in range(50):
+        R[:, :, i] = np.eye(3)
+
+    v_b = np.zeros((50, 3))
+    v_b[:, 0] = 2.0 * np.pi * np.cos(2.0 * np.pi * t)
+    v_b[:, 1] = -2.0 * np.pi * np.sin(2.0 * np.pi * t)
+    v_b[:, 2] = 0.5
+
+    omega_b = np.zeros((50, 3))
+    V_body = np.hstack([omega_b, v_b])
+
+    smoother = ReplayWnojSmoother({
+        "knotIntervalSeconds": 0.05,
+        "maxIterations": 50,
+        "requireConvergence": True,
+    })
+    smoother.fit(t, R, p, V_body)
+
+    assert smoother.diagnostics["converged"] is True
+    assert smoother.diagnostics["finalCost"] < smoother.diagnostics["initialCost"]
+    assert smoother.diagnostics["iterations"] > 0
+    assert len(smoother.t) >= 10
+
+    # Evaluate continuous SE(3) state
+    H, V, A = smoother.evaluate(0.33)
+    assert H.shape == (4, 4)
+    assert V.shape == (6,)
+    assert A.shape == (6,)
+    assert np.allclose(H[0:3, 0:3].T @ H[0:3, 0:3], np.eye(3), atol=1e-4)
+
+    # Validate internal kinematic consistency
+    residuals = smoother.validate()
+    assert np.isfinite(residuals["maxPoseTwistResidual"])
+    assert np.isfinite(residuals["maxTwistAccelerationResidual"])
+
