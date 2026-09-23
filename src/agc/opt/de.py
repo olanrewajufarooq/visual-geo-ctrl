@@ -15,6 +15,7 @@ class DifferentialEvolutionOptimizer:
         upper_bound: np.ndarray,
         pop_size: int = 15,
         max_iter: int = 20,
+        max_stall: Optional[int] = None,
         tol: float = 1e-3,
         initial_points: Optional[np.ndarray] = None,
         parallel: bool = True,
@@ -28,6 +29,7 @@ class DifferentialEvolutionOptimizer:
         self.dim = len(self.lb)
         self.pop_size = pop_size
         self.max_iter = max_iter
+        self.max_stall = max_stall
         self.tol = tol
         self.initial_points = initial_points
         self.parallel = parallel
@@ -54,14 +56,35 @@ class DifferentialEvolutionOptimizer:
             init_method = init_pop
 
         _iter_counter = [0]
+        _stall_counter = [0]
+        _prev_best = [float("inf")]
 
         def _callback(intermediate_result):
             _iter_counter[0] += 1
             it = _iter_counter[0]
             c = float(intermediate_result.fun)
             history.append(c)
+
+            # Stall tracking: count iterations with no meaningful improvement
+            if _prev_best[0] - c > self.tol:
+                _stall_counter[0] = 0
+                _prev_best[0] = c
+            else:
+                _stall_counter[0] += 1
+
             if self.verbose:
-                print(f"      DE Iter {it:3d}/{self.max_iter}: Best = {c:.6g}")
+                stall_str = (
+                    f" (stall {_stall_counter[0]}/{self.max_stall})"
+                    if self.max_stall is not None
+                    else ""
+                )
+                print(f"      DE Iter {it:3d}/{self.max_iter}: Best = {c:.6g}{stall_str}")
+
+            # Early stopping: return True tells SciPy to halt the search
+            if self.max_stall is not None and _stall_counter[0] >= self.max_stall:
+                if self.verbose:
+                    print(f"      DE Converged: Stalled for {self.max_stall} iterations.")
+                return True
 
         res = differential_evolution(
             self.cost_func,

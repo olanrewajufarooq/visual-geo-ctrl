@@ -297,6 +297,7 @@ def test_de_progress_notes_show_iteration_number_without_extra_evaluations():
         upper_bound=np.array([5.0, 5.0]),
         pop_size=5,
         max_iter=3,
+        max_stall=10,
         parallel=False,
         verbose=True,
         seed=0,
@@ -313,6 +314,9 @@ def test_de_progress_notes_show_iteration_number_without_extra_evaluations():
     assert len(iter_lines) >= 1, "No 'DE Iter' lines were printed"
     assert any("1/" in line for line in iter_lines), "Iteration number missing from output"
 
+    # Stall indicator must appear in output when max_stall is set
+    assert any("stall" in line for line in iter_lines), "Stall indicator missing from output"
+
     # History is populated by the callback (at most max_iter entries)
     assert 1 <= len(hist) <= 3
 
@@ -321,4 +325,48 @@ def test_de_progress_notes_show_iteration_number_without_extra_evaluations():
     # pop_size=5, dim=2, max_iter=3 → generous upper bound of 5*2*(3+2)=50
     assert call_count[0] <= 50, (
         f"cost_func called {call_count[0]} times — callback may be re-evaluating"
+    )
+
+
+def test_de_stall_early_stopping_halts_before_max_iter():
+    """Callback returns True after max_stall stalled iterations, signalling SciPy to stop."""
+    from unittest.mock import patch, MagicMock
+
+    opt = DifferentialEvolutionOptimizer(
+        cost_func=lambda x: 1.0,
+        lower_bound=np.array([-1.0]),
+        upper_bound=np.array([1.0]),
+        max_iter=50,
+        max_stall=3,
+        tol=1e-3,
+        parallel=False,
+        verbose=True,
+        seed=0,
+    )
+
+    # Intercept the callback that our optimizer registers with SciPy
+    captured = {}
+    fake_result = MagicMock()
+    fake_result.x = np.array([0.0])
+    fake_result.fun = 0.0
+
+    def fake_de(*args, **kwargs):
+        captured["callback"] = kwargs["callback"]
+        return fake_result
+
+    with patch("agc.opt.de.differential_evolution", fake_de):
+        opt.optimize()
+
+    cb = captured["callback"]
+
+    # Fire callback with constant cost.
+    # Call 1: prev_best=inf → resets to 1.0, stall=0 → None
+    # Call 2: 1.0-1.0=0 ≤ tol, stall=1 → None
+    # Call 3: stall=2 → None
+    # Call 4: stall=3 ≥ max_stall=3 → True  (early stop)
+    ir = MagicMock()
+    ir.fun = 1.0
+    results = [cb(ir) for _ in range(5)]
+    assert any(r is True for r in results), (
+        "Callback should return True when stall count reaches max_stall"
     )
