@@ -53,11 +53,15 @@ class DifferentialEvolutionOptimizer:
                 init_pop = pts[:total_needed]
             init_method = init_pop
 
-        def _callback(xk, convergence=None):
-            c = self.cost_func(xk)
-            history.append(float(c))
+        _iter_counter = [0]
+
+        def _callback(intermediate_result):
+            _iter_counter[0] += 1
+            it = _iter_counter[0]
+            c = float(intermediate_result.fun)
+            history.append(c)
             if self.verbose:
-                print(f"      DE Iter: Best Cost = {c:.6g}")
+                print(f"      DE Iter {it:3d}/{self.max_iter}: Best = {c:.6g}")
 
         res = differential_evolution(
             self.cost_func,

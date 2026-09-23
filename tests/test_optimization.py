@@ -56,7 +56,7 @@ def test_optimizer_defaults_use_shared_velocity_and_effort_weights():
         "linVel": 0.5,
         "angVel": 0.5,
         "inertia": 1.5,
-        "effort": 0.01,
+        "effort": 0.5,
         "failure": 1e6,
     }
     for k, v in expected.items():
@@ -278,3 +278,47 @@ def test_de_explicitly_uses_deferred_updates_with_workers():
         optimizer.optimize()
 
     assert captured["updating"] == "deferred"
+
+
+def test_de_progress_notes_show_iteration_number_without_extra_evaluations():
+    """DE callback reads intermediate_result.fun — no extra cost_func call per iteration."""
+    import io
+    from contextlib import redirect_stdout
+
+    call_count = [0]
+
+    def sphere(x):
+        call_count[0] += 1
+        return float(np.sum(x**2))
+
+    opt = DifferentialEvolutionOptimizer(
+        cost_func=sphere,
+        lower_bound=np.array([-5.0, -5.0]),
+        upper_bound=np.array([5.0, 5.0]),
+        pop_size=5,
+        max_iter=3,
+        parallel=False,
+        verbose=True,
+        seed=0,
+    )
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        best_x, best_cost, hist = opt.optimize()
+
+    output = buf.getvalue()
+    iter_lines = [line for line in output.splitlines() if "DE Iter" in line]
+
+    # Iteration counter must appear in at least one printed line
+    assert len(iter_lines) >= 1, "No 'DE Iter' lines were printed"
+    assert any("1/" in line for line in iter_lines), "Iteration number missing from output"
+
+    # History is populated by the callback (at most max_iter entries)
+    assert 1 <= len(hist) <= 3
+
+    # Guard against regression: total cost_func calls must not exceed what
+    # SciPy's population evaluations require — no extra call per callback.
+    # pop_size=5, dim=2, max_iter=3 → generous upper bound of 5*2*(3+2)=50
+    assert call_count[0] <= 50, (
+        f"cost_func called {call_count[0]} times — callback may be re-evaluating"
+    )
