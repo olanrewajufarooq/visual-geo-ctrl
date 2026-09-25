@@ -1,5 +1,7 @@
-results/
-**/results/
+results/*
+**/results/*
+!results/papers/
+!results/papers/**
 tmp/
 .claude/settings.local.json
 opencode.jsonc

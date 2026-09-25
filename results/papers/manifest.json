@@ -1,0 +1,10 @@
+{
+  "experiment": "all",
+  "duration": 30.0,
+  "commit": "07cebdb291c81f88be6d237906c7ac2432099171",
+  "environment": "agc",
+  "factorizations": [
+    "lc",
+    "rb"
+  ]
+}
