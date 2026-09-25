@@ -138,7 +138,7 @@ def test_comparison_series_use_stable_distinct_colors_and_styles():
         axis,
         [0.0, 1.0],
         [[0.1, 0.2], [0.2, 0.1]],
-        ["C1", "C2"],
+        ["LC", "RB"],
         "sliding_norm",
         (0.0, 1.0),
     )

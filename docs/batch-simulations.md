@@ -24,7 +24,7 @@ python run/run_batch.py --serial --duration 10.0
 
 The batch suite executes all combinations of:
 - **Modes**: `nominal`, `euclidean`, `bregman`
-- **Coriolis Factorizations**: `c1` (Levi-Civita), `c2` (coadjoint)
+- **Coriolis Factorizations**: `lc` (Levi-Civita), `rb` (coadjoint)
 
 Each run simulates the vehicle carrying a 0.75 kg payload, followed by dynamic detachment at $t = 10.0$ s.
 
@@ -35,8 +35,8 @@ By default, results are stored in `results/inplace/` containing:
 - `<mode>_<coriolis>/run.npz`: Complete recorded states, errors, wrenches, and estimates.
 - `<mode>_<coriolis>/metadata.json`: Run parameters, timing, tracking RMSE metrics, and failure status.
 - `figures/`: Publication-quality comparison plots:
-  - `c1_vs_c2_tracking_error.png`
-  - `c1_vs_c2_parameter_error.png`
+  - `lc_vs_rb_tracking_error.png`
+  - `lc_vs_rb_parameter_error.png`
   - `euclidean_vs_bregman_tracking_error.png`
   - `euclidean_vs_bregman_parameter_error.png`
   - Per-variant standalone state and error trajectories.

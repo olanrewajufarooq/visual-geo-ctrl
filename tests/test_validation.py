@@ -10,7 +10,7 @@ from agc.sim.validation import validate_scenario, validate_replay_data
 def test_valid_default_scenarios_pass_validation():
     """Verify that all default scenario variants pass validation cleanly."""
     for mode in ["nominal", "euclidean", "bregman"]:
-        for coriolis in ["c1", "c2"]:
+        for coriolis in ["lc", "rb"]:
             scen = default_scenario(
                 replay_id="lemniscate_01_auto",
                 mode=mode,
@@ -46,9 +46,9 @@ def test_invalid_controller_mode_raises_value_error():
 
 
 def test_invalid_coriolis_form_raises_value_error():
-    """Verify error on unsupported Coriolis form."""
+    """Verify error on unsupported Coriolis form (including dropped c1/c2)."""
     scen = default_scenario(duration=1.0)
-    scen["controller"]["coriolis"] = "c3"
+    scen["controller"]["coriolis"] = "c1"
     with pytest.raises(ValueError, match="Invalid Coriolis factorization"):
         validate_scenario(scen)
 

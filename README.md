@@ -27,17 +27,17 @@ conda env create -f environment.yml
 
 Run headless:
 ```powershell
-python run/run_theory_suite.py --mode bregman --coriolis c1 --duration 30
+python run/run_theory_suite.py --mode bregman --coriolis lc --duration 30
 ```
 
 Run with interactive **3D PyBullet GUI** (camera tracking drone and trajectory visual trail):
 ```powershell
-python run/run_theory_suite.py --mode bregman --coriolis c1 --gui
+python run/run_theory_suite.py --mode bregman --coriolis lc --gui
 ```
 
 Controller options:
 - `--mode`: `nominal`, `euclidean`, or `bregman`
-- `--coriolis`: `c1` (Levi-Civita connection) or `c2` (coadjoint factorization)
+- `--coriolis`: `lc` (Levi-Civita connection) or `rb` (coadjoint factorization)
 - `--duration`: flight duration in seconds (default: 30 s)
 - `--gui`: opens 3D PyBullet visualizer window
 

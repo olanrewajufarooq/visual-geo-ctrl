@@ -7,7 +7,7 @@ from agc.batch.run_batch import run_batch
 
 def test_batch_serial_execution_and_ordering():
     """Verify batch runs preserve exact input scenario ordering."""
-    variants = [("nominal", "c1"), ("bregman", "c1")]
+    variants = [("nominal", "lc"), ("bregman", "lc")]
     scenarios = [default_scenario(mode=m, coriolis=c, duration=0.04) for m, c in variants]
 
     res = run_batch(scenarios, parallel=False, verbose=False)
@@ -19,7 +19,7 @@ def test_batch_serial_execution_and_ordering():
 
 def test_batch_parallel_execution():
     """Verify parallel batch execution runs across worker processes."""
-    variants = [("nominal", "c1"), ("euclidean", "c2")]
+    variants = [("nominal", "lc"), ("euclidean", "rb")]
     scenarios = [default_scenario(mode=m, coriolis=c, duration=0.04) for m, c in variants]
 
     res = run_batch(scenarios, parallel=True, max_workers=2, verbose=False)
@@ -30,8 +30,8 @@ def test_batch_parallel_execution():
 
 def test_batch_failure_isolation():
     """Verify that a failing scenario does not crash or abort other batch scenarios."""
-    scen_good = default_scenario(mode="nominal", coriolis="c1", duration=0.04)
-    scen_bad = default_scenario(mode="nominal", coriolis="c1", duration=0.04)
+    scen_good = default_scenario(mode="nominal", coriolis="lc", duration=0.04)
+    scen_bad = default_scenario(mode="nominal", coriolis="lc", duration=0.04)
     # Sabotage scen_bad by injecting NaN into plantPi
     scen_bad["plantPi"][0] = float("nan")
 

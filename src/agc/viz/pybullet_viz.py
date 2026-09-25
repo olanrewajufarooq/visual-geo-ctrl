@@ -199,7 +199,7 @@ class PyBulletVisualizer:
         payload_dropped: bool,
         step_idx: int,
         mode: str = "BREGMAN",
-        coriolis: str = "C1",
+        coriolis: str = "LC",
     ):
         """Update smooth camera tracking, gate traversals, trail, FPV OSD, and pacing."""
         pos, quat = p.getBasePositionAndOrientation(self.uav_id, physicsClientId=self.client_id)
@@ -350,7 +350,7 @@ class PyBulletVisualizer:
         snapshot: VisualizationSnapshot,
         step_idx: int,
         mode: str = "BREGMAN",
-        coriolis: str = "C1",
+        coriolis: str = "LC",
     ):
         """Render a scheduled snapshot, update 3D GUI, and publish to dashboard."""
         self.update(

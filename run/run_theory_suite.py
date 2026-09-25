@@ -21,7 +21,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run AGC UAV theory tracking simulation in PyBullet.")
     parser.add_argument("--replay-id", type=str, default="lemniscate_01_auto", help="Trajectory artifact ID")
     parser.add_argument("--mode", type=str, default="bregman", choices=["nominal", "euclidean", "bregman"], help="Controller mode")
-    parser.add_argument("--coriolis", type=str, default="c1", choices=["c1", "c2"], help="Coriolis factorization")
+    parser.add_argument("--coriolis", type=str.lower, default="lc", choices=["lc", "rb"], help="Coriolis factorization (lc or rb)")
     parser.add_argument("--duration", type=float, default=30.0, help="Simulation duration (seconds)")
     parser.add_argument("--gui", action="store_true", help="Launch interactive 3D PyBullet GUI")
     parser.add_argument("--speed", type=float, default=1.0, help="GUI playback speed multiplier (e.g. 1.0 for real-time, 2.0 for 2x)")

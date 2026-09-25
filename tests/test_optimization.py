@@ -89,19 +89,19 @@ def test_supplied_convergence_settings_override_defaults():
 def test_blank_selectors_expand_to_complete_mode_and_factorization_matrix():
     variants = expand_scenario_selection("", "")
     expected = [
-        ("nominal", "c1"),
-        ("nominal", "c2"),
-        ("euclidean", "c1"),
-        ("euclidean", "c2"),
-        ("bregman", "c1"),
-        ("bregman", "c2"),
+        ("nominal", "lc"),
+        ("nominal", "rb"),
+        ("euclidean", "lc"),
+        ("euclidean", "rb"),
+        ("bregman", "lc"),
+        ("bregman", "rb"),
     ]
     assert variants == expected
 
 
 def test_list_selectors_form_their_cartesian_product():
-    variants = expand_scenario_selection(["bregman", "euclidean"], "c2")
-    assert variants == [("bregman", "c2"), ("euclidean", "c2")]
+    variants = expand_scenario_selection(["bregman", "euclidean"], "rb")
+    assert variants == [("bregman", "rb"), ("euclidean", "rb")]
 
 
 def test_gain_blocks_cover_and_partition_adaptive_controllers():
@@ -208,7 +208,7 @@ def test_staged_schedule_hierarchical_and_classic():
 
 
 def test_encode_decode_roundtrip():
-    scenario = default_scenario(mode="bregman", coriolis="c1", duration=2.0)
+    scenario = default_scenario(mode="bregman", coriolis="lc", duration=2.0)
     cand = encode_scenario_gains(scenario)
     assert len(cand) == 16
 
@@ -218,12 +218,12 @@ def test_encode_decode_roundtrip():
 
 
 def test_promote_gains_loads_python_registry_without_relative_import_error():
-    gains = manual_gains("bregman", "c1")
+    gains = manual_gains("bregman", "lc")
 
     with patch.object(Path, "write_text") as write_text:
         promote_gains_to_registry(
             "bregman",
-            "c1",
+            "lc",
             gains,
             target_file="optimized_gains_test.py",
         )

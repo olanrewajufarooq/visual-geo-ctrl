@@ -54,11 +54,11 @@ any condition rejects the candidate. The normal runners remain held out on
 ## Running Optimization
 
 ```powershell
-# Run hierarchical PSO optimization for Bregman C1
-python run/optimize_gains.py --mode bregman --coriolis c1 --schedule hierarchical --swarm-size 50 --max-iter 20
+# Run hierarchical PSO optimization for Bregman LC
+python run/optimize_gains.py --mode bregman --coriolis lc --schedule hierarchical --swarm-size 50 --max-iter 20
 
-# Run Differential Evolution with Nelder-Mead polish for Euclidean C2
-python run/optimize_gains.py --mode euclidean --coriolis c2 --method de --polish --seed 42
+# Run Differential Evolution with Nelder-Mead polish for Euclidean RB
+python run/optimize_gains.py --mode euclidean --coriolis rb --method de --polish --seed 42
 
 # Override the default training conditions
 python run/optimize_gains.py --train-replay-ids lemniscate_02_auto,lemniscate_03_auto --training-payload-profiles flat_light

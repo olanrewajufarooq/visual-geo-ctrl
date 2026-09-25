@@ -51,7 +51,7 @@ def get_repository_root() -> Path:
 def default_scenario(
     replay_id: str = "lemniscate_01_auto",
     mode: str = "bregman",
-    coriolis: str = "c1",
+    coriolis: str = "lc",
     duration: float = 30.0,
     gain_source: str = "optimized",
     gui: bool = False,

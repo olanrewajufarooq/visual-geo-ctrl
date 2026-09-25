@@ -143,7 +143,7 @@ def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
                     true_m=float(run["activePlantPi"][k, 0]) if "activePlantPi" in run else 3.65,
                     payload_dropped=bool(curr_t >= 10.0),
                     mode=str(run.get("mode", "BREGMAN")).upper(),
-                    coriolis=str(run.get("coriolis", "C1")).upper(),
+                    coriolis=str(run.get("coriolis", "LC")).upper(),
                     sim_speed=playback_speed,
                 )
 
@@ -185,7 +185,7 @@ if __name__ == "__main__":
             candidates = [d for d in suite.iterdir() if d.is_dir() and (d / "run.npz").is_file()]
             target_dir = candidates[0] if candidates else suite
         except FileNotFoundError:
-            target_dir = REPO_ROOT / "results" / "pybullet" / "bregman_c1"
+            target_dir = REPO_ROOT / "results" / "inplace" / "bregman_lc"
 
     if not (target_dir / "run.npz").is_file():
         print(f"Error: No run.npz found in {target_dir}. Please run a simulation first.")

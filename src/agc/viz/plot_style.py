@@ -8,7 +8,7 @@ import numpy as np
 
 COLOR_BLACK = "k"
 COMPONENT_COLORS = ("r", "g", "b")
-COMPARISON_COLORS = {"c1": "#E69F00", "euclidean": "#E69F00", "c2": "#0072B2", "bregman": "#0072B2"}
+COMPARISON_COLORS = {"lc": "#E69F00", r"$c_{\mathrm{lc}}$": "#E69F00", "c_{lc}": "#E69F00", "c_lc": "#E69F00", "euclidean": "#E69F00", "rb": "#0072B2", r"$c_{\mathrm{rb}}$": "#0072B2", "c_{rb}": "#0072B2", "c_rb": "#0072B2", "bregman": "#0072B2"}
 SIGNED_FAMILIES = {
     "position", "orientation", "linear_velocity", "angular_velocity",
     "force", "torque", "linear_acceleration", "angular_acceleration",
@@ -96,7 +96,7 @@ def line_style_for_series(label: str) -> str:
     normalized = str(label).lower()
     if "payload release" in normalized:
         return ":"
-    if normalized in {"c2", "bregman"}:
+    if normalized in {"rb", r"$c_{\mathrm{rb}}$", "c_{rb}", "c_rb", "bregman"}:
         return "--"
     if any(token in normalized for token in ("desired", "true", "reference")):
         return "--"

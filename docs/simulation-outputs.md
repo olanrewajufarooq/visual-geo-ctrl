@@ -17,30 +17,30 @@ results/timestamped/<timestamp>/
 
 ### Batch Suites (`run_batch.py`)
 ```text
-results/timestamped/<timestamp>/
+results/inplace/
 `--
     |-- manifest.json
-    |-- nominal_c1/
+    |-- nominal_lc/
     |   |-- run.npz
     |   `-- metadata.json
-    |-- nominal_c2/
+    |-- nominal_rb/
     |   |-- run.npz
     |   `-- metadata.json
-    |-- euclidean_c1/
+    |-- euclidean_lc/
     |   |-- run.npz
     |   `-- metadata.json
-    |-- euclidean_c2/
+    |-- euclidean_rb/
     |   |-- run.npz
     |   `-- metadata.json
-    |-- bregman_c1/
+    |-- bregman_lc/
     |   |-- run.npz
     |   `-- metadata.json
-    |-- bregman_c2/
+    |-- bregman_rb/
     |   |-- run.npz
     |   `-- metadata.json
     `-- figures/
-        |-- c1_vs_c2_tracking_error.png
-        |-- c1_vs_c2_parameter_error.png
+        |-- lc_vs_rb_tracking_error.png
+        |-- lc_vs_rb_parameter_error.png
         |-- euclidean_vs_bregman_tracking_error.png
         `-- euclidean_vs_bregman_parameter_error.png
 ```
@@ -71,7 +71,7 @@ Schema version 1.0 JSON document storing simulation parameters, metrics, and com
   "schema_version": "1.0",
   "created_at": "2026-09-21T23:00:00.000000",
   "mode": "bregman",
-  "coriolis": "c1",
+  "coriolis": "lc",
   "replay_id": "lemniscate_01_auto",
   "timing": {
     "duration": 30.0,

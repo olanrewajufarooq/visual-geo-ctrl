@@ -21,7 +21,7 @@ def test_end_to_end_simulation_and_figure_export(tmp_path):
     scenario = default_scenario(
         replay_id="lemniscate_01_auto",
         mode="euclidean",
-        coriolis="c1",
+        coriolis="lc",
         duration=0.05,
         gui=False,
     )

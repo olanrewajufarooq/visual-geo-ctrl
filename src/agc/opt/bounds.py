@@ -124,7 +124,7 @@ def expand_scenario_selection(
 ) -> List[Tuple[str, str]]:
     """Expand mode and Coriolis selectors into a list of (mode, coriolis) scenario tuples."""
     available_modes = ["nominal", "euclidean", "bregman"]
-    available_coriolis = ["c1", "c2"]
+    available_coriolis = ["lc", "rb"]
 
     if not modes:
         sel_modes = available_modes

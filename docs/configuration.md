@@ -12,7 +12,7 @@ from agc.sim.validation import validate_scenario
 scenario = default_scenario(
     replay_id="lemniscate_01_auto",
     mode="bregman",       # "nominal", "euclidean", or "bregman"
-    coriolis="c1",        # "c1" (Levi-Civita) or "c2" (coadjoint)
+    coriolis="lc",        # "lc" (Levi-Civita) or "rb" (coadjoint)
     duration=30.0,
     gain_source="optimized",  # "optimized" or "manual"
     gui=False,
@@ -27,7 +27,7 @@ validate_scenario(scenario)
 | Key | Type | Description |
 | --- | --- | --- |
 | `mode` | `str` | `"nominal"`, `"euclidean"`, or `"bregman"` |
-| `coriolis` | `str` | `"c1"` or `"c2"` |
+| `coriolis` | `str` | `"lc"` or `"rb"` |
 | `duration` | `float` | Flight simulation duration in seconds (e.g. `30.0`) |
 | `dtPlant` | `float` | Physics simulation timestep (`0.002` s = 500 Hz) |
 | `dtControl` | `float` | Control wrench update timestep (`0.02` s = 50 Hz) |
