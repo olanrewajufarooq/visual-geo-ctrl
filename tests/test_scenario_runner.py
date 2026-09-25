@@ -64,6 +64,19 @@ def test_payload_drop_parameters():
     assert np.allclose(drop["payload"]["center"], np.array([0.20, 0.05, -0.12]))
 
 
+def test_payload_can_be_disabled_for_exact_inertia_scenarios():
+    scenario = default_scenario(mode="nominal", duration=0.02, payload_enabled=False)
+
+    assert scenario["payloadDrop"] is None
+    assert np.allclose(scenario["initialEstimate"], scenario["plantPi"])
+
+
+def test_release_time_is_configurable():
+    scenario = default_scenario(duration=0.02, release_time=0.5)
+
+    assert scenario["payloadDrop"]["releaseTime"] == pytest.approx(0.5)
+
+
 def test_payload_profiles_separate_optimization_from_evaluation_conditions():
     """Training payloads must differ physically while evaluation stays unchanged."""
     evaluation = default_scenario(duration=0.02, payload_profile="evaluation")

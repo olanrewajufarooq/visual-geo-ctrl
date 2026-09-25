@@ -65,8 +65,11 @@ def default_scenario(
     drone_type: str = "pybullet_drones",
     initial_offset: Optional[np.ndarray] = None,
     payload_profile: str = "evaluation",
+    payload_enabled: bool = True,
+    release_time: float = 10.0,
+    initial_estimate_override: Optional[np.ndarray] = None,
 ) -> dict:
-    """Build paper-validation benchmark scenario with 10s payload drop."""
+    """Build a paper-validation scenario with optional payload release."""
     root = get_repository_root()
     processed_dir = root / "trajectories" / "processed"
     npz_file = processed_dir / f"{replay_id}.npz"
@@ -84,12 +87,14 @@ def default_scenario(
     selected_payload_profile = str(payload_profile).lower()
     payload = get_payload_profile(selected_payload_profile)
     loaded_pi = compound_pi(pi, payload)
-    payload_drop = {
-        "releaseTime": 10.0,
-        "barePi": pi,
-        "loadedPi": loaded_pi,
-        "payload": payload,
-    }
+    payload_drop = None
+    if payload_enabled:
+        payload_drop = {
+            "releaseTime": float(release_time),
+            "barePi": pi,
+            "loadedPi": loaded_pi,
+            "payload": payload,
+        }
 
     # Initial condition (starts directly on the ground / launch pad by default)
     initial_H = np.copy(desired0["H"])
@@ -123,9 +128,12 @@ def default_scenario(
         "gammaB": float(gains["gammaB"]),
     }
 
-    initial_estimate = np.copy(loaded_pi)
+    initial_estimate = np.copy(loaded_pi if payload_enabled else pi)
+    if initial_estimate_override is not None:
+        initial_estimate = np.asarray(initial_estimate_override, dtype=float).copy()
     if mode_lower == "bregman":
-        initial_estimate = pseudo_from_pi(initial_estimate)
+        if initial_estimate.shape == (10,):
+            initial_estimate = pseudo_from_pi(initial_estimate)
 
     if gates_mode is None:
         if "lemniscate" in replay_id.lower():
