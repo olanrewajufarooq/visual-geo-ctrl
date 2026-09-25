@@ -12,7 +12,7 @@ from agc.math import is_spd
 
 
 @pytest.mark.parametrize("mode", ["nominal", "euclidean", "bregman"])
-@pytest.mark.parametrize("coriolis", ["c1", "c2"])
+@pytest.mark.parametrize("coriolis", ["lc", "rb"])
 def test_manual_and_optimized_gains_have_matching_interface(mode, coriolis):
     mg = agc_manual_gains(mode, coriolis)
     og = agc_optimized_gains(mode, coriolis)
@@ -35,13 +35,13 @@ def test_manual_and_optimized_gains_have_matching_interface(mode, coriolis):
 
 def test_gain_promotion_writes_valid_python(tmp_path):
     target = tmp_path / "optimized_gains.py"
-    current = agc_optimized_gains("bregman", "c1")
+    current = agc_optimized_gains("bregman", "lc")
     new_gains = dict(current)
     new_gains["kd"] = 2.4567
 
     promote_gains_to_registry(
         mode="bregman",
-        coriolis="c1",
+        coriolis="lc",
         gains=new_gains,
         metadata={"stage": "test", "cost": 12.34},
         target_file=str(target),
@@ -56,12 +56,12 @@ def test_gain_promotion_writes_valid_python(tmp_path):
     namespace = {}
     exec(content, namespace)
     loaded_func = namespace["optimized_gains"]
-    loaded = loaded_func("bregman", "c1")
+    loaded = loaded_func("bregman", "lc")
     assert abs(loaded["kd"] - 2.457) < 1e-2
     assert loaded["optimizationCost"] == pytest.approx(12.34)
 
 
 def test_optimized_registry_exposes_persisted_cost():
-    gains = agc_optimized_gains("bregman", "c2")
+    gains = agc_optimized_gains("bregman", "rb")
     assert "optimizationCost" in gains
     assert np.isfinite(gains["optimizationCost"])

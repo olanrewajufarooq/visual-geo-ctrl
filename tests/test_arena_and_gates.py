@@ -155,7 +155,7 @@ def test_fpv_osd_state_and_toggle():
             true_m=3.65,
             payload_dropped=False,
             mode="BREGMAN",
-            coriolis="C1",
+            coriolis="LC",
         )
         assert osd.hud_text_id is not None
 

@@ -17,17 +17,17 @@ from agc.paper.adaptation import bregman_step, euclidean_step
 from agc.paper.controller import controller
 
 
-def test_c1_and_c2_agree_on_body_velocity():
+def test_lc_and_rb_agree_on_body_velocity():
     pi = np.array([2.4, 0.12, -0.07, 0.04, 0.22, 0.31, 0.38, 0.01, -0.02, 0.03])
     I6 = inertia_from_pi(pi)
     V = np.array([0.7, -0.3, 0.2, 1.1, -0.4, 0.6])
 
-    c1 = coriolis("c1", V, I6, V)
-    c2 = coriolis("c2", V, I6, V)
-    assert np.allclose(c1, c2, atol=1e-12)
+    c_lc = coriolis("lc", V, I6, V)
+    c_rb = coriolis("rb", V, I6, V)
+    assert np.allclose(c_lc, c_rb, atol=1e-12)
 
 
-def test_c1_uses_levi_civita_factorization():
+def test_lc_uses_levi_civita_factorization():
     pi = np.array([1.9, 0.08, 0.03, -0.05, 0.19, 0.27, 0.33, 0.02, 0.01, -0.015])
     I6 = inertia_from_pi(pi)
     V = np.array([0.4, -0.2, 0.5, 0.7, 0.1, -0.3])
@@ -36,11 +36,11 @@ def test_c1_uses_levi_civita_factorization():
     adV = ad_twist(V)
     adU = ad_twist(U)
     expected = 0.5 * (I6 @ adV @ U - adU.T @ (I6 @ V) - adV.T @ (I6 @ U))
-    actual = coriolis("c1", V, I6, U)
+    actual = coriolis("lc", V, I6, U)
     assert np.allclose(actual, expected, atol=1e-12)
 
 
-def test_c2_uses_alternative_coadjoint_factorization():
+def test_rb_uses_alternative_coadjoint_factorization():
     pi = np.array([1.9, 0.08, 0.03, -0.05, 0.19, 0.27, 0.33, 0.02, 0.01, -0.015])
     I6 = inertia_from_pi(pi)
     V = np.array([0.4, -0.2, 0.5, 0.7, 0.1, -0.3])
@@ -48,7 +48,7 @@ def test_c2_uses_alternative_coadjoint_factorization():
 
     adU = ad_twist(U)
     expected = -adU.T @ (I6 @ V)
-    actual = coriolis("c2", V, I6, U)
+    actual = coriolis("rb", V, I6, U)
     assert np.allclose(actual, expected, atol=1e-12)
 
 
@@ -113,13 +113,13 @@ def test_regressor_matches_both_paper_factorizations():
     I6 = inertia_from_pi(pi)
     g = np.array([0.0, 0.0, 9.81])
 
-    for form in ["c1", "c2"]:
+    for form in ["lc", "rb"]:
         Y = regressor(H, V, Vr, Vrdot, g, form)
         g_body = H[0:3, 0:3].T @ g
         Wg = np.concatenate([skew(pi[1:4]) @ g_body, pi[0] * g_body])
         adV = ad_twist(V)
         adVr = ad_twist(Vr)
-        if form == "c1":
+        if form == "lc":
             coriolis_wrench = 0.5 * (I6 @ adV @ Vr - adVr.T @ (I6 @ V) - adV.T @ (I6 @ Vr))
         else:
             coriolis_wrench = -adVr.T @ (I6 @ V)
@@ -133,7 +133,7 @@ def test_nominal_controller_uses_fractional_dissipation():
     pi = np.array([1.5, 0.0, 0.0, 0.0, 0.2, 0.25, 0.3, 0.0, 0.0, 0.0])
     cfg = {
         "mode": "nominal",
-        "coriolis": "c1",
+        "coriolis": "lc",
         "KR": np.eye(3),
         "Kxi": np.eye(3),
         "Lambda": np.eye(6),
@@ -150,7 +150,7 @@ def test_nominal_controller_uses_fractional_dissipation():
     I6 = inertia_from_pi(pi)
     expected = (
         I6 @ diagnostics.VrDot
-        + coriolis("c1", state["V"], I6, diagnostics.Vr)
+        + coriolis("lc", state["V"], I6, diagnostics.Vr)
         + diagnostics.Wg
         - expected_D
     )
@@ -194,7 +194,7 @@ def test_controller_zero_error_behavior():
     g = np.array([0.0, 0.0, 9.81])
     cfg = {
         "mode": "nominal",
-        "coriolis": "c1",
+        "coriolis": "lc",
         "KR": np.eye(3) * 5.0,
         "Kxi": np.eye(3) * 10.0,
         "Lambda": np.eye(6) * 2.0,
@@ -223,7 +223,7 @@ def test_controller_all_modes_and_factorizations():
     g = np.array([0.0, 0.0, 9.81])
 
     for mode in ["nominal", "euclidean", "bregman"]:
-        for form in ["c1", "c2"]:
+        for form in ["lc", "rb"]:
             cfg = {
                 "mode": mode,
                 "coriolis": form,
@@ -257,7 +257,7 @@ def test_invalid_controller_mode_raises():
     pi = np.array([2.0, 0, 0, 0, 0.2, 0.2, 0.2, 0, 0, 0])
     cfg = {
         "mode": "neural",
-        "coriolis": "c1",
+        "coriolis": "lc",
         "KR": np.eye(3),
         "Kxi": np.eye(3),
         "Lambda": np.eye(6),
@@ -270,6 +270,6 @@ def test_invalid_controller_mode_raises():
         controller(state, desired, cfg, pi)
 
     cfg["mode"] = "nominal"
-    cfg["coriolis"] = "c3"
-    with pytest.raises(ValueError, match="Unknown form 'c3'"):
+    cfg["coriolis"] = "invalid"
+    with pytest.raises(ValueError, match="Unknown form 'invalid'"):
         controller(state, desired, cfg, pi)

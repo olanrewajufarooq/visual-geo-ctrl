@@ -198,7 +198,7 @@ class PyBulletPlant:
         snapshot: Optional[VisualizationSnapshot] = None,
         step_idx: int = 0,
         mode: str = "BREGMAN",
-        coriolis: str = "C1",
+        coriolis: str = "LC",
         **kwargs,
     ):
         """Update scheduled 3D and dashboard visualization."""

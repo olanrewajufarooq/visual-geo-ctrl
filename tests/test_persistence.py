@@ -45,13 +45,13 @@ def test_default_optimization_result_roots_use_best_gain_inplace_and_timestamped
 
 def test_best_gain_roundtrips_in_one_optimization_folder(tmp_path):
     gains = {"KRdiag": np.array([1.0, 2.0, 3.0]), "kd": 4.0}
-    best_file = tmp_path / "best-gain" / "nominal_c1.json"
+    best_file = tmp_path / "best-gain" / "nominal_lc.json"
 
-    save_best_gain(best_file, "nominal", "c1", gains, 2755.24, "sliding_dissipation")
+    save_best_gain(best_file, "nominal", "lc", gains, 2755.24, "sliding_dissipation")
     loaded = load_best_gain(best_file)
 
     assert loaded["mode"] == "nominal"
-    assert loaded["coriolis"] == "c1"
+    assert loaded["coriolis"] == "lc"
     assert np.allclose(loaded["gains"]["KRdiag"], gains["KRdiag"])
     assert loaded["cost"] == pytest.approx(2755.24)
     assert loaded["stage"] == "sliding_dissipation"
@@ -85,7 +85,7 @@ def test_save_and_load_run_with_metadata(tmp_path):
     with open(save_dir / "metadata.json", "r", encoding="utf-8") as f:
         meta = json.load(f)
     assert meta["schemaVersion"] == "1.0"
-    assert meta["variant"] == "bregman_c1"
+    assert meta["variant"] == "bregman_lc"
     assert meta["payloadProfile"] == "evaluation"
     assert meta["completionStatus"] == "completed"
     assert "metrics" in meta and meta["metrics"] is not None
@@ -94,7 +94,7 @@ def test_save_and_load_run_with_metadata(tmp_path):
     loaded = load_run(str(save_dir))
     assert np.allclose(loaded["H"], run["H"])
     assert np.allclose(loaded["wrench"], run["wrench"])
-    assert loaded["metadata"]["variant"] == "bregman_c1"
+    assert loaded["metadata"]["variant"] == "bregman_lc"
     assert loaded["metrics"]["positionRMSE"] == metrics["positionRMSE"]
 
 
@@ -120,7 +120,7 @@ def test_save_run_with_failure(tmp_path):
 
 def test_save_batch_suite_and_resolve(tmp_path):
     """Verify save_batch_suite writes manifest.json and per-variant subdirs, resolved correctly."""
-    variants = [("nominal", "c1"), ("bregman", "c2")]
+    variants = [("nominal", "lc"), ("bregman", "rb")]
     scenarios = [default_scenario(mode=m, coriolis=c, duration=0.02) for m, c in variants]
 
     runs = []
@@ -138,8 +138,8 @@ def test_save_batch_suite_and_resolve(tmp_path):
 
     assert len(summary) == 2
     assert (suite_dir / "manifest.json").is_file()
-    assert (suite_dir / "nominal_c1" / "run.npz").is_file()
-    assert (suite_dir / "bregman_c2" / "run.npz").is_file()
+    assert (suite_dir / "nominal_lc" / "run.npz").is_file()
+    assert (suite_dir / "bregman_rb" / "run.npz").is_file()
 
     with open(suite_dir / "manifest.json", "r", encoding="utf-8") as f:
         manifest = json.load(f)
@@ -150,5 +150,5 @@ def test_save_batch_suite_and_resolve(tmp_path):
     resolved = resolve_result_suite(str(suite_dir))
     assert resolved == suite_dir
 
-    resolved_from_sub = resolve_result_suite(str(suite_dir / "nominal_c1"))
+    resolved_from_sub = resolve_result_suite(str(suite_dir / "nominal_lc"))
     assert resolved_from_sub == suite_dir

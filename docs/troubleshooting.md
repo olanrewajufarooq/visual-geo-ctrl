@@ -31,7 +31,7 @@ python -c "import agc.math, agc.paper, agc.plant; print('Imports OK')"
 ### Solutions:
 1. Run in headless mode:
    ```powershell
-   python run/run_theory_suite.py --mode bregman --coriolis c1
+   python run/run_theory_suite.py --mode bregman --coriolis lc
    ```
 2. Update OpenGL / GPU display drivers. PyBullet utilizes hardware OpenGL acceleration for the 3D window when `--gui` is specified.
 3. For remote machines or Docker containers, use `pybullet.DIRECT` (default in batch and test scripts).

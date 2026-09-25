@@ -21,17 +21,17 @@ def manual_gains(mode: str, coriolis: str) -> dict:
     key = f"{mode.lower()}_{coriolis.lower()}"
     baseline = general_default()
     registry = {
-        "nominal_c1": baseline,
-        "nominal_c2": {
+        "nominal_lc": baseline,
+        "nominal_rb": {
             **baseline,
             "KRdiag": np.array([100.0, 100.0, 200.0]),
             "Kxidiag": np.array([5.0, 5.0, 5.0]),
             "LambdaDiag": np.array([100.0, 100.0, 100.0, 10.0, 10.0, 10.0]),
         },
-        "euclidean_c1": baseline,
-        "euclidean_c2": baseline,
-        "bregman_c1": baseline,
-        "bregman_c2": baseline,
+        "euclidean_lc": baseline,
+        "euclidean_rb": baseline,
+        "bregman_lc": baseline,
+        "bregman_rb": baseline,
     }
 
     if key not in registry:

@@ -154,17 +154,17 @@ def export_suite_comparison_figures(suite_dir: str, visible: bool = False, expor
     for window_name, window_runs in [("total-sim", runs)]:
         root = suite / "comparisons" / window_name
         for ctrl in controllers:
-            pairs = [window_runs.get(f"{ctrl}_c1"), window_runs.get(f"{ctrl}_c2")]
+            pairs = [window_runs.get(f"{ctrl}_lc"), window_runs.get(f"{ctrl}_rb")]
             if not all(pairs): continue
             comparison_horizon = (0.0, max(get_time_horizon(run)[1] for run in pairs))
             fig3 = plt.figure(figsize=(8, 6)); ax3 = fig3.add_subplot(111, projection="3d")
-            for run, label in zip(pairs, ("C1", "C2")):
-                d = derive_diagnostics(run, _scenario_from_run(run)); ax3.plot(d["position"][:, 0], d["position"][:, 1], d["position"][:, 2], color=color_for_series(label), linestyle="--" if label == "C2" else "-", label=label)
+            for run, label in zip(pairs, (r"$C_{\mathrm{LC}}$", r"$C_{\mathrm{RB}}$")):
+                d = derive_diagnostics(run, _scenario_from_run(run)); ax3.plot(d["position"][:, 0], d["position"][:, 1], d["position"][:, 2], color=color_for_series(label), linestyle="--" if "RB" in label else "-", label=label)
             ax3.set_xlim(*limit_for("trajectory_x")); ax3.set_ylim(*limit_for("trajectory_y")); ax3.set_zlim(*limit_for("trajectory_z"))
-            ax3.set(title=f"{ctrl} C1/C2 trajectory", xlabel="x (m)", ylabel="y (m)", zlabel="z (m)"); ax3.legend(); ax3.grid(True); out.append(_save(fig3, suite / "comparisons" / "total-sim" / f"{ctrl}_trajectory_c1_c2.png", visible))
+            ax3.set(title=ctrl + r" $C_{\mathrm{LC}} / C_{\mathrm{RB}}$ trajectory", xlabel="x (m)", ylabel="y (m)", zlabel="z (m)"); ax3.legend(); ax3.grid(True); out.append(_save(fig3, suite / "comparisons" / "total-sim" / f"{ctrl}_trajectory_lc_rb.png", visible))
             fig, axes = plt.subplots(3, 2, figsize=(12, 9), sharex=True)
             for row, key in enumerate(("positionError", "attitudeError", "slidingNorm")):
-                for run, label in zip(pairs, ("C1", "C2")):
+                for run, label in zip(pairs, (r"$C_{\mathrm{LC}}$", r"$C_{\mathrm{RB}}$")):
                     sc = _scenario_from_run(run); d = derive_diagnostics(run, sc)
                     values = np.degrees(d[key]) if key == "attitudeError" else d[key]
                     family = {"positionError": "position_error", "attitudeError": "attitude_error", "slidingNorm": "sliding_norm"}[key]
@@ -173,13 +173,13 @@ def export_suite_comparison_figures(suite_dir: str, visible: bool = False, expor
             # Add energy, wrench, and trajectory comparisons as separate MATLAB-equivalent claims.
             for name, key, ylabel in (("transverse_energy", "Vs", "V_s"), ("wrench_norm", "wrenchNorm", "||W||")):
                 fig2, ax2 = plt.subplots(figsize=(9, 5))
-                for run, label in zip(pairs, ("C1", "C2")):
+                for run, label in zip(pairs, (r"$C_{\mathrm{LC}}$", r"$C_{\mathrm{RB}}$")):
                     sc = _scenario_from_run(run); d = derive_diagnostics(run, sc); vals = d[key] if key in d else d["wrenchNorm"]
                     family = "transverse_energy" if name == "transverse_energy" else "wrench_norm"
                     plot_time_series(ax2, run["t"], [vals], [label], family, comparison_horizon)
                 ax2.set(title=f"{ctrl} {name}", xlabel="time (s)", ylabel=ylabel); ax2.grid(True, linestyle=":"); ax2.legend(); out.append(_save(fig2, root / f"{ctrl}_{name}.png", visible))
-            out.append(_save(fig, root / f"{ctrl}_c1_c2_comparison.png", visible))
-    for form in ("c1", "c2"):
+            out.append(_save(fig, root / f"{ctrl}_lc_rb_comparison.png", visible))
+    for form in ("lc", "rb"):
         e, b = runs.get(f"euclidean_{form}"), runs.get(f"bregman_{form}")
         if e is None or b is None: continue
         fields = (("position_error", "positionError", "Position error"), ("attitude_error", "attitudeError", "Attitude error"), ("sliding_norm", "slidingNorm", "Sliding norm"), ("parameter_error", "parameterError", "Parameter error"), ("pseudo_inertia_margin", "pseudoMargin", "Pseudo-inertia margin"))
@@ -202,17 +202,17 @@ def export_suite_comparison_figures(suite_dir: str, visible: bool = False, expor
                 sc = _scenario_from_run(run); d = derive_diagnostics(run, sc); drop_runs[key], _ = slice_release_window(run, d, release)
         root = suite / "comparisons" / "from-drop"
         for ctrl in controllers:
-            c1, c2 = drop_runs.get(f"{ctrl}_c1"), drop_runs.get(f"{ctrl}_c2")
-            if c1 is None or c2 is None: continue
-            comparison_horizon = (0.0, max(get_time_horizon(run, release)[1] for run in (runs[f"{ctrl}_c1"], runs[f"{ctrl}_c2"])))
+            lc, rb = drop_runs.get(f"{ctrl}_lc"), drop_runs.get(f"{ctrl}_rb")
+            if lc is None or rb is None: continue
+            comparison_horizon = (0.0, max(get_time_horizon(run, release)[1] for run in (runs[f"{ctrl}_lc"], runs[f"{ctrl}_rb"])))
             for name, key in (("position_error", "positionError"), ("attitude_error", "attitudeError"), ("sliding_norm", "slidingNorm"), ("transverse_energy", "Vs"), ("wrench_norm", "wrenchNorm")):
                 fig, ax = plt.subplots(figsize=(9, 5))
-                for run, label in ((c1, "C1"), (c2, "C2")):
+                for run, label in ((lc, r"$C_{\mathrm{LC}}$"), (rb, r"$C_{\mathrm{RB}}$")):
                     d = derive_diagnostics(run, _scenario_from_run(run)); values = np.degrees(d[key]) if key == "attitudeError" else d[key]
                     family = {"positionError": "position_error", "attitudeError": "attitude_error", "slidingNorm": "sliding_norm", "Vs": "transverse_energy", "wrenchNorm": "wrench_norm"}[key]
                     plot_time_series(ax, run["t"], [values], [label], family, comparison_horizon)
                 ax.set(title=f"{ctrl} {name} (Post-Payload-Drop)", xlabel="time (s)", ylabel=name); ax.grid(True, linestyle=":"); ax.legend(); out.append(_save(fig, root / f"{ctrl}_{name}.png", visible))
-        for form in ("c1", "c2"):
+        for form in ("lc", "rb"):
             e, b = drop_runs.get(f"euclidean_{form}"), drop_runs.get(f"bregman_{form}")
             if e is None or b is None: continue
             comparison_horizon = (0.0, max(get_time_horizon(run, release)[1] for run in (runs[f"euclidean_{form}"], runs[f"bregman_{form}"])))

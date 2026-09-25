@@ -22,9 +22,9 @@ def main():
     )
     parser.add_argument(
         "--coriolis",
-        type=str,
+        type=str.lower,
         default="all",
-        choices=["c1", "c2", "all"],
+        choices=["lc", "rb", "all"],
         help="Coriolis factorization form",
     )
     parser.add_argument(
@@ -37,14 +37,14 @@ def main():
     parser.add_argument(
         "--method",
         type=str,
-        default="de",
+        default="pso",
         choices=["pso", "de"],
         help="Global search method: 'pso' (Particle Swarm) or 'de' (Differential Evolution)",
     )
     parser.add_argument(
         "--polish",
         action=argparse.BooleanOptionalAction,
-        default=True,
+        default=False,
         help="Run local Nelder-Mead simplex polish on the final 'all' stage",
     )
     parser.add_argument(
@@ -74,19 +74,19 @@ def main():
     parser.add_argument(
         "--swarm-size",
         type=int,
-        default=50,
+        default=20,
         help="Swarm size for PSO / population multiplier for DE",
     )
     parser.add_argument(
         "--max-iter",
         type=int,
-        default=100,
+        default=50,
         help="Maximum iterations per stage",
     )
     parser.add_argument(
         "--max-stall",
         type=int,
-        default=25,
+        default=10,
         help="Maximum iterations without improvement before early stopping",
     )
     parser.add_argument(

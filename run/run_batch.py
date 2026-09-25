@@ -48,12 +48,12 @@ def main():
         is_parallel = True
 
     variants = [
-        ("nominal", "c1"),
-        ("nominal", "c2"),
-        ("euclidean", "c1"),
-        ("euclidean", "c2"),
-        ("bregman", "c1"),
-        ("bregman", "c2"),
+        ("nominal", "lc"),
+        ("nominal", "rb"),
+        ("euclidean", "lc"),
+        ("euclidean", "rb"),
+        ("bregman", "lc"),
+        ("bregman", "rb"),
     ]
 
     scenarios = [

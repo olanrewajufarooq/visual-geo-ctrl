@@ -121,9 +121,9 @@ def validate_scenario(scenario: Dict[str, Any]) -> None:
     if mode not in {"nominal", "euclidean", "bregman"}:
         raise ValueError(f"Invalid controller mode: {mode!r}. Must be 'nominal', 'euclidean', or 'bregman'.")
 
-    coriolis = str(c.get("coriolis", "")).lower()
-    if coriolis not in {"c1", "c2"}:
-        raise ValueError(f"Invalid Coriolis factorization: {coriolis!r}. Must be 'c1' or 'c2'.")
+    coriolis = str(c.get("coriolis", "")).strip().lower()
+    if coriolis not in {"lc", "rb"}:
+        raise ValueError(f"Invalid Coriolis factorization: {coriolis!r}. Must be 'lc' or 'rb'.")
 
     for gain_name in ["KR", "Kxi"]:
         if gain_name not in c:

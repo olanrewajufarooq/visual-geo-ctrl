@@ -28,17 +28,17 @@ def assert_gains_equal(actual, expected):
 
 def test_manual_gains_match_matlab_registry_for_all_scenarios():
     expected = {
-        "nominal_c1": BASELINE,
-        "nominal_c2": {
+        "nominal_lc": BASELINE,
+        "nominal_rb": {
             **BASELINE,
             "KRdiag": np.array([100.0, 100.0, 200.0]),
             "Kxidiag": np.array([5.0, 5.0, 5.0]),
             "LambdaDiag": np.array([100.0, 100.0, 100.0, 10.0, 10.0, 10.0]),
         },
-        "euclidean_c1": BASELINE,
-        "euclidean_c2": BASELINE,
-        "bregman_c1": BASELINE,
-        "bregman_c2": BASELINE,
+        "euclidean_lc": BASELINE,
+        "euclidean_rb": BASELINE,
+        "bregman_lc": BASELINE,
+        "bregman_rb": BASELINE,
     }
 
     for key, expected_gains in expected.items():
@@ -48,15 +48,15 @@ def test_manual_gains_match_matlab_registry_for_all_scenarios():
 
 def test_manual_gains_reject_unknown_scenarios():
     with pytest.raises(KeyError, match="Unknown scenario key"):
-        manual_gains("unknown", "c1")
+        manual_gains("unknown", "lc")
 
     with pytest.raises(KeyError, match="Unknown scenario key"):
-        manual_gains("bregman", "c3")
+        manual_gains("bregman", "xyz")
 
 
 def test_manual_gains_return_independent_values():
-    first = manual_gains("nominal", "c1")
-    second = manual_gains("nominal", "c1")
+    first = manual_gains("nominal", "lc")
+    second = manual_gains("nominal", "lc")
 
     first["KRdiag"][0] = 999.0
     first["gammaE"][0] = 999.0

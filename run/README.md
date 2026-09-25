@@ -17,19 +17,19 @@ Simulates a single UAV tracking experiment in PyBullet.
 
 ```powershell
 # Headless run (fast)
-python run/run_theory_suite.py --mode bregman --coriolis c1 --duration 30
+python run/run_theory_suite.py --mode bregman --coriolis lc --duration 30
 
 # Interactive 3D PyBullet GUI with trajectory trail and camera tracking
-python run/run_theory_suite.py --mode bregman --coriolis c1 --gui --speed 1.0
+python run/run_theory_suite.py --mode bregman --coriolis lc --gui --speed 1.0
 
 # Export paper figures
-python run/run_theory_suite.py --mode bregman --coriolis c1 --save-figures
+python run/run_theory_suite.py --mode bregman --coriolis lc --save-figures
 ```
 
 **Options:**
 - `--replay-id`: Trajectory benchmark ID (default: `lemniscate_01_auto`).
 - `--mode`: Controller mode: `nominal`, `euclidean`, or `bregman`.
-- `--coriolis`: Coriolis factorization: `c1` (Levi-Civita) or `c2` (coadjoint).
+- `--coriolis`: Coriolis factorization: `lc` (Levi-Civita) or `rb` (coadjoint).
 - `--duration`: Flight duration in seconds (default: 30.0 s).
 - `--gui`: Launch 3D PyBullet GUI.
 - `--speed`: GUI playback speed multiplier (default: 1.0).
@@ -41,7 +41,7 @@ python run/run_theory_suite.py --mode bregman --coriolis c1 --save-figures
 ---
 
 ### 2. `run_batch.py`
-Runs the full 6-variant comparison matrix (`nominal`, `euclidean`, `bregman` $\times$ `c1`, `c2`) with payload drop, saving run data, `manifest.json`, and comparison figures.
+Runs the full 6-variant comparison matrix (`nominal`, `euclidean`, `bregman` $\times$ `lc`, `rb`) with payload drop, saving run data, `manifest.json`, and comparison figures.
 
 ```powershell
 # Default batch (parallel execution)
@@ -66,16 +66,16 @@ python run/run_batch.py --serial --duration 10.0
 Performs staged block-coordinate gain optimization (Particle Swarm or Differential Evolution) over tracking gains ($K_R, K_\xi$), damping/metric gains ($\Lambda, k_s, k_d$), and adaptation gains ($\gamma_E, \gamma_B$).
 
 ```powershell
-# Optimize Bregman C1 gains using hierarchical 7-stage schedule
-python run/optimize_gains.py --mode bregman --coriolis c1 --schedule hierarchical
+# Optimize Bregman LC gains using hierarchical 7-stage schedule
+python run/optimize_gains.py --mode bregman --coriolis lc --schedule hierarchical
 
-# Optimize Euclidean C2 using Differential Evolution with Nelder-Mead polish
-python run/optimize_gains.py --mode euclidean --coriolis c2 --method de --polish
+# Optimize Euclidean RB using Differential Evolution with Nelder-Mead polish
+python run/optimize_gains.py --mode euclidean --coriolis rb --method de --polish
 ```
 
 **Options:**
 - `--mode`: `nominal`, `euclidean`, `bregman`, or `all`.
-- `--coriolis`: `c1`, `c2`, or `all`.
+- `--coriolis`: `lc`, `rb`, or `all`.
 - `--schedule`: `hierarchical` (7 stages: $K \to \Lambda,k_s,k_d \to \Lambda \to k_s,k_d \to \gamma \to \text{all}$) or `classic` (4 stages).
 - `--method`: `pso` (Particle Swarm) or `de` (Differential Evolution).
 - `--polish`: Run Nelder-Mead simplex polishing on final `all` stage.
@@ -96,7 +96,7 @@ python run/optimize_gains.py --mode euclidean --coriolis c2 --method de --polish
 Visualizes a previously saved simulation run (`run.npz`) in the interactive 3D PyBullet GUI.
 
 ```powershell
-python run/replay_run.py results/timestamped/<timestamp>/bregman_c1 --speed 1.5
+python run/replay_run.py results/inplace/bregman_lc --speed 1.5
 ```
 
 **Options:**

@@ -49,7 +49,7 @@ class FpvOsd:
         true_m: float,
         payload_dropped: bool,
         mode: str = "BREGMAN",
-        coriolis: str = "C1",
+        coriolis: str = "LC",
         sim_speed: float = 1.0,
     ):
         """Update OSD text, artificial horizon lines, and telemetry tapes."""
@@ -67,7 +67,7 @@ class FpvOsd:
 
         # 1. Multi-line FPV Telemetry HUD Text
         hud_lines = [
-            f"--- [ SE(3) {mode.upper()} {coriolis.upper()} ] ---",
+            f"--- [ SE(3) {mode.upper()} C_{coriolis.upper()} ] ---",
             f"TIME: {t:05.2f}s | SPD: {sim_speed:.1f}x | BAT: {self.vbat_current:.1f}V (6S)",
             f"SPEED: {speed:4.1f} m/s | ALT: {alt_agl:4.2f} m | Vz: {vz:+4.1f} m/s",
             f"||e_p||: {pos_err:.3f} m | ||s||: {s_norm:.2f}",

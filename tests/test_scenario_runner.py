@@ -17,7 +17,7 @@ def test_nominal_short_run():
     scenario = default_scenario(
         replay_id="lemniscate_01_auto",
         mode="nominal",
-        coriolis="c1",
+        coriolis="lc",
         duration=0.1,
         gain_source="optimized",
         gui=False,
@@ -35,7 +35,7 @@ def test_bregman_short_run_preserves_spd():
     scenario = default_scenario(
         replay_id="lemniscate_01_auto",
         mode="bregman",
-        coriolis="c1",
+        coriolis="lc",
         duration=0.1,
         gain_source="optimized",
         gui=False,
@@ -55,7 +55,7 @@ def test_payload_drop_parameters():
     scenario = default_scenario(
         replay_id="lemniscate_01_auto",
         mode="nominal",
-        coriolis="c2",
+        coriolis="rb",
         duration=15.0,
     )
     drop = scenario["payloadDrop"]

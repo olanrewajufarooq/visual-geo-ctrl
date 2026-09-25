@@ -35,7 +35,7 @@ python -c "import agc.math, agc.paper, agc.plant; print('AGC imported successful
 Run an adaptive tracking experiment in the 3D PyBullet GUI:
 
 ```powershell
-python run/run_theory_suite.py --mode bregman --coriolis c1 --gui --speed 1.0
+python run/run_theory_suite.py --mode bregman --coriolis lc --gui --speed 1.0
 ```
 
 GUI mode opens the PyBullet scene together with a live Matplotlib diagnostics
@@ -52,17 +52,17 @@ optional future extensions.
 Run headlessly and generate paper figures:
 
 ```powershell
-python run/run_theory_suite.py --mode bregman --coriolis c1 --duration 30 --save-figures
+python run/run_theory_suite.py --mode bregman --coriolis lc --duration 30 --save-figures
 ```
 
-The results and figures will be saved in `results/timestamped/<timestamp>/bregman_c1/`.
-Use `--timestamped-save` to save under `results/timestamped/<timestamp>/bregman_c1/` instead.
+The results and figures will be saved in `results/inplace/bregman_lc/`.
+Use `--timestamped-save` to save under `results/timestamped/<timestamp>/bregman_lc/` instead.
 
 ---
 
 ## Batch Comparisons
 
-Run all 6 controller variants (`nominal`, `euclidean`, `bregman` $\times$ `c1`, `c2`) with the 10-second payload drop:
+Run all 6 controller variants (`nominal`, `euclidean`, `bregman` $\times$ `lc`, `rb`) with the 10-second payload drop:
 
 ```powershell
 # Parallel execution across CPU cores
