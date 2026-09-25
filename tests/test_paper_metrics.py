@@ -40,6 +40,7 @@ def test_window_metrics_and_recovery_use_intrinsic_errors():
 def test_reaching_bound_is_zero_for_zero_initial_energy():
     run = _run()
     run["Vs"][0] = 0.0
+    run["s"][0] = 0.0
     bound = compute_nominal_reaching_bound(run, np.eye(6), np.eye(6), 1.0, 0.5)
     assert bound == 0.0
 

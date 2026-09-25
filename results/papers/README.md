@@ -10,13 +10,57 @@ python run/run_paper_experiments.py
 python run/run_paper_experiments.py adaptive-drop
 python run/run_paper_experiments.py nominal-connection
 python run/run_paper_experiments.py nominal-reaching
-python run/run_paper_experiments.py repeatability
 ```
 
 Raw simulation arrays are written under the ignored `results/paper-runs/`
-directory. Figures and CSV summaries are written directly under `figures/`
-and `tables/` in this directory.
+directory. PDF/PNG figures are grouped by subsection under `figures/`:
+`01-adaptive-tracking`, `02-physical-consistency`, and `04-nominal-validation`.
+The baseline CSV is under `tables/`. See `metric_definitions.md` for windows,
+units, and threshold/dwell definitions, and `diagnostic_report.md` for limitations.
+
+Adaptive analysis includes only Euclidean and Natural/Bregman adaptive
+controllers. The Fixed-model controller is excluded. Known-inertia nominal
+theory tests remain separate.
+
+Important: tracking gains are shared, but saved adaptation gains have not been
+retuned on that shared controller or on the corrected PyBullet inertial model.
+No optimization was run. The gain summary marks this comparison provisional.
+Do not infer estimator superiority or complete parameter convergence.
 
 Payload-release experiments validate adaptive recovery after the inertial
 change; they do not establish finite-time adaptive reaching. Finite-time
 reaching is evaluated separately with exact inertial parameters.
+
+## Figure catalog
+
+Each PDF has a same-name 400 dpi PNG alongside it. All adaptive time histories
+span 0--30 s and mark the release at 10 s. Nominal reaching and connection
+equivalence share a focused transient view. The connection residual remains
+logarithmic, with time measured since initialization. The conservative reaching
+bound outside the view is explicitly annotated.
+
+| Figure | PDF | PNG |
+| --- | --- | --- |
+| Position tracking | [PDF](figures/01-adaptive-tracking/tracking_position.pdf) | [PNG](figures/01-adaptive-tracking/tracking_position.png) |
+| Attitude tracking | [PDF](figures/01-adaptive-tracking/tracking_attitude.pdf) | [PNG](figures/01-adaptive-tracking/tracking_attitude.png) |
+| Body linear velocity | [PDF](figures/01-adaptive-tracking/tracking_linear_velocity.pdf) | [PNG](figures/01-adaptive-tracking/tracking_linear_velocity.png) |
+| Body angular velocity | [PDF](figures/01-adaptive-tracking/tracking_angular_velocity.pdf) | [PNG](figures/01-adaptive-tracking/tracking_angular_velocity.png) |
+| Natural/Bregman 3-D trajectory | [PDF](figures/01-adaptive-tracking/tracking_3d_bregman.pdf) | [PNG](figures/01-adaptive-tracking/tracking_3d_bregman.png) |
+| Adaptive errors | [PDF](figures/01-adaptive-tracking/adaptive_tracking_errors.pdf) | [PNG](figures/01-adaptive-tracking/adaptive_tracking_errors.png) |
+| Wrench demand | [PDF](figures/01-adaptive-tracking/control_wrench_demand.pdf) | [PNG](figures/01-adaptive-tracking/control_wrench_demand.png) |
+| Physical consistency | [PDF](figures/02-physical-consistency/physical_consistency.pdf) | [PNG](figures/02-physical-consistency/physical_consistency.png) |
+| Connection equivalence | [PDF](figures/04-nominal-validation/connection_equivalence.pdf) | [PNG](figures/04-nominal-validation/connection_equivalence.png) |
+| Nominal reaching | [PDF](figures/04-nominal-validation/nominal_reaching.pdf) | [PNG](figures/04-nominal-validation/nominal_reaching.png) |
+
+## Data and qualifications
+
+- [Two-estimator summary CSV](tables/baseline_comparison.csv)
+- [Common gains and provisional adaptation gains](gain_summary.json)
+- [Reaching bound and step-refinement results](finite_time_reaching_summary.json)
+- [Connection residual summary](connection_equivalence_summary.json)
+- [Metric definitions](metric_definitions.md)
+- [Diagnostic report](diagnostic_report.md)
+- [Validation status](validation_status.json)
+- [Generation provenance](manifest.json)
+
+Simulation-setup artwork is intentionally excluded: another agent owns it.

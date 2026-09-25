@@ -1,0 +1,16 @@
+{
+  "optimization_run": false,
+  "fair_adaptation_retuning_pending": true,
+  "repeatability": "omitted: deterministic identical trials are not repeatability evidence",
+  "Euclidean adaptive controller": {
+    "failure": null,
+    "end_time": 30.0
+  },
+  "Natural/Bregman adaptive controller": {
+    "failure": null,
+    "end_time": 30.0
+  },
+  "nominal_reaching_passed": true,
+  "connection_identity_passed": true,
+  "nominal_refinement_passed": true
+}

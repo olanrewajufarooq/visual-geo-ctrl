@@ -1,10 +1,24 @@
 {
-  "experiment": "all",
-  "duration": 30.0,
-  "commit": "07cebdb291c81f88be6d237906c7ac2432099171",
+  "command": "nominal-connection",
+  "duration_s": 30.0,
+  "base_commit": "309182c76d23d249079644164ca264080d96149b",
+  "worktree_dirty_at_generation": true,
+  "source_sha256": "4f281256af8efbe35bf96a51056fd8282fe22aec3b8be4b6cd9e5d2e365e2044",
   "environment": "agc",
-  "factorizations": [
-    "lc",
-    "rb"
-  ]
+  "report": {
+    "optimization_run": false,
+    "fair_adaptation_retuning_pending": true,
+    "repeatability": "omitted: deterministic identical trials are not repeatability evidence",
+    "Euclidean adaptive controller": {
+      "failure": null,
+      "end_time": 30.0
+    },
+    "Natural/Bregman adaptive controller": {
+      "failure": null,
+      "end_time": 30.0
+    },
+    "nominal_reaching_passed": true,
+    "connection_identity_passed": true,
+    "nominal_refinement_passed": true
+  }
 }
