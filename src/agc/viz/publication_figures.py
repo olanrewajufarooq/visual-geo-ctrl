@@ -175,6 +175,7 @@ def theory_figures(run, scenario, root, summary, connection):
     metric = np.linalg.inv(scenario["controller"]["Lambda"])
     r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
     horizon = min(run["t"][-1], max(1., 1.6*(summary["T_obs"] or min(summary["T_bound"], 5.))))
+    horizon = min(run["t"][-1], scenario.get("focusElapsedEnd", horizon))
     time_offset = float(scenario.get("timeOffset", 0.0))
     visible_run = np.asarray(run["t"]) <= horizon
     run_time = time_offset + np.asarray(run["t"])[visible_run]

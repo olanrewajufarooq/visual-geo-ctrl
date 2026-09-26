@@ -1,0 +1,287 @@
+{
+  "experiment": "4x imposed initial twist error; no physical payload release",
+  "multiplier": 4,
+  "time_offset_s": 10.0,
+  "focus_absolute_s": [
+    10.0,
+    13.0
+  ],
+  "epsilon_s": 0.001,
+  "dwell_s": 0.5,
+  "display_margin_s": 0.25,
+  "protocol": {
+    "exact_known_inertia": true,
+    "payload_release": false,
+    "adaptation": false,
+    "lc_metadata_coriolis": "lc",
+    "rb_metadata_coriolis": "rb",
+    "shared_controller_gains": true,
+    "shared_plant_inertia": true,
+    "identical_initial_configuration": true,
+    "identical_initial_velocity": true,
+    "identical_desired_trajectory_samples": true,
+    "only_intended_controller_difference": true
+  },
+  "protocol_passed": true,
+  "controller": {
+    "mode": "nominal",
+    "coriolis": "lc",
+    "KR": [
+      [
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        2.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        3.0
+      ]
+    ],
+    "Kxi": [
+      [
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "Lambda": [
+      [
+        24.449400831670125,
+        -0.034449093633822155,
+        -0.004670679917069921,
+        -7.888842442145276e-05,
+        -0.05598912790452459,
+        0.0
+      ],
+      [
+        -0.034449093633822155,
+        24.906140692261893,
+        0.023376059719042046,
+        0.05703506218527975,
+        7.888842442145273e-05,
+        0.0
+      ],
+      [
+        -0.004670679917069921,
+        0.02337605971904204,
+        14.448801898097758,
+        5.353117675660628e-05,
+        1.0695857010090118e-05,
+        0.0
+      ],
+      [
+        -7.888842442145273e-05,
+        0.05703506218527974,
+        5.353117675660627e-05,
+        0.2744037863757834,
+        1.8065449192512674e-07,
+        0.0
+      ],
+      [
+        -0.05598912790452458,
+        7.88884244214527e-05,
+        1.0695857010090117e-05,
+        1.8065449192512674e-07,
+        0.2744013911862804,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.27427317608337903
+      ]
+    ],
+    "kd": 1.0,
+    "ks": 1.0,
+    "alpha": 0.5,
+    "gravity": [
+      0.0,
+      0.0,
+      9.81
+    ],
+    "gammaE": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+    ],
+    "gammaB": 0.001
+  },
+  "inertia_parameters": [
+    3.646,
+    0.0,
+    0.0,
+    -0.00834934,
+    0.04092,
+    0.04017,
+    0.06921,
+    5.656e-05,
+    1.313e-05,
+    -6.494e-05
+  ],
+  "coarse_dt_s": 0.002,
+  "fine_dt_s": 0.001,
+  "coarse": {
+    "lc": {
+      "elapsed_reaching_s": 2.15,
+      "absolute_reaching_s": 12.15,
+      "initial_s": [
+        1.2,
+        -0.7999999999999999,
+        0.39999999999999963,
+        1.6,
+        -0.8,
+        1.2
+      ],
+      "initial_weighted_s": 4.125340755477056,
+      "later_threshold_departure": true,
+      "first_later_departure_s": 13.534,
+      "identity_max_residual": 3.528697999707463e-14,
+      "identity_rms_residual": 6.804174429860206e-15,
+      "identity_max_relative_residual": 8.267960340840283e-09,
+      "identity_passed": true,
+      "maximum_command_replay_error": 0.0,
+      "command_replay_passed": true
+    },
+    "rb": {
+      "elapsed_reaching_s": 2.15,
+      "absolute_reaching_s": 12.15,
+      "initial_s": [
+        1.2,
+        -0.7999999999999999,
+        0.39999999999999963,
+        1.6,
+        -0.8,
+        1.2
+      ],
+      "initial_weighted_s": 4.125340755477056,
+      "later_threshold_departure": true,
+      "first_later_departure_s": 13.546,
+      "identity_max_residual": 3.4322769733662464e-14,
+      "identity_rms_residual": 6.72664580274904e-15,
+      "identity_max_relative_residual": 9.870375341102018e-09,
+      "identity_passed": true,
+      "maximum_command_replay_error": 0.0,
+      "command_replay_passed": true
+    }
+  },
+  "fine": {
+    "lc": {
+      "elapsed_reaching_s": 2.152,
+      "absolute_reaching_s": 12.152000000000001,
+      "initial_s": [
+        1.2,
+        -0.7999999999999999,
+        0.39999999999999963,
+        1.6,
+        -0.8,
+        1.2
+      ],
+      "initial_weighted_s": 4.125340755477056,
+      "later_threshold_departure": false,
+      "first_later_departure_s": null,
+      "identity_max_residual": 1.482689009203517e-14,
+      "identity_rms_residual": 4.206508096318875e-15,
+      "identity_max_relative_residual": 4.338247652350135e-11,
+      "identity_passed": true,
+      "maximum_command_replay_error": 0.0,
+      "command_replay_passed": true
+    },
+    "rb": {
+      "elapsed_reaching_s": 2.152,
+      "absolute_reaching_s": 12.152000000000001,
+      "initial_s": [
+        1.2,
+        -0.7999999999999999,
+        0.39999999999999963,
+        1.6,
+        -0.8,
+        1.2
+      ],
+      "initial_weighted_s": 4.125340755477056,
+      "later_threshold_departure": false,
+      "first_later_departure_s": null,
+      "identity_max_residual": 1.3658642584987245e-14,
+      "identity_rms_residual": 4.2024372793045775e-15,
+      "identity_max_relative_residual": 4.1676012886997684e-11,
+      "identity_passed": true,
+      "maximum_command_replay_error": 0.0,
+      "command_replay_passed": true
+    }
+  },
+  "full_run_separation_peaks": {
+    "Position separation [m]": {
+      "maximum": 0.06264972717647578,
+      "absolute_time_s": 11.168
+    },
+    "Attitude separation [deg]": {
+      "maximum": 1.4052818573858674,
+      "absolute_time_s": 11.39
+    },
+    "Force difference [N]": {
+      "maximum": 3.071426862836696,
+      "absolute_time_s": 10.034
+    },
+    "Torque difference [N m]": {
+      "maximum": 0.034793180350073886,
+      "absolute_time_s": 10.0
+    }
+  },
+  "refinement": {
+    "Position separation [m]": {
+      "coarse_peak_in_focus": 0.06264972717647578,
+      "fine_peak_in_focus": 0.07295540066205101,
+      "max_trace_difference": 0.010464694502552926,
+      "relative_to_coarse_peak": 0.16703495728042522
+    },
+    "Attitude separation [deg]": {
+      "coarse_peak_in_focus": 1.4052818573858674,
+      "fine_peak_in_focus": 1.4650888488700589,
+      "max_trace_difference": 0.05980812023762416,
+      "relative_to_coarse_peak": 0.042559519233301986
+    },
+    "Force difference [N]": {
+      "coarse_peak_in_focus": 3.071426862836696,
+      "fine_peak_in_focus": 3.295070281548019,
+      "max_trace_difference": 0.24355825459992397,
+      "relative_to_coarse_peak": 0.07929808049376094
+    },
+    "Torque difference [N m]": {
+      "coarse_peak_in_focus": 0.034793180350073886,
+      "fine_peak_in_focus": 0.034793180350073886,
+      "max_trace_difference": 0.001214248294713241,
+      "relative_to_coarse_peak": 0.03489903143363157
+    }
+  },
+  "qualifications": [
+    "Observed reaching certifies a finite sampled dwell only; later threshold departures are reported.",
+    "Two integration steps measure sensitivity, not established numerical convergence.",
+    "Fine-run later-departure checks cover only the focused interval, not the full 10\u201330 s run.",
+    "Different configurations at reaching may retain position separation while following the same reduced vector field."
+  ]
+}

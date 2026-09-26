@@ -85,7 +85,7 @@ def _json_ready(value):
 
 def source_fingerprint():
     repo = Path(__file__).resolve().parents[3]
-    source_files = sorted((repo/"src").rglob("*.py")) + [repo/"run"/"run_paper_experiments.py"]
+    source_files = sorted((repo/"src").rglob("*.py")) + [repo/"run"/"run_paper_sim_figures.py"]
     digest = hashlib.sha256()
     for path in source_files:
         digest.update(str(path.relative_to(repo)).replace("\\", "/").encode())
@@ -183,6 +183,13 @@ def connection_pair_passed(protocol):
 
 
 def run_publication(command, duration, root, raw_root, reuse_cache=False):
+    if command in ("all", "nominal-connection", "nominal-reaching", "connection-realizations", "connection-sensitivity"):
+        if duration != 30. or reuse_cache:
+            raise ValueError("The nominal sensitivity study requires fresh runs over source time 10–30 s")
+        if command == "all":
+            run_publication("adaptive-drop", duration, root, raw_root)
+        from .connection_sensitivity import run_study
+        return run_study(root, raw_root)
     root, raw_root = Path(root), Path(raw_root)
     root.mkdir(parents=True, exist_ok=True)
     report = {"optimization_run": False, "fair_adaptation_retuning_pending": True,
@@ -213,55 +220,9 @@ def run_publication(command, duration, root, raw_root, reuse_cache=False):
             adaptive_figures(runs, scenarios, root/"figures")
     else:
         write_json(root/"gain_summary.json", gain_report())
-    if command in ("all", "nominal-connection", "nominal-reaching", "connection-realizations"):
-        scenario = nominal_scenario(duration)
-        run, failure, cached = load_or_run(raw_root/"nominal-lemniscate-segment", scenario, reuse_cache)
-        print(f"{'Reusing' if cached else 'Running'} lemniscate known-inertia nominal validation", flush=True)
-        summary = reaching_summary(run, scenario)
-        summary["failure"] = failure
-        # Integration refinement is validation, not gain optimization.
-        refined_scenario = nominal_scenario(min(duration, 4.), dt=.001)
-        refined_run, refined_failure, refined_cached = load_or_run(raw_root/"nominal-lemniscate-segment-refinement", refined_scenario, reuse_cache)
-        refined = reaching_summary(refined_run, refined_scenario)
-        summary["step_refinement"] = {"dt_coarse_s": .002, "dt_fine_s": .001,
-            "T_obs_fine": refined["T_obs"], "fine_passed": refined["passed"], "failure": refined_failure,
-            "fine_energy_residual_relative_to_initial": refined["energy_residual_relative_to_initial"]}
-        connection = connection_test(run, scenario)
-        write_json(root/"finite_time_reaching_summary.json", summary)
-        write_csv(root/"tables"/"nominal_reaching_summary.csv", [{
-            key: summary[key] for key in ("V_s(0)", "lambda_min(Lambda_s)", "lambda_max(I)", "k_s", "alpha", "q", "c_Lambda", "c_alpha", "epsilon_s", "dwell_s", "T_obs", "T_bound", "passed")
-        }])
-        write_json(root/"connection_equivalence_summary.json", {k: v for k, v in connection.items() if k not in ("t", "difference", "theory", "residual")})
-        theory_figures(run, scenario, root/"figures", summary, connection)
-        if command in ("all", "nominal-connection", "connection-realizations"):
-            rb_scenario = nominal_scenario(duration)
-            rb_scenario["controller"]["coriolis"] = "rb"
-            rb_run, rb_failure, rb_cached = load_or_run(raw_root/"connection-realizations-lemniscate-segment"/"rb", rb_scenario, reuse_cache)
-            print(f"{'Reusing' if rb_cached else 'Running'} matched C_RB nominal comparison", flush=True)
-            # The validated isolated nominal run is the LC member of this matched pair.
-            lc_run, lc_failure = run, failure
-            connection_runs = {"lc": lc_run, "rb": rb_run}
-            connection_scenarios = {"lc": scenario, "rb": rb_scenario}
-            connection_realization_figures(connection_runs, connection_scenarios, root/"figures")
-            pair_protocol = connection_pair_protocol(lc_run, rb_run)
-            write_json(root/"connection_realization_protocol.json", pair_protocol)
-            write_csv(root/"tables"/"connection_realization_summary.csv", [
-                connection_realization_row(lc_run, "lc", scenario),
-                connection_realization_row(rb_run, "rb", rb_scenario),
-            ])
-            report["connection_realization_lc_failure"] = lc_failure
-            report["connection_realization_rb_failure"] = rb_failure
-            report["connection_realization_protocol_passed"] = connection_pair_passed(pair_protocol)
-        report["nominal_reaching_passed"] = summary["passed"]
-        report["nominal_replay_duration_s"] = float(run["t"][-1])
-        report["nominal_energy_residual_relative_to_initial"] = summary["energy_residual_relative_to_initial"]
-        report["connection_identity_passed"] = connection["passed"]
-        report["nominal_refinement_passed"] = refined["passed"]
-        if not summary["passed"]:
-            print("Reaching validation FAILED; retaining diagnostic figure, not a paper success claim.", flush=True)
     repo = Path(__file__).resolve().parents[3]
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
-    source_files = sorted((repo/"src").rglob("*.py")) + [repo/"run"/"run_paper_experiments.py"]
+    source_files = sorted((repo/"src").rglob("*.py")) + [repo/"run"/"run_paper_sim_figures.py"]
     digest = hashlib.sha256()
     for path in source_files:
         digest.update(str(path.relative_to(repo)).replace("\\", "/").encode())
@@ -302,7 +263,7 @@ DIAGNOSTICS = """# Numerical-results diagnostic report
 - Bregman stepping uses an SPD-preserving exponential update with numerical eigenvalue/exponent safeguards; it is not exact continuous-time integration.
 - Identical repeated trials and all old flat figures/tables are superseded and must not be cited.
 - FAILED reaching figures are diagnostics only; numerical threshold crossing is not exact finite-time convergence.
-- All payload time histories use 0--30 s. The nominal tests replay the lemniscate starting from its payload-release phase (10 s). The connection-identity figure uses the original lemniscate clock and begins at 10 s; reaching times remain measured from initialization. The available replay segment ends at 20.882 s, so nominal closed-loop plots stop there rather than clamping a desired state. Reaching and connection-equivalence figures share a focused reaching-interval view. The connection residual remains logarithmic.
+- All payload time histories use 0--30 s. Every figure in 04-nominal-validation uses the 4x connection sensitivity experiment on source time 10--30 s. Reaching, identity, and sensitivity-detail figures use the shared observed-reaching window; summaries retain elapsed reaching durations. The connection residual remains logarithmic. See connection_sensitivity_diagnostics.md for the experiment and numerical limitations.
 - The nominal transverse-energy integral's relative numerical residual is retained in the reaching summary. Report the threshold-and-dwell bound check as numerical evidence, not as a pointwise reproduction of the continuous-time energy identity.
 """
 
