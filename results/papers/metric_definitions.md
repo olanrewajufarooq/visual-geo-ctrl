@@ -21,13 +21,14 @@ Physical margin: smallest eigenvalue of Jhat directly (Bregman) or pseudo_from_p
 (Euclidean), with full-run and post-release minima and nonpositive flag.
 Pseudo-inertia combines kg, kg m, kg m^2; eigenvalues are coordinate-scaled SI
 certificates, not a scalar with one physical unit. Likewise the weighted s norm
-uses the specified design metric and is labelled metric units.
+uses the specified design metric and therefore has no single physical unit.
 
 RPY is xyz Euler visualization, unwrapped independently in time and aligned by
 integer 360-degree offsets initially; geodesic error is used for all quantitative claims.
 Desired velocity in each actual body is Ad_(He^-1) Vd, including the translational
 adjoint term. These transported references differ slightly between controllers;
-the black dashed curves show each, not an incorrect shared raw Vd.
+the black dashed curves are labelled "Transported reference" and show each,
+not an incorrect shared raw Vd.
 
 ## Connection-equivalence norm and axis labels
 

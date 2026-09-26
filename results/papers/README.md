@@ -10,17 +10,19 @@ python run/run_paper_experiments.py
 python run/run_paper_experiments.py adaptive-drop
 python run/run_paper_experiments.py nominal-connection
 python run/run_paper_experiments.py nominal-reaching
+python run/run_paper_experiments.py connection-realizations
 ```
 
 Raw simulation arrays are written under the ignored `results/paper-runs/`
 directory. PDF/PNG figures are grouped by subsection under `figures/`:
 `01-adaptive-tracking`, `02-physical-consistency`, and `04-nominal-validation`.
-The baseline CSV is under `tables/`. See `metric_definitions.md` for windows,
+The summary CSVs are under `tables/`. See `metric_definitions.md` for windows,
 units, and threshold/dwell definitions, and `diagnostic_report.md` for limitations.
 
-Adaptive analysis includes only Euclidean and Natural/Bregman adaptive
-controllers. The Fixed-model controller is excluded. Known-inertia nominal
-theory tests remain separate.
+Adaptive analysis compares the Known-inertia controller, which receives the
+true loaded inertia before release and true bare-vehicle inertia after release,
+with Euclidean and Natural/Bregman adaptation. Known-inertia nominal theory
+tests remain separate.
 
 Important: tracking gains are shared, but saved adaptation gains have not been
 retuned on that shared controller or on the corrected PyBullet inertial model.
@@ -50,14 +52,24 @@ bound outside the view is explicitly annotated.
 | Wrench demand | [PDF](figures/01-adaptive-tracking/control_wrench_demand.pdf) | [PNG](figures/01-adaptive-tracking/control_wrench_demand.png) |
 | Physical consistency | [PDF](figures/02-physical-consistency/physical_consistency.pdf) | [PNG](figures/02-physical-consistency/physical_consistency.png) |
 | Connection equivalence | [PDF](figures/04-nominal-validation/connection_equivalence.pdf) | [PNG](figures/04-nominal-validation/connection_equivalence.png) |
+| Connection LC/RB position | [PDF](figures/04-nominal-validation/connection_tracking_position.pdf) | [PNG](figures/04-nominal-validation/connection_tracking_position.png) |
+| Connection LC/RB attitude | [PDF](figures/04-nominal-validation/connection_tracking_attitude.pdf) | [PNG](figures/04-nominal-validation/connection_tracking_attitude.png) |
+| Connection LC/RB geometric errors | [PDF](figures/04-nominal-validation/connection_realization_comparison.pdf) | [PNG](figures/04-nominal-validation/connection_realization_comparison.png) |
+| Connection LC/RB linear velocity | [PDF](figures/04-nominal-validation/connection_tracking_linear_velocity.pdf) | [PNG](figures/04-nominal-validation/connection_tracking_linear_velocity.png) |
+| Connection LC/RB angular velocity | [PDF](figures/04-nominal-validation/connection_tracking_angular_velocity.pdf) | [PNG](figures/04-nominal-validation/connection_tracking_angular_velocity.png) |
 | Nominal reaching | [PDF](figures/04-nominal-validation/nominal_reaching.pdf) | [PNG](figures/04-nominal-validation/nominal_reaching.png) |
 
 ## Data and qualifications
 
-- [Two-estimator summary CSV](tables/baseline_comparison.csv)
-- [Common gains and provisional adaptation gains](gain_summary.json)
+- [Adaptive performance summary](tables/adaptive_performance_summary.csv)
+- [Controller gain summary](tables/controller_gain_summary.csv)
+- [Physical-consistency summary](tables/physical_consistency_summary.csv)
+- [LC/RB realization summary](tables/connection_realization_summary.csv)
+- [Nominal reaching summary](tables/nominal_reaching_summary.csv)
+- [Common gains and tuning qualification](gain_summary.json)
 - [Reaching bound and step-refinement results](finite_time_reaching_summary.json)
 - [Connection residual summary](connection_equivalence_summary.json)
+- [Matched LC/RB protocol record](connection_realization_protocol.json)
 - [Metric definitions](metric_definitions.md)
 - [Diagnostic report](diagnostic_report.md)
 - [Validation status](validation_status.json)

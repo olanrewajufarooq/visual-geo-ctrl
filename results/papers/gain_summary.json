@@ -1,5 +1,5 @@
 {
-  "status": "PROVISIONAL: adaptation gains have NOT been retuned with the common tracking controller",
+  "status": "common tracking gains are verified from the saved runs; estimator-gain tuning provenance is not established",
   "common_tracking_gain_source": "saved optimized Natural/Bregman LC gains, frozen for both adaptive controllers",
   "plant_provenance_warning": "These gains were optimized before correcting PyBullet inertia loading/body frames; no claim of optimality on the revised plant.",
   "common_tracking_gains": {
@@ -160,7 +160,11 @@
   ],
   "gamma_B": 0.09054,
   "optimization_executed": false,
-  "future_adaptation_only_protocol": {
+  "historical_estimator_tuning_audit": {
+    "gamma_and_gamma_B_optimized_under_identical_protocol?": "not established by saved optimization records",
+    "paper_claim": "Do not describe this as a fair estimator-gain optimization; only the shared tracking controller is verified."
+  },
+  "required_future_adaptation_only_protocol": {
     "objective": "mean((position_error/1m)^2 + (geodesic_error/1rad)^2 + 0.001*(force_norm/50N)^2 + 0.001*(torque_norm/5Nm)^2)",
     "weights": [
       1.0,
@@ -266,5 +270,160 @@
       "dtControl": 0.02,
       "dtAdaptation": 0.01
     }
-  }
+  },
+  "actual_saved_run_gains": {
+    "Tracking gains common between Euclidean and Natural/Bregman?": "yes",
+    "Lambda": [
+      [
+        4.392,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        19.97,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        15.26,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.7227,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.967,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.1144
+      ]
+    ],
+    "Lambda_s": [
+      [
+        0.22768670309653916,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.05007511266900351,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0655307994757536,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.3837000138370001,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0341261633919339,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        8.741258741258742
+      ]
+    ],
+    "K_R": [
+      [
+        0.1784,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        6.418,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.4457
+      ]
+    ],
+    "K_xi": [
+      [
+        9.833,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.762,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        33.96
+      ]
+    ],
+    "k_d": 7.934,
+    "k_s": 0.4086,
+    "alpha": 0.5731,
+    "gamma": [
+      0.06224,
+      0.04911,
+      0.003038,
+      0.01321,
+      0.08969,
+      0.004635,
+      0.009389,
+      0.000774,
+      5.955e-05,
+      0.0001565
+    ],
+    "gamma_B": 0.09054,
+    "Estimator-gain tuning provenance": "not established by saved records; do not claim a fair adaptation-gain optimization"
+  },
+  "known_inertia_baseline": "uses the true loaded inertia before release and true bare-vehicle inertia after release"
 }

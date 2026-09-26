@@ -17,6 +17,13 @@ def estimate_to_pi(mode: str, estimate: Any) -> np.ndarray:
     return np.asarray(estimate, dtype=float).ravel()
 
 
+def controller_estimate(cfg: dict, estimate: Any, active_pi: np.ndarray) -> Any:
+    """Select an explicitly configured known-inertia estimate for nominal validation."""
+    if str(cfg.get("knownInertiaSchedule", "")).lower() == "active-plant":
+        return np.asarray(active_pi, dtype=float).copy()
+    return estimate
+
+
 def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
     """Execute one deterministic, multi-rate closed-loop simulation.
 
@@ -138,8 +145,9 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
                     active_pi = payload_drop["barePi"]
 
                 # Instantaneous diagnostics, independent of the zero-order-held command.
+                estimate_for_control = controller_estimate(scenario["controller"], estimate, active_pi)
                 evaluated_wrench, diagnostics, _ = controller(
-                    state, desired, scenario["controller"], estimate, dt_adapt=None
+                    state, desired, scenario["controller"], estimate_for_control, dt_adapt=None
                 )
                 if k % control_every == 0:
                     last_wrench = evaluated_wrench
@@ -158,7 +166,7 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
                 run["Psi"][k] = last_psi
                 run["Vs"][k] = last_vs
                 run["activePlantPi"][k] = active_pi
-                run["estimatePi"][k] = estimate_to_pi(mode, estimate)
+                run["estimatePi"][k] = estimate_to_pi(mode, estimate_for_control)
 
                 J_sym = estimate if mode == "bregman" else pseudo_from_pi(run["estimatePi"][k])
                 run["minPseudoEigenvalue"][k] = float(np.linalg.eigvalsh(J_sym).min())

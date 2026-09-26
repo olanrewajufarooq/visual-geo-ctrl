@@ -9,6 +9,7 @@ python run/run_paper_experiments.py
 python run/run_paper_experiments.py adaptive-drop
 python run/run_paper_experiments.py nominal-connection
 python run/run_paper_experiments.py nominal-reaching
+python run/run_paper_experiments.py connection-realizations
 ```
 
 The adaptive release benchmark uses a 10 s release, a 5 cm position
@@ -32,7 +33,11 @@ results/papers/
   figures/01-adaptive-tracking/       # states, errors, wrench, 3-D
   figures/02-physical-consistency/    # mass and pseudo-inertia margin
   figures/04-nominal-validation/     # connection identity and reaching
-  tables/baseline_comparison.csv
+  tables/adaptive_performance_summary.csv
+  tables/controller_gain_summary.csv
+  tables/physical_consistency_summary.csv
+  tables/connection_realization_summary.csv
+  tables/nominal_reaching_summary.csv
   gain_summary.json
   finite_time_reaching_summary.json
   connection_equivalence_summary.json
@@ -51,8 +56,12 @@ is annotated with its value and an arrow, never falsely drawn at the edge.
 The numerical bound uses the specified eigenvalue estimate, not a tighter
 replacement. Numerical reaching is threshold-and-dwell evidence only.
 
-The Fixed-model controller is excluded from adaptive analysis and default runs.
-The summary CSV now compares only Euclidean and Natural/Bregman adaptation.
+The adaptive comparison includes the Known-inertia controller, which uses the
+true loaded inertia before release and the true bare-vehicle inertia after
+release, plus Euclidean and Natural/Bregman adaptation. The shared tracking gains are verified from the saved runs. The
+saved records cannot establish that `gamma` and `gamma_B` were tuned under an
+identical protocol, so the comparison does not claim a fair estimator-gain
+optimization.
 Velocity
 reference curves are transported into each actual body frame using the full
 adjoint; these references need not coincide between controllers. Angle errors

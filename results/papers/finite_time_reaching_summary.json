@@ -11,8 +11,8 @@
   "T_obs": 1.336,
   "epsilon_s": 0.001,
   "dwell_s": 0.5,
-  "max_integrated_energy_residual_J": 0.0017950150242564966,
-  "energy_residual_relative_to_initial": 0.0033751914452621336,
+  "max_integrated_energy_residual_J": 0.013497657973675747,
+  "energy_residual_relative_to_initial": 0.025379831983687488,
   "passed": true,
   "inertia": [
     [
@@ -227,9 +227,9 @@
   "step_refinement": {
     "dt_coarse_s": 0.002,
     "dt_fine_s": 0.001,
-    "T_obs_fine": 1.337,
+    "T_obs_fine": 1.338,
     "fine_passed": true,
     "failure": null,
-    "fine_energy_residual_relative_to_initial": 0.0017061910997700264
+    "fine_energy_residual_relative_to_initial": 0.001655291055729228
   }
 }

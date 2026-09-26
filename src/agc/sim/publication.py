@@ -13,9 +13,10 @@ from .paper_metrics import _pose_errors, compute_recovery_time, compute_reaching
 from ..math.inertia import inertia_from_pi
 from ..config.optimized_gains import optimized_gains
 
-NAMES = {"nominal": "Fixed-model controller", "euclidean": "Euclidean adaptive controller",
+NAMES = {"nominal": "Known-inertia controller", "euclidean": "Euclidean adaptive controller",
          "bregman": "Natural/Bregman adaptive controller"}
 ADAPTIVE_MODES = ("euclidean", "bregman")
+PRIMARY_MODES = ("nominal",) + ADAPTIVE_MODES
 COMMON_KEYS = ("KR", "Kxi", "Lambda", "kd", "ks", "alpha", "gravity")
 
 
@@ -24,6 +25,8 @@ def paper_scenario(mode, duration=30.):
     common = default_scenario(mode="bregman", duration=duration, enable_pacing=False)["controller"]
     for key in COMMON_KEYS:
         scenario["controller"][key] = deepcopy(common[key])
+    if mode == "nominal":
+        scenario["controller"]["knownInertiaSchedule"] = "active-plant"
     return scenario
 
 
@@ -71,18 +74,94 @@ def baseline_metrics(run, mode, failure=None):
     return row
 
 
+def adaptive_performance_row(run, mode, failure=None):
+    """Paper table row with controller-facing names and separate effort units."""
+    row = baseline_metrics(run, mode, failure)
+    return {
+        "Controller": row["Controller"],
+        "Status": row["Status"],
+        "Pre-release position RMSE [m]": row["Pre-release position RMSE [m]"],
+        "Post-release position RMSE [m]": row["Post-release position RMSE [m]"],
+        "Post-release maximum position error [m]": row["Post-release maximum position error [m]"],
+        "Pre-release geodesic-attitude RMSE [deg]": row["Pre-release attitude RMSE [deg]"],
+        "Post-release geodesic-attitude RMSE [deg]": row["Post-release attitude RMSE [deg]"],
+        "Post-release maximum attitude error [deg]": row["Post-release maximum attitude error [deg]"],
+        "Recovery duration [s]": row["Recovery duration [s]"],
+        "RMS force norm [N]": row["RMS force [N]"],
+        "Peak force norm [N]": row["Peak force [N]"],
+        "RMS torque norm [N m]": row["RMS torque [N m]"],
+        "Peak torque norm [N m]": row["Peak torque [N m]"],
+        "Minimum lambda_min(Jhat)": row["Minimum pseudo-inertia eigenvalue [SI coordinates]"],
+    }
+
+
+def physical_consistency_row(run, mode):
+    if mode not in ADAPTIVE_MODES:
+        raise ValueError("Physical-consistency table is defined for adaptive estimators only")
+    margin = np.asarray(run["minPseudoEigenvalue"], dtype=float)
+    t = np.asarray(run["t"], dtype=float)
+    post_release = margin[t >= 10.]
+    return {
+        "Controller": NAMES[mode],
+        "Initial estimated mass [kg]": float(run["estimatePi"][0, 0]),
+        "Final estimated mass [kg]": float(run["estimatePi"][-1, 0]),
+        "Minimum lambda_min(Jhat)": float(np.min(margin)),
+        "Minimum post-release lambda_min(Jhat)": float(np.min(post_release)) if len(post_release) else None,
+        "Physical-consistency violation?": "yes" if bool(np.any(margin <= 0.)) else "no",
+    }
+
+
+def connection_realization_row(run, connection, scenario, epsilon=1e-3, dwell=.5):
+    position, attitude = _pose_errors(run)
+    metric = np.linalg.inv(scenario["controller"]["Lambda"])
+    weighted = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
+    force = np.linalg.norm(run["wrench"][:, 3:], axis=1)
+    torque = np.linalg.norm(run["wrench"][:, :3], axis=1)
+    return {
+        "Connection realization": rf"C_{connection.upper()}",
+        "Position RMSE [m]": float(np.sqrt(np.mean(position**2))),
+        "Geodesic attitude RMSE [deg]": float(np.degrees(np.sqrt(np.mean(attitude**2)))),
+        "Maximum ||s||_{Lambda_s}": float(np.max(weighted)),
+        "Observed reaching time [s]": compute_reaching_time(run, epsilon, dwell, metric),
+        "RMS force norm [N]": float(np.sqrt(np.mean(force**2))),
+        "Peak force norm [N]": float(np.max(force)),
+        "RMS torque norm [N m]": float(np.sqrt(np.mean(torque**2))),
+        "Peak torque norm [N m]": float(np.max(torque)),
+    }
+
+
+def controller_gain_rows(scenarios):
+    """Machine-readable record of actual gains used in the saved runs."""
+    euclidean, bregman = scenarios["euclidean"]["controller"], scenarios["bregman"]["controller"]
+    shared = all(np.array_equal(euclidean[k], bregman[k]) for k in ("KR", "Kxi", "Lambda", "kd", "ks", "alpha"))
+    return [{
+        "Tracking gains common between Euclidean and Natural/Bregman?": "yes" if shared else "no",
+        "Lambda": np.asarray(euclidean["Lambda"]).tolist(),
+        "Lambda_s": np.linalg.inv(euclidean["Lambda"]).tolist(),
+        "K_R": np.asarray(euclidean["KR"]).tolist(),
+        "K_xi": np.asarray(euclidean["Kxi"]).tolist(),
+        "k_d": float(euclidean["kd"]), "k_s": float(euclidean["ks"]), "alpha": float(euclidean["alpha"]),
+        "gamma": np.asarray(euclidean["gammaE"]).tolist(), "gamma_B": float(bregman["gammaB"]),
+        "Estimator-gain tuning provenance": "not established by saved records; do not claim a fair adaptation-gain optimization",
+    }]
+
+
 def gain_report():
     scenario = paper_scenario("bregman")
     cfg = scenario["controller"]
     return {
-        "status": "PROVISIONAL: adaptation gains have NOT been retuned with the common tracking controller",
+        "status": "common tracking gains are verified from the saved runs; estimator-gain tuning provenance is not established",
         "common_tracking_gain_source": "saved optimized Natural/Bregman LC gains, frozen for both adaptive controllers",
         "plant_provenance_warning": "These gains were optimized before correcting PyBullet inertia loading/body frames; no claim of optimality on the revised plant.",
         "common_tracking_gains": {k: cfg[k] for k in COMMON_KEYS},
         "Lambda_s": np.linalg.inv(cfg["Lambda"]),
         "gamma": optimized_gains("euclidean", "lc")["gammaE"], "gamma_B": cfg["gammaB"],
         "optimization_executed": False,
-        "future_adaptation_only_protocol": {
+        "historical_estimator_tuning_audit": {
+            "gamma_and_gamma_B_optimized_under_identical_protocol?": "not established by saved optimization records",
+            "paper_claim": "Do not describe this as a fair estimator-gain optimization; only the shared tracking controller is verified.",
+        },
+        "required_future_adaptation_only_protocol": {
             "objective": "mean((position_error/1m)^2 + (geodesic_error/1rad)^2 + 0.001*(force_norm/50N)^2 + 0.001*(torque_norm/5Nm)^2)",
             "weights": [1., 1., .001, .001], "duration_s": 30., "release_time_s": 10.,
             "trajectory": scenario["replayId"], "payload": scenario["payloadDrop"],

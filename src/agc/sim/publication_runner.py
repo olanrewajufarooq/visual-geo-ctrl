@@ -4,22 +4,34 @@ import hashlib
 import json
 import subprocess
 import numpy as np
-from .publication import paper_scenario, gain_report, baseline_metrics, write_json, write_csv, reaching_summary, NAMES, ADAPTIVE_MODES
+from .publication import (paper_scenario, gain_report, baseline_metrics, adaptive_performance_row,
+                           physical_consistency_row, controller_gain_rows, connection_realization_row,
+                           write_json, write_csv, reaching_summary, NAMES, PRIMARY_MODES, ADAPTIVE_MODES)
 from .default_scenario import default_scenario
 from .run_scenario import run_scenario
-from ..io.persistence import save_run
+from ..io.persistence import save_run, load_run
 from ..paper.diagnostics import connection_identity
 from ..math.inertia import inertia_from_pi
-from ..viz.publication_figures import adaptive_figures, theory_figures
+from ..viz.publication_figures import adaptive_figures, theory_figures, connection_realization_figures
 
 
 def nominal_scenario(duration, dt=.002):
     scenario = default_scenario(mode="nominal", payload_enabled=False, duration=duration, enable_pacing=False)
-    desired = {"H": np.eye(4), "V": np.zeros(6), "Vdot": np.zeros(6)}
-    desired["H"][2, 3] = 2.
-    scenario["trajectory"] = lambda t: {k: v.copy() for k, v in desired.items()}
-    scenario["replayId"] = "fixed-reference-nonzero-initial-twist"
-    scenario["initial"] = {"H": desired["H"].copy(), "V": np.array([.3, -.2, .1, .4, -.2, .3])}
+    source = scenario["trajectory"]
+    phase = 10.
+    available_duration = float(source.__self__.t[-1] - phase)
+    scenario["timeOffset"] = phase
+    scenario["displayEnd"] = 30.0
+    scenario["requestedDuration"] = float(duration)
+    scenario["duration"] = min(float(duration), available_duration)
+    desired_at_release = source(phase)
+    scenario["sourceTrajectory"] = source
+    scenario["trajectory"] = lambda t: source(t + phase)
+    scenario["replayId"] = f"{scenario['replayId']}@payload-release-phase-10s"
+    scenario["initial"] = {
+        "H": desired_at_release["H"].copy(),
+        "V": desired_at_release["V"].copy() + np.array([.3, -.2, .1, .4, -.2, .3]),
+    }
     inertia = inertia_from_pi(scenario["plantPi"])
     scenario["controller"].update(KR=np.diag([1., 2., 3.]), Kxi=np.eye(3),
                                    Lambda=np.linalg.inv(inertia), kd=1., ks=1., alpha=.5)
@@ -63,48 +75,186 @@ def connection_test(run, scenario):
             "passed": bool(np.all(values[:, 2] <= 1e-12 + 1e-10*scales) and on_manifold["differenceNorm"] < 1e-10)}
 
 
-def run_publication(command, duration, root, raw_root):
+def _json_ready(value):
+    if isinstance(value, np.ndarray): return value.tolist()
+    if isinstance(value, np.generic): return value.item()
+    if isinstance(value, dict): return {str(k): _json_ready(v) for k, v in value.items() if not callable(v)}
+    if isinstance(value, (list, tuple)): return [_json_ready(v) for v in value]
+    return value
+
+
+def source_fingerprint():
+    repo = Path(__file__).resolve().parents[3]
+    source_files = sorted((repo/"src").rglob("*.py")) + [repo/"run"/"run_paper_experiments.py"]
+    digest = hashlib.sha256()
+    for path in source_files:
+        digest.update(str(path.relative_to(repo)).replace("\\", "/").encode())
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def scenario_fingerprint(scenario):
+    duration = float(scenario["duration"])
+    sample_times = sorted(set((0., min(10., duration), duration)))
+    reference = []
+    for time in sample_times:
+        desired = scenario["trajectory"](time)
+        reference.append({"time": time, "H": desired["H"], "V": desired["V"], "Vdot": desired.get("Vdot", np.zeros(6))})
+    payload = {key: scenario.get(key) for key in ("duration", "dtPlant", "dtControl", "dtAdaptation", "plantPi", "plantGravity", "payloadDrop", "initial", "initialEstimate", "controller", "replayId", "payloadProfile", "requestedDuration")}
+    payload["reference_samples"] = reference
+    return hashlib.sha256(json.dumps(_json_ready(payload), sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def cached_scenario(run):
+    """Recover the numerical controller configuration saved with a raw run."""
+    metadata = run["metadata"]
+    controller = {}
+    for key, value in metadata["controller"].items():
+        controller[key] = np.asarray(value, dtype=float) if isinstance(value, list) else value
+    replay_id = metadata.get("replayId", "unknown")
+    is_release_phase = "@payload-release-phase-10s" in replay_id
+    return {"controller": controller, "plantPi": np.asarray(metadata["plantPi"], dtype=float),
+            "plantGravity": np.asarray(metadata["plantGravity"], dtype=float),
+            "payloadDrop": metadata.get("payloadDrop"), "duration": metadata["timing"]["duration"],
+            "dtPlant": metadata["timing"]["dtPlant"], "dtControl": metadata["timing"]["dtControl"],
+            "dtAdaptation": metadata["timing"]["dtAdaptation"], "replayId": replay_id,
+            "timeOffset": 10.0 if is_release_phase else 0.0,
+            "displayEnd": 30.0 if is_release_phase else metadata["timing"]["duration"]}
+
+
+def load_or_run(path, scenario, reuse_cache=False):
+    path = Path(path)
+    cache = {"scenario_sha256": scenario_fingerprint(scenario), "source_sha256": source_fingerprint()}
+    if reuse_cache and (path / "run.npz").is_file():
+        run = load_run(str(path))
+        stored = run.get("metadata", {}).get("cache")
+        completed_duration = float(run["t"][-1]) if len(run.get("t", [])) else None
+        if stored == cache and completed_duration is not None and np.isclose(completed_duration, float(scenario["duration"])):
+            return run, run.get("failure"), True
+    run, failure = run_scenario(scenario)
+    save_run(str(path), run, None, scenario, failure, cache_metadata=cache)
+    return load_run(str(path)), failure, False
+
+
+def connection_pair_protocol(lc_run, rb_run):
+    lc_meta, rb_meta = lc_run["metadata"], rb_run["metadata"]
+    lc_controller, rb_controller = dict(lc_meta["controller"]), dict(rb_meta["controller"])
+    lc_controller.pop("coriolis", None); rb_controller.pop("coriolis", None)
+    exact_known = (lc_meta.get("mode") == "nominal" and rb_meta.get("mode") == "nominal"
+                   and np.array_equal(lc_meta.get("initialEstimate"), lc_meta.get("plantPi"))
+                   and np.array_equal(rb_meta.get("initialEstimate"), rb_meta.get("plantPi")))
+    payload_release = bool(lc_meta.get("payloadDrop") is not None or rb_meta.get("payloadDrop") is not None)
+    adaptation = bool(lc_meta.get("mode") != "nominal" or rb_meta.get("mode") != "nominal")
+    same_controller = lc_controller == rb_controller
+    same_initial = lc_meta.get("initial") == rb_meta.get("initial")
+    same_initial_estimate = lc_meta.get("initialEstimate") == rb_meta.get("initialEstimate")
+    same_plant = lc_meta.get("plantPi") == rb_meta.get("plantPi") and lc_meta.get("plantGravity") == rb_meta.get("plantGravity")
+    same_timing = lc_meta.get("timing") == rb_meta.get("timing") and lc_meta.get("replayId") == rb_meta.get("replayId")
+    desired_samples = bool(np.array_equal(lc_run["Hdesired"], rb_run["Hdesired"]) and np.array_equal(lc_run["Vdesired"], rb_run["Vdesired"]))
+    only_intended = bool(exact_known and not payload_release and not adaptation and lc_meta.get("coriolis") == "lc" and rb_meta.get("coriolis") == "rb" and same_controller and same_initial and same_initial_estimate and same_plant and same_timing and desired_samples)
+    return {
+        "exact_known_inertia": bool(exact_known),
+        "payload_release": payload_release,
+        "adaptation": adaptation,
+        "lc_metadata_coriolis": lc_meta.get("coriolis"), "rb_metadata_coriolis": rb_meta.get("coriolis"),
+        "shared_controller_gains": same_controller,
+        "shared_plant_inertia": same_plant,
+        "identical_initial_configuration": bool(np.array_equal(lc_run["H"][0], rb_run["H"][0])),
+        "identical_initial_velocity": bool(np.array_equal(lc_run["V"][0], rb_run["V"][0])),
+        "identical_desired_trajectory_samples": desired_samples,
+        "only_intended_controller_difference": only_intended,
+    }
+
+
+def connection_pair_passed(protocol):
+    return bool(
+        protocol["exact_known_inertia"]
+        and not protocol["payload_release"]
+        and not protocol["adaptation"]
+        and protocol["shared_controller_gains"]
+        and protocol["shared_plant_inertia"]
+        and protocol["identical_initial_configuration"]
+        and protocol["identical_initial_velocity"]
+        and protocol["identical_desired_trajectory_samples"]
+        and protocol["lc_metadata_coriolis"] == "lc"
+        and protocol["rb_metadata_coriolis"] == "rb"
+        and protocol["only_intended_controller_difference"]
+    )
+
+
+def run_publication(command, duration, root, raw_root, reuse_cache=False):
     root, raw_root = Path(root), Path(raw_root)
     root.mkdir(parents=True, exist_ok=True)
     report = {"optimization_run": False, "fair_adaptation_retuning_pending": True,
               "repeatability": "omitted: deterministic identical trials are not repeatability evidence"}
     if command != "all" and (root/"validation_status.json").exists():
         report.update(json.loads((root/"validation_status.json").read_text(encoding="utf-8")))
-    report.pop(NAMES["nominal"], None)
-    write_json(root/"gain_summary.json", gain_report())
     if command in ("all", "adaptive-drop"):
         runs, scenarios, rows = {}, {}, []
-        for mode in ADAPTIVE_MODES:
-            print(f"Running {NAMES[mode]} with shared tracking gains", flush=True)
+        for mode in PRIMARY_MODES:
             scenario = paper_scenario(mode, duration)
-            run, failure = run_scenario(scenario)
-            save_run(str(raw_root/"adaptive"/mode), run, None, scenario, failure)
+            run, failure, cached = load_or_run(raw_root/"adaptive"/mode, scenario, reuse_cache)
+            if cached:
+                scenario = cached_scenario(run)
+            print(f"{'Reusing' if cached else 'Running'} {NAMES[mode]}", flush=True)
             report[NAMES[mode]] = {"failure": failure, "end_time": float(run["t"][-1]) if len(run["t"]) else None}
-            rows.append(baseline_metrics(run, mode, failure))
+            rows.append(adaptive_performance_row(run, mode, failure))
             if len(run["t"]): runs[mode], scenarios[mode] = run, scenario
+        write_csv(root/"tables"/"adaptive_performance_summary.csv", rows)
         write_csv(root/"tables"/"baseline_comparison.csv", rows)
+        write_csv(root/"tables"/"physical_consistency_summary.csv",
+                  [physical_consistency_row(runs[mode], mode) for mode in ADAPTIVE_MODES if mode in runs])
+        write_csv(root/"tables"/"controller_gain_summary.csv", controller_gain_rows(scenarios))
+        gain = gain_report()
+        gain["actual_saved_run_gains"] = controller_gain_rows(scenarios)[0]
+        gain["known_inertia_baseline"] = "uses the true loaded inertia before release and true bare-vehicle inertia after release"
+        write_json(root/"gain_summary.json", gain)
         if runs:
             adaptive_figures(runs, scenarios, root/"figures")
-    if command in ("all", "nominal-connection", "nominal-reaching"):
-        print("Running isolated known-inertia validation", flush=True)
+    else:
+        write_json(root/"gain_summary.json", gain_report())
+    if command in ("all", "nominal-connection", "nominal-reaching", "connection-realizations"):
         scenario = nominal_scenario(duration)
-        run, failure = run_scenario(scenario)
-        save_run(str(raw_root/"nominal"), run, None, scenario, failure)
+        run, failure, cached = load_or_run(raw_root/"nominal-lemniscate-segment", scenario, reuse_cache)
+        print(f"{'Reusing' if cached else 'Running'} lemniscate known-inertia nominal validation", flush=True)
         summary = reaching_summary(run, scenario)
         summary["failure"] = failure
         # Integration refinement is validation, not gain optimization.
         refined_scenario = nominal_scenario(min(duration, 4.), dt=.001)
-        refined_run, refined_failure = run_scenario(refined_scenario)
-        save_run(str(raw_root/"nominal-refinement"), refined_run, None, refined_scenario, refined_failure)
+        refined_run, refined_failure, refined_cached = load_or_run(raw_root/"nominal-lemniscate-segment-refinement", refined_scenario, reuse_cache)
         refined = reaching_summary(refined_run, refined_scenario)
         summary["step_refinement"] = {"dt_coarse_s": .002, "dt_fine_s": .001,
             "T_obs_fine": refined["T_obs"], "fine_passed": refined["passed"], "failure": refined_failure,
             "fine_energy_residual_relative_to_initial": refined["energy_residual_relative_to_initial"]}
         connection = connection_test(run, scenario)
         write_json(root/"finite_time_reaching_summary.json", summary)
+        write_csv(root/"tables"/"nominal_reaching_summary.csv", [{
+            key: summary[key] for key in ("V_s(0)", "lambda_min(Lambda_s)", "lambda_max(I)", "k_s", "alpha", "q", "c_Lambda", "c_alpha", "epsilon_s", "dwell_s", "T_obs", "T_bound", "passed")
+        }])
         write_json(root/"connection_equivalence_summary.json", {k: v for k, v in connection.items() if k not in ("t", "difference", "theory", "residual")})
         theory_figures(run, scenario, root/"figures", summary, connection)
+        if command in ("all", "nominal-connection", "connection-realizations"):
+            rb_scenario = nominal_scenario(duration)
+            rb_scenario["controller"]["coriolis"] = "rb"
+            rb_run, rb_failure, rb_cached = load_or_run(raw_root/"connection-realizations-lemniscate-segment"/"rb", rb_scenario, reuse_cache)
+            print(f"{'Reusing' if rb_cached else 'Running'} matched C_RB nominal comparison", flush=True)
+            # The validated isolated nominal run is the LC member of this matched pair.
+            lc_run, lc_failure = run, failure
+            connection_runs = {"lc": lc_run, "rb": rb_run}
+            connection_scenarios = {"lc": scenario, "rb": rb_scenario}
+            connection_realization_figures(connection_runs, connection_scenarios, root/"figures")
+            pair_protocol = connection_pair_protocol(lc_run, rb_run)
+            write_json(root/"connection_realization_protocol.json", pair_protocol)
+            write_csv(root/"tables"/"connection_realization_summary.csv", [
+                connection_realization_row(lc_run, "lc", scenario),
+                connection_realization_row(rb_run, "rb", rb_scenario),
+            ])
+            report["connection_realization_lc_failure"] = lc_failure
+            report["connection_realization_rb_failure"] = rb_failure
+            report["connection_realization_protocol_passed"] = connection_pair_passed(pair_protocol)
         report["nominal_reaching_passed"] = summary["passed"]
+        report["nominal_replay_duration_s"] = float(run["t"][-1])
+        report["nominal_energy_residual_relative_to_initial"] = summary["energy_residual_relative_to_initial"]
         report["connection_identity_passed"] = connection["passed"]
         report["nominal_refinement_passed"] = refined["passed"]
         if not summary["passed"]:
@@ -117,7 +267,7 @@ def run_publication(command, duration, root, raw_root):
         digest.update(str(path.relative_to(repo)).replace("\\", "/").encode())
         digest.update(path.read_bytes())
     dirty = bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=normal"], cwd=repo, text=True).strip())
-    write_json(root/"manifest.json", {"command": command, "duration_s": duration, "base_commit": commit,
+    write_json(root/"manifest.json", {"command": command, "duration_s": duration, "reuse_cache": reuse_cache, "base_commit": commit,
                                      "worktree_dirty_at_generation": dirty, "source_sha256": digest.hexdigest(),
                                      "environment": "agc", "report": report})
     write_json(root/"validation_status.json", report)
@@ -144,13 +294,16 @@ DIAGNOSTICS = """# Numerical-results diagnostic report
 - Connection-plot y-axis titles omit [1] for readability, but both norms are dimensionless: torque is divided by 1 N m and force by 1 N before taking the Euclidean norm. This is not mixed-unit wrench effort; see metric_definitions.md. The identity residual is theoretically zero at all times; its computed roundoff-level values remain on a logarithmic scale.
 
 - Adaptation-only re-optimization is NOT run. Existing gamma and gamma_B are provisional, not a jointly fair optimized comparison. Do not claim optimality or estimator superiority from these runs.
-- The fixed-model controller is excluded from adaptive figures, metrics and default runs. The separate nominal theory tests use exact known inertia, not an adaptive estimator.
+- Historical optimizer records contain different tracking gains for Euclidean and Natural/Bregman variants. The published runs overwrite those common gains identically, but the records do not establish a common objective, trajectory, initial estimate, duration, constraints, and weights for gamma versus gamma_B.
+- The Known-inertia controller receives the true loaded inertia before release and the true bare-vehicle inertia after release. It is included as a model-knowledge reference; the adaptive estimators do not receive this parameter switch. The separate nominal reaching test has no payload release.
+- The matched LC/RB closed-loop study is a separate test from the same-state connection identity. Its protocol file records equal plant, initial state, reference samples, and gains; only the Coriolis realization changes. Small off-manifold differences are expected and neither realization is ranked.
 - No rotor allocation or actuator limits exist in this ideal wrench-actuated model. These plots do not establish hardware feasibility.
 - Payload release violates the constant-parameter assumption at the jump. Adaptive asymptotic theory does not assert finite-time reaching or parameter convergence.
 - Bregman stepping uses an SPD-preserving exponential update with numerical eigenvalue/exponent safeguards; it is not exact continuous-time integration.
 - Identical repeated trials and all old flat figures/tables are superseded and must not be cited.
 - FAILED reaching figures are diagnostics only; numerical threshold crossing is not exact finite-time convergence.
-- All payload time histories use 0--30 s. Isolated reaching and connection-equivalence figures share a focused reaching-interval view. The connection residual remains logarithmic and its x-axis measures time since initialization. Nominal runs have no payload-release marker because no release occurs.
+- All payload time histories use 0--30 s. The nominal tests replay the lemniscate starting from its payload-release phase (10 s). The connection-identity figure uses the original lemniscate clock and begins at 10 s; reaching times remain measured from initialization. The available replay segment ends at 20.882 s, so nominal closed-loop plots stop there rather than clamping a desired state. Reaching and connection-equivalence figures share a focused reaching-interval view. The connection residual remains logarithmic.
+- The nominal transverse-energy integral's relative numerical residual is retained in the reaching summary. Report the threshold-and-dwell bound check as numerical evidence, not as a pointwise reproduction of the continuous-time energy identity.
 """
 
 DEFINITIONS = """# Metric definitions
@@ -176,13 +329,14 @@ Physical margin: smallest eigenvalue of Jhat directly (Bregman) or pseudo_from_p
 (Euclidean), with full-run and post-release minima and nonpositive flag.
 Pseudo-inertia combines kg, kg m, kg m^2; eigenvalues are coordinate-scaled SI
 certificates, not a scalar with one physical unit. Likewise the weighted s norm
-uses the specified design metric and is labelled metric units.
+uses the specified design metric and therefore has no single physical unit.
 
 RPY is xyz Euler visualization, unwrapped independently in time and aligned by
 integer 360-degree offsets initially; geodesic error is used for all quantitative claims.
 Desired velocity in each actual body is Ad_(He^-1) Vd, including the translational
 adjoint term. These transported references differ slightly between controllers;
-the black dashed curves show each, not an incorrect shared raw Vd.
+the black dashed curves are labelled "Transported reference" and show each,
+not an incorrect shared raw Vd.
 
 ## Connection-equivalence norm and axis labels
 
