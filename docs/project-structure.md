@@ -23,11 +23,12 @@ adaptive-geo-ctrl-pybullet/
 |   |-- troubleshooting.md
 |   `-- README.md
 |-- run/
-|   |-- generate_paper_figures.py
 |   |-- optimize_gains.py
+|   |-- plot_simulation_setup.py
 |   |-- plot_trajectories.py
 |   |-- replay_run.py
 |   |-- run_batch.py
+|   |-- run_paper_experiments.py
 |   |-- run_theory_suite.py
 |   `-- README.md
 |-- src/agc/
