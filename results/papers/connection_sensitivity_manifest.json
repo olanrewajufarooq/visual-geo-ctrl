@@ -1,14 +1,14 @@
 {
   "experiment": "connection-sensitivity",
-  "export_source_sha256": "f929dc9fee38dc9187991eab5e54718e06f8c35d9c6e449eff61cfbb99210300",
+  "export_source_sha256": "ba01593207c44b4a433ad8b4f7cd2453f4caff45498d9fd10adc04a8f684293a",
   "raw_provenance": {
     "lc": {
       "scenario_sha256": "71e3010ab381df0538b474a14a518429d268d86d9256da53897ad397e9e47747",
-      "source_sha256": "50f822bb8150a582045be58b1fb2dfea0f8225dac99d193c1d1eab614348e5e1"
+      "source_sha256": "ba01593207c44b4a433ad8b4f7cd2453f4caff45498d9fd10adc04a8f684293a"
     },
     "rb": {
       "scenario_sha256": "a0706e38a96266f2b03e803630f478f66aeda4456be465074e2ef7a3cf6d79ac",
-      "source_sha256": "50f822bb8150a582045be58b1fb2dfea0f8225dac99d193c1d1eab614348e5e1"
+      "source_sha256": "ba01593207c44b4a433ad8b4f7cd2453f4caff45498d9fd10adc04a8f684293a"
     }
   },
   "full_source_interval_s": [

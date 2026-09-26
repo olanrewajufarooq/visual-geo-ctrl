@@ -1,7 +1,42 @@
 """Generalized 6D inertia and 4D pseudo-inertia mappings."""
 
 import numpy as np
+import warnings
 from .se3 import skew
+
+
+def center_and_principal_moments(parameters: np.ndarray):
+    """Body-frame CoM [m] and ascending central principal moments [kg m^2].
+
+    Accepts an (N, 10) parameter history. Invalid samples remain NaN;
+    finite negative moments are retained, never projected to physical values.
+    """
+    parameters = np.asarray(parameters, dtype=float)
+    if parameters.ndim != 2 or parameters.shape[1] != 10:
+        raise ValueError("Expected an (N, 10) inertial parameter history")
+    centers = np.full((len(parameters), 3), np.nan)
+    moments = np.full_like(centers, np.nan)
+    invalid = 0
+    for i, pi in enumerate(parameters):
+        if not np.isfinite(pi).all() or pi[0] <= 0:
+            invalid += 1
+            continue
+        with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+            c = pi[1:4] / pi[0]
+            central = inertia_from_pi(pi)[:3, :3] - pi[0] * (
+                np.dot(c, c) * np.eye(3) - np.outer(c, c))
+        if not np.isfinite(c).all() or not np.isfinite(central).all():
+            invalid += 1
+            continue
+        centers[i] = c
+        moments[i] = np.linalg.eigvalsh(central)
+    if invalid:
+        warnings.warn(f"{invalid} invalid inertial samples left as gaps in CoM/principal moments",
+                      RuntimeWarning, stacklevel=2)
+    if np.any(moments <= 0):
+        warnings.warn("Nonpositive central principal moments retained without projection",
+                      RuntimeWarning, stacklevel=2)
+    return centers, moments
 
 
 def inertia_from_pi(pi: np.ndarray) -> np.ndarray:
