@@ -6,8 +6,8 @@
   <material name="cnc_aluminum"><color rgba="0.55 0.58 0.62 1.0"/></material>
   <material name="motor_stator"><color rgba="0.28 0.28 0.32 1.0"/></material>
   <material name="motor_silver"><color rgba="0.80 0.82 0.86 1.0"/></material>
-  <material name="prop_front"><color rgba="0.0 0.90 0.35 0.65"/></material>
-  <material name="prop_rear"><color rgba="1.0 0.30 0.05 0.65"/></material>
+  <material name="prop_front"><color rgba="0.18 0.46 0.44 0.80"/></material>
+  <material name="prop_rear"><color rgba="0.55 0.26 0.20 0.80"/></material>
   <material name="camera_lens"><color rgba="0.05 0.05 0.08 1.0"/></material>
   <material name="fpv_case"><color rgba="0.95 0.35 0.05 1.0"/></material>
   <material name="landing_gear"><color rgba="0.15 0.15 0.17 1.0"/></material>
@@ -121,23 +121,11 @@
       <geometry><cylinder radius="0.008" length="0.010"/></geometry>
       <material name="cnc_aluminum"/>
     </visual>
-    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
-    <visual>
-      <origin xyz="0.28000 0.00000 0.045"/>
-      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
-      <material name="prop_front"/>
-    </visual>
     <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
     <visual>
       <origin xyz="0.28000 0.00000 0.046" rpy="0 0 0.7850"/>
       <geometry><box size="0.25 0.022 0.002"/></geometry>
       <material name="matte_carbon"/>
-    </visual>
-    <!-- Navigation Tip LED -->
-    <visual>
-      <origin xyz="0.30240 0.00000 0.015"/>
-      <geometry><box size="0.015 0.015 0.008"/></geometry>
-      <material name="led_cyan"/>
     </visual>
   </link>
   <joint name="joint_arm_1" type="fixed">
@@ -183,23 +171,11 @@
       <geometry><cylinder radius="0.008" length="0.010"/></geometry>
       <material name="cnc_aluminum"/>
     </visual>
-    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
-    <visual>
-      <origin xyz="0.14000 0.24249 0.045"/>
-      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
-      <material name="prop_front"/>
-    </visual>
     <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
     <visual>
       <origin xyz="0.14000 0.24249 0.046" rpy="0 0 1.8322"/>
       <geometry><box size="0.25 0.022 0.002"/></geometry>
       <material name="matte_carbon"/>
-    </visual>
-    <!-- Navigation Tip LED -->
-    <visual>
-      <origin xyz="0.15120 0.26189 0.015"/>
-      <geometry><box size="0.015 0.015 0.008"/></geometry>
-      <material name="led_red"/>
     </visual>
   </link>
   <joint name="joint_arm_2" type="fixed">
@@ -245,23 +221,11 @@
       <geometry><cylinder radius="0.008" length="0.010"/></geometry>
       <material name="cnc_aluminum"/>
     </visual>
-    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
-    <visual>
-      <origin xyz="-0.14000 0.24249 0.045"/>
-      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
-      <material name="prop_rear"/>
-    </visual>
     <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
     <visual>
       <origin xyz="-0.14000 0.24249 0.046" rpy="0 0 2.8794"/>
       <geometry><box size="0.25 0.022 0.002"/></geometry>
       <material name="matte_carbon"/>
-    </visual>
-    <!-- Navigation Tip LED -->
-    <visual>
-      <origin xyz="-0.15120 0.26189 0.015"/>
-      <geometry><box size="0.015 0.015 0.008"/></geometry>
-      <material name="led_red"/>
     </visual>
   </link>
   <joint name="joint_arm_3" type="fixed">
@@ -307,23 +271,11 @@
       <geometry><cylinder radius="0.008" length="0.010"/></geometry>
       <material name="cnc_aluminum"/>
     </visual>
-    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
-    <visual>
-      <origin xyz="-0.28000 0.00000 0.045"/>
-      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
-      <material name="prop_rear"/>
-    </visual>
     <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
     <visual>
       <origin xyz="-0.28000 0.00000 0.046" rpy="0 0 3.9266"/>
       <geometry><box size="0.25 0.022 0.002"/></geometry>
       <material name="matte_carbon"/>
-    </visual>
-    <!-- Navigation Tip LED -->
-    <visual>
-      <origin xyz="-0.30240 0.00000 0.015"/>
-      <geometry><box size="0.015 0.015 0.008"/></geometry>
-      <material name="led_amber"/>
     </visual>
   </link>
   <joint name="joint_arm_4" type="fixed">
@@ -369,23 +321,11 @@
       <geometry><cylinder radius="0.008" length="0.010"/></geometry>
       <material name="cnc_aluminum"/>
     </visual>
-    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
-    <visual>
-      <origin xyz="-0.14000 -0.24249 0.045"/>
-      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
-      <material name="prop_rear"/>
-    </visual>
     <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
     <visual>
       <origin xyz="-0.14000 -0.24249 0.046" rpy="0 0 4.9738"/>
       <geometry><box size="0.25 0.022 0.002"/></geometry>
       <material name="matte_carbon"/>
-    </visual>
-    <!-- Navigation Tip LED -->
-    <visual>
-      <origin xyz="-0.15120 -0.26189 0.015"/>
-      <geometry><box size="0.015 0.015 0.008"/></geometry>
-      <material name="led_green"/>
     </visual>
   </link>
   <joint name="joint_arm_5" type="fixed">
@@ -431,23 +371,11 @@
       <geometry><cylinder radius="0.008" length="0.010"/></geometry>
       <material name="cnc_aluminum"/>
     </visual>
-    <!-- Propeller Disc (Translucent Aerodynamic Blur) -->
-    <visual>
-      <origin xyz="0.14000 -0.24249 0.045"/>
-      <geometry><cylinder radius="0.125" length="0.003"/></geometry>
-      <material name="prop_front"/>
-    </visual>
     <!-- Propeller Blade Crossbar (High-Detail Airfoil Silhouette) -->
     <visual>
       <origin xyz="0.14000 -0.24249 0.046" rpy="0 0 6.0210"/>
       <geometry><box size="0.25 0.022 0.002"/></geometry>
       <material name="matte_carbon"/>
-    </visual>
-    <!-- Navigation Tip LED -->
-    <visual>
-      <origin xyz="0.15120 -0.26189 0.015"/>
-      <geometry><box size="0.015 0.015 0.008"/></geometry>
-      <material name="led_green"/>
     </visual>
   </link>
   <joint name="joint_arm_6" type="fixed">
