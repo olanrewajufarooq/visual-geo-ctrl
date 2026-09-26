@@ -138,18 +138,30 @@ def render_scene(
                     gates_id, link_idx, rgbaColor=[0.85, 0.25, 0.12, 1.0], specularColor=[0.05, 0.05, 0.05], physicsClientId=cid
                 )
 
-        # 8. Load Hexacopter URDF
+        # 8. Load Hexacopter URDF (100% solid carbon body, arms, landing gear, motors)
         urdf_file = str(REPO_ROOT / "assets" / "hexacopter.urdf")
         uav_id = p.loadURDF(urdf_file, uav_pos, uav_quat, physicsClientId=cid)
 
-        # Semi-transparent muted rotor discs (slate-teal front, terracotta rear)
-        for shape in p.getVisualShapeData(uav_id, physicsClientId=cid):
-            link_idx = shape[1]
-            rgba = list(shape[7])
-            if rgba[1] > 0.7 and rgba[0] < 0.2:
-                p.changeVisualShape(uav_id, link_idx, rgbaColor=[0.18, 0.46, 0.44, 0.45], physicsClientId=cid)
-            elif rgba[0] > 0.8 and rgba[1] < 0.4:
-                p.changeVisualShape(uav_id, link_idx, rgbaColor=[0.55, 0.26, 0.20, 0.45], physicsClientId=cid)
+        # 6 semi-transparent rotor discs (alpha = 0.50, notably less transparent / more solid than the alpha = 0.20 trajectory line)
+        arm_length = 0.28
+        arm_angles = [0.0, 60.0, 120.0, 180.0, 240.0, 300.0]
+        rotor_discs: List[int] = []
+        for deg in arm_angles:
+            rad = np.radians(deg)
+            mx = uav_pos[0] + arm_length * np.cos(rad)
+            my = uav_pos[1] + arm_length * np.sin(rad)
+            mz = uav_pos[2] + 0.045
+            is_front = (deg <= 60.0 or deg >= 300.0)
+            r_col = [0.18, 0.46, 0.44, 0.50] if is_front else [0.55, 0.26, 0.20, 0.50]
+            vis_r = p.createVisualShape(
+                p.GEOM_CYLINDER,
+                radius=0.125,
+                length=0.003,
+                rgbaColor=r_col,
+                physicsClientId=cid,
+            )
+            r_bid = p.createMultiBody(0, -1, vis_r, [mx, my, mz], [0, 0, 0, 1], physicsClientId=cid)
+            rotor_discs.append(r_bid)
 
         # 9. Attach evaluation offset payload
         payload_def = get_payload_profile("evaluation")
@@ -308,21 +320,23 @@ def render_scene(
             pil_img = Image.fromarray(rgb)
             rendered_images[key] = pil_img
 
-            out_file = output_dir / cfg["filename"]
-            pil_img.save(out_file, "PNG", optimize=True)
-            generated_files[key] = out_file
-            print(f"[EXPORT] Saved {cfg['desc']} -> {out_file}")
+            stem = Path(cfg["filename"]).stem
+            png_f, pdf_f = save_figure_pair(pil_img, output_dir / stem)
+            generated_files[f"{key}_png"] = png_f
+            generated_files[f"{key}_pdf"] = pdf_f
+            print(f"[EXPORT] Saved {cfg['desc']} -> {png_f.name}, {pdf_f.name}")
 
             if cfg.get("is_primary"):
-                prim_file = output_dir / "simulation_setup.png"
-                pil_img.save(prim_file, "PNG", optimize=True)
-                generated_files["primary"] = prim_file
-                print(f"[EXPORT] Saved primary figure -> {prim_file}")
+                prim_png, prim_pdf = save_figure_pair(pil_img, output_dir / "simulation_setup")
+                generated_files["primary_png"] = prim_png
+                generated_files["primary_pdf"] = prim_pdf
+                print(f"[EXPORT] Saved primary figure -> {prim_png.name}, {prim_pdf.name}")
 
             if "alias" in cfg:
-                alias_file = output_dir / cfg["alias"]
-                pil_img.save(alias_file, "PNG", optimize=True)
-                generated_files[cfg["alias"]] = alias_file
+                alias_stem = Path(cfg["alias"]).stem
+                alias_png, alias_pdf = save_figure_pair(pil_img, output_dir / alias_stem)
+                generated_files[f"{cfg['alias']}_png"] = alias_png
+                generated_files[f"{cfg['alias']}_pdf"] = alias_pdf
 
         # 12. Render Detail View with Delicate, Transparent Trajectory (alpha = 0.20, r = 0.008m)
         build_trajectory(rgba=[0.10, 0.65, 0.95, 0.20], radius=0.008)
@@ -370,21 +384,22 @@ def render_scene(
         detail_img = Image.fromarray(rgb_det)
         rendered_images["vehicle_payload_callout"] = detail_img
 
-        out_file_det = output_dir / detail_cfg["filename"]
-        detail_img.save(out_file_det, "PNG", optimize=True)
-        generated_files["vehicle_payload_callout"] = out_file_det
-        print(f"[EXPORT] Saved {detail_cfg['desc']} -> {out_file_det}")
+        det_stem = Path(detail_cfg["filename"]).stem
+        det_png, det_pdf = save_figure_pair(detail_img, output_dir / det_stem)
+        generated_files["vehicle_payload_callout_png"] = det_png
+        generated_files["vehicle_payload_callout_pdf"] = det_pdf
+        print(f"[EXPORT] Saved {detail_cfg['desc']} -> {det_png.name}, {det_pdf.name}")
 
         # 13. Generate Composite Multi-Panel Publication Figure with IEEE-style Subfigure Captions Below Panels
         if export_composite and "cand1_standard_3q" in rendered_images:
-            comp_file = output_dir / "simulation_setup_composite.png"
-            create_composite_figure(
+            comp_png, comp_pdf = create_composite_figure(
                 overview_img=rendered_images["cand1_standard_3q"],
                 detail_img=detail_img,
-                out_path=comp_file,
+                out_base_path=output_dir / "simulation_setup_composite",
             )
-            generated_files["composite"] = comp_file
-            print(f"[EXPORT] Saved IEEE composite publication figure -> {comp_file}")
+            generated_files["composite_png"] = comp_png
+            generated_files["composite_pdf"] = comp_pdf
+            print(f"[EXPORT] Saved IEEE composite publication figure -> {comp_png.name}, {comp_pdf.name}")
 
     finally:
         p.disconnect(cid)
@@ -392,12 +407,31 @@ def render_scene(
     return generated_files
 
 
+def save_figure_pair(pil_img: Image.Image, base_file_path: Path) -> tuple[Path, Path]:
+    """Save an image as both high-resolution PNG and print-ready PDF (300 DPI)."""
+    png_path = base_file_path.with_suffix(".png")
+    pdf_path = base_file_path.with_suffix(".pdf")
+
+    # 1. Save PNG
+    pil_img.save(png_path, "PNG", optimize=True)
+
+    # 2. Save PDF
+    if pil_img.mode in ("RGBA", "LA"):
+        bg = Image.new("RGB", pil_img.size, (255, 255, 255))
+        bg.paste(pil_img, mask=pil_img.split()[3])
+        bg.save(pdf_path, "PDF", resolution=300.0)
+    else:
+        pil_img.convert("RGB").save(pdf_path, "PDF", resolution=300.0)
+
+    return png_path, pdf_path
+
+
 def create_composite_figure(
     overview_img: Image.Image,
     detail_img: Image.Image,
-    out_path: Path,
-):
-    """Create a publication-quality composite figure with subfigure captions below panels."""
+    out_base_path: Path,
+) -> tuple[Path, Path]:
+    """Create a publication-quality composite figure with subfigure captions below panels, saving PNG and PDF."""
     total_w = 2800
     panel_h = 1350
     caption_h = 110
@@ -436,7 +470,7 @@ def create_composite_figure(
     pos_x_b = (w_left + 16) + (w_right - text_w_b) // 2
     draw.text((pos_x_b, panel_h + 35), cap_b, fill=(30, 35, 42, 255), font=font_reg)
 
-    canvas.save(out_path, "PNG", optimize=True)
+    return save_figure_pair(canvas, out_base_path)
 
 
 def main():
