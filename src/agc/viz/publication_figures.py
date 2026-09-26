@@ -6,6 +6,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 from ..math.se3 import inv_se3, adjoint_se3
+from ..math.inertia import center_and_principal_moments
 from ..sim.publication import NAMES, PRIMARY_MODES
 from ..sim.paper_metrics import _pose_errors
 
@@ -99,6 +100,7 @@ def adaptive_figures(runs, scenarios, output_dir):
     axes[0].step(first["t"], first["activePlantPi"][:, 0], where="post", color="black", ls="--", label="True mass")
     axes[1].axhline(0, color="black", lw=.6)
     legend(fig, axes[0]); save(fig, Path(output_dir)/"02-physical-consistency", "physical_consistency")
+    inertial_estimate_figures(runs, output_dir)
 
     if "bregman" in runs:
         run = runs["bregman"]
@@ -111,6 +113,30 @@ def adaptive_figures(runs, scenarios, output_dir):
         ax.set(xlabel="x [m]", ylabel="y [m]", zlabel="z [m]")
         ax.legend(loc="upper center", bbox_to_anchor=(.5, 1.15), fontsize=6)
         save(fig, out, "tracking_3d_bregman")
+
+
+def inertial_estimate_figures(runs, output_dir):
+    """Export additional estimator diagnostics without rerunning the plant."""
+    adaptive = {mode: runs[mode] for mode in ("euclidean", "bregman") if mode in runs}
+    if not adaptive:
+        return
+    first = next(iter(adaptive.values()))
+    truth = center_and_principal_moments(first["activePlantPi"])
+    estimates = {mode: center_and_principal_moments(run["estimatePi"])
+                 for mode, run in adaptive.items()}
+    for index, name, labels in (
+        (0, "estimated_center_of_mass", [rf"$\hat c_{{{axis}}}$ [m]" for axis in "xyz"]),
+        (1, "estimated_principal_inertia", [rf"$\hat J_{{c,{i}}}$ [kg m$^2$]" for i in (1, 2, 3)]),
+    ):
+        fig, axes = panels(labels)
+        for mode, run in adaptive.items():
+            for j, ax in enumerate(axes):
+                ax.plot(run["t"], estimates[mode][index][:, j], label=NAMES[mode], **STYLES[mode])
+        for j, ax in enumerate(axes):
+            ax.step(first["t"], truth[index][:, j], where="post", color="black",
+                    ls="--", label="True value")
+        legend(fig, axes[0])
+        save(fig, Path(output_dir)/"02-physical-consistency", name)
 
 
 def connection_realization_figures(runs, scenarios, output_dir):

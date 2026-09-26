@@ -1,10 +1,10 @@
 {
-  "command": "all",
+  "command": "adaptive-drop",
   "duration_s": 30.0,
-  "reuse_cache": true,
-  "base_commit": "efbce214fc09d3ba479fe2b233ed6e1123e89b25",
+  "reuse_cache": false,
+  "base_commit": "dd27a0daf48a12a6c9cc8b1def584d2e0fcdce31",
   "worktree_dirty_at_generation": true,
-  "source_sha256": "ecdc979e5db952d103845cdd13911edd03c0d818369c86d0c97430ccb6c364b3",
+  "source_sha256": "ba01593207c44b4a433ad8b4f7cd2453f4caff45498d9fd10adc04a8f684293a",
   "environment": "agc",
   "report": {
     "optimization_run": false,
@@ -26,9 +26,11 @@
     "connection_realization_rb_failure": null,
     "connection_realization_protocol_passed": true,
     "nominal_reaching_passed": true,
-    "nominal_replay_duration_s": 20.882,
-    "nominal_energy_residual_relative_to_initial": 0.025379831983687488,
+    "nominal_replay_duration_s": 20.0,
+    "nominal_energy_residual_relative_to_initial": 0.003035680224515749,
     "connection_identity_passed": true,
-    "nominal_refinement_passed": true
+    "nominal_refinement_passed": true,
+    "nominal_experiment": "connection-sensitivity",
+    "nominal_later_threshold_departure": true
   }
 }

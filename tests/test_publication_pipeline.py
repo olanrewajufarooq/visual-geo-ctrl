@@ -247,8 +247,8 @@ def test_publication_exports_pdf_and_png_with_shared_limits(tmp_path):
         runs[mode], failure = run_scenario(scenario)
         assert failure is None
     adaptive_figures(runs, scenarios, tmp_path)
-    assert len(list(tmp_path.rglob("*.pdf"))) == 8
-    assert len(list(tmp_path.rglob("*.png"))) == 8
+    assert len(list(tmp_path.rglob("*.pdf"))) == 10
+    assert len(list(tmp_path.rglob("*.png"))) == 10
     fig, axes = panels(["a", "b"])
     assert axes[0].get_xlim() == (0, 30)
     plt.close(fig)
