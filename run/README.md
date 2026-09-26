@@ -119,9 +119,9 @@ python run/plot_trajectories.py --replay-id lemniscate_01_auto
 
 ---
 
-### 6. `generate_paper_figures.py`
-Regenerates publication-ready figures (attitude/position error, parameter estimates, C1 vs C2 comparisons, Euclidean vs Bregman comparisons) from a saved run or suite directory.
+### 6. `plot_simulation_setup.py`
+Generates publication-quality 3D simulation-setup figures (arena, gates, trajectory, vehicle, and IEEE composite panels) in both PNG and 300 DPI PDF formats.
 
 ```powershell
-python run/generate_paper_figures.py results/timestamped/<timestamp>
+python run/plot_simulation_setup.py
 ```
