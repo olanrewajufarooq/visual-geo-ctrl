@@ -63,26 +63,28 @@ python run/run_batch.py --serial --duration 10.0
 ---
 
 ### 3. `optimize_gains.py`
-Performs staged block-coordinate gain optimization (Particle Swarm or Differential Evolution) over tracking gains ($K_R, K_\xi$), damping/metric gains ($\Lambda, k_s, k_d$), and adaptation gains ($\gamma_E, \gamma_B$).
+Performs staged block-coordinate gain optimization (Particle Swarm Optimization) over tracking gains ($K_R, K_\xi$), damping/metric gains ($\Lambda, k_s, k_d$), and adaptation gains ($\gamma_E, \gamma_B$).
 
 ```powershell
-# Optimize Bregman LC gains using hierarchical 7-stage schedule
-python run/optimize_gains.py --mode bregman --coriolis lc --schedule hierarchical
+# Optimize all modes (nominal tracking baseline followed by isolated adaptation tuning)
+python run/optimize_gains.py --mode all --schedule hierarchical
 
-# Optimize Euclidean RB using Differential Evolution with Nelder-Mead polish
-python run/optimize_gains.py --mode euclidean --coriolis rb --method de --polish
+# Optimize nominal tracking gains only
+python run/optimize_gains.py --mode nominal --swarm-size 30 --max-iter 40
+
+# Optimize adaptive gains with frozen tracking gains
+python run/optimize_gains.py --mode adaptive --swarm-size 20 --max-iter 30
 ```
 
 **Options:**
-- `--mode`: `nominal`, `euclidean`, `bregman`, or `all`.
-- `--coriolis`: `lc`, `rb`, or `all`.
-- `--schedule`: `hierarchical` (7 stages: $K \to \Lambda,k_s,k_d \to \Lambda \to k_s,k_d \to \gamma \to \text{all}$) or `classic` (4 stages).
-- `--method`: `pso` (Particle Swarm) or `de` (Differential Evolution).
-- `--polish`: Run Nelder-Mead simplex polishing on final `all` stage.
+- `--mode`: `nominal`, `adaptive`, or `all` (default: `all`).
+- `--coriolis`: `lc`, `rb`, or `all` (default: `all`; evaluated over both forms to ensure invariance).
+- `--schedule`: `hierarchical` (6 stages) or `classic`.
 - `--duration`: Evaluation flight duration in seconds (default: 30.0 s).
-- `--replay-id`: Trajectory benchmark ID (default: `lemniscate_01_auto`).
-- `--swarm-size`: Swarm size / population multiplier (default: 50).
-- `--max-iter`: Maximum iterations per stage (default: 20).
+- `--train-replay-ids`: Comma-separated replay IDs (default: `lemniscate_02_auto,lemniscate_03_auto`).
+- `--training-payload-profiles`: Comma-separated named payload profiles (default: `flat_light,tall_heavy`).
+- `--swarm-size`: Swarm size for PSO (default: 20).
+- `--max-iter`: Maximum iterations per stage (default: 50).
 - `--max-stall`: Maximum iterations without improvement (default: 10).
 - `--seed`: Random seed for reproducible search.
 - `--no-parallel`: Disable multi-core particle evaluations.

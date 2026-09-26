@@ -1,8 +1,19 @@
-# Staged Gain Optimization
+# Unified Staged Gain Optimization
 
-`run/optimize_gains.py` tunes controller and adaptation gains using staged derivative-free block-coordinate optimization.
+`run/optimize_gains.py` tunes controller and adaptation gains using staged derivative-free block-coordinate optimization powered by native parallelized Particle Swarm Optimization (PSO).
 
-Global search can be performed using **Particle Swarm Optimization (PSO)** or **Differential Evolution (DE)**, with optional local **Nelder-Mead simplex polishing** on the final stage.
+## Two-Mode Optimization Architecture
+
+Optimization is decoupled into two principal modes to prevent estimator bias:
+
+1. **`--mode nominal`**: Optimizes the 15 base tracking, sliding metric, and dissipation parameters across the 8-condition generalization matrix ($2\ \text{paths} \times 2\ \text{payloads} \times 2\ \text{Coriolis forms}$). Tracking gains are synchronized across all controller modes (`nominal`, `euclidean`, `bregman`) and Coriolis forms (`lc`, `rb`).
+   - Hierarchical schedule (6 stages): `["all", "tracking", "sliding_dissipation", "sliding_metric", "dissipation", "all"]`
+   - Classic schedule (1 stage): `["all"]`
+
+2. **`--mode adaptive`**: First runs stages 1–5 on the nominal plant to establish optimal base tracking gains, freezes them, and then tunes the adaptation parameters in stage 6 (`adaptive`): $\gamma_E$ for Euclidean and $\gamma_B$ for Bregman.
+   - Hierarchical schedule (6 stages): `["all", "tracking", "sliding_dissipation", "sliding_metric", "dissipation", "adaptive"]`
+   - Classic schedule (3 stages): `["all", "nonadaptive", "adaptive"]`
+   - **Estimator Fairness**: The final `"all"` stage is strictly omitted for adaptive controllers to prevent estimator bias and maintain pure, isolated tuning of adaptation dynamics.
 
 ## Gain Parameters & Blocks
 
@@ -12,27 +23,22 @@ The controller and adaptation gain vector includes:
 - **$\Lambda \in \mathbb{R}^6$**: Generalized metric damping matrix diagonal (`LambdaDiag`)
 - **$k_s \in \mathbb{R}$**: Sliding surface scale (`ks`)
 - **$k_d \in \mathbb{R}$**: Damping gain (`kd`)
+- **$\alpha \in \mathbb{R}$**: Finite-time reaching exponent (`alpha`)
 - **$\gamma_E \in \mathbb{R}^{10}$**: Euclidean adaptation gain vector (for Euclidean mode)
 - **$\gamma_B \in \mathbb{R}$**: Bregman adaptation learning rate (for Bregman mode)
 
-## Optimization Schedules
+## Coriolis Invariance
 
-### 1. Hierarchical 7-Stage Schedule (`--schedule hierarchical`)
-Progressively decouples tracking, damping, and adaptation:
-1. `KR, Kxi`: Attitude and position tracking gains.
-2. `Lambda, ks, kd`: Metric and damping gains.
-3. `Lambda`: Fine metric tuning.
-4. `ks, kd`: Damping fine tuning.
-5. `gammaE` or `gammaB`: Adaptation learning rate.
-6. `all`: Joint polish over all active gains.
-7. `polish`: Optional Nelder-Mead simplex refinement.
+Gains are invariant to the Coriolis factorization form (`lc` vs `rb`). During candidate evaluation, each candidate is scored over an 8-condition Cartesian product combining both Coriolis forms ($2 \times 2 \times 2$), and promoted gains are shared across both forms in the gain registry.
 
-### 2. Classic 4-Stage Schedule (`--schedule classic`)
-Matches the paper's original 4-stage progression:
-1. `all`: Global exploration over all parameters.
-2. `nonadaptive`: Fixed-gain block ($K_R, K_\xi, \Lambda, k_s, k_d$).
-3. `adaptive`: Adaptation gain block ($\gamma_E$ or $\gamma_B$).
-4. `all`: Final joint parameter optimization.
+## Generalization Training Matrix (8 Conditions)
+
+By default, each gain candidate is evaluated on the mean cost over eight training conditions:
+- **2 Replays**: `lemniscate_02_auto` and `lemniscate_03_auto`
+- **2 Payloads**: `flat_light` (0.60 kg, $0.16 \times 0.10 \times 0.06$ m) and `tall_heavy` (0.90 kg, $0.10 \times 0.10 \times 0.16$ m)
+- **2 Coriolis Factorizations**: `lc` (Levi-Civita connection) and `rb` (rigid body coadjoint connection)
+
+A failure in any condition rejects the candidate. Evaluation replay `lemniscate_01_auto` with the 0.75 kg payload is strictly held out.
 
 ## Objective Function
 
@@ -42,26 +48,20 @@ $$J = w_p \left(\frac{\text{RMSE}_p}{\sigma_p}\right)^2 + w_R \left(\frac{\text{
 
 Priority is given to mass and center-of-mass estimation, followed by attitude/position tracking and control effort.
 
-## Generalization Training Set
-
-By default, each gain candidate is evaluated on the mean cost over six training
-conditions: `lemniscate_02_auto`, `lemniscate_03_auto`, and
-`lemniscate_04_auto`, each with `flat_light` (0.60 kg, 0.16 x 0.10 x 0.06 m)
-and `tall_heavy` (0.90 kg, 0.10 x 0.10 x 0.16 m) cuboid payloads. A failure in
-any condition rejects the candidate. The normal runners remain held out on
-`lemniscate_01_auto` with the 0.75 kg evaluation payload.
-
 ## Running Optimization
 
 ```powershell
-# Run hierarchical PSO optimization for Bregman LC
-python run/optimize_gains.py --mode bregman --coriolis lc --schedule hierarchical --swarm-size 50 --max-iter 20
+# Optimize all modes (nominal tracking baseline followed by isolated adaptation tuning)
+python run/optimize_gains.py --mode all --swarm-size 20 --max-iter 50
 
-# Run Differential Evolution with Nelder-Mead polish for Euclidean RB
-python run/optimize_gains.py --mode euclidean --coriolis rb --method de --polish --seed 42
+# Optimize nominal tracking gains only
+python run/optimize_gains.py --mode nominal --swarm-size 30 --max-iter 40
 
-# Override the default training conditions
-python run/optimize_gains.py --train-replay-ids lemniscate_02_auto,lemniscate_03_auto --training-payload-profiles flat_light
+# Optimize adaptive gains with frozen tracking gains
+python run/optimize_gains.py --mode adaptive --swarm-size 20 --max-iter 30
+
+# Fast dry-run without registry promotion
+python run/optimize_gains.py --mode all --swarm-size 4 --max-iter 2 --duration 2.0 --no-promote
 ```
 
 ## Gain Promotion
@@ -69,4 +69,5 @@ python run/optimize_gains.py --train-replay-ids lemniscate_02_auto,lemniscate_03
 When optimization completes and strictly improves upon the registered incumbent:
 - The gains are rounded to 4 significant figures.
 - Both the package gain registry `src/agc/config/optimized_gains.py` and the root convenience alias `config/optimized_gains.py` are automatically updated and kept in sync.
+- Tracking gains from nominal optimization are automatically propagated to all controller modes and Coriolis realizations.
 - Pass `--no-promote` to evaluate candidates without modifying the gain registries.
