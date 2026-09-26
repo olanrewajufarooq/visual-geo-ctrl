@@ -1,10 +1,34 @@
 {
-  "experiment": "all",
-  "duration": 30.0,
-  "commit": "07cebdb291c81f88be6d237906c7ac2432099171",
+  "command": "all",
+  "duration_s": 30.0,
+  "reuse_cache": true,
+  "base_commit": "efbce214fc09d3ba479fe2b233ed6e1123e89b25",
+  "worktree_dirty_at_generation": true,
+  "source_sha256": "ecdc979e5db952d103845cdd13911edd03c0d818369c86d0c97430ccb6c364b3",
   "environment": "agc",
-  "factorizations": [
-    "lc",
-    "rb"
-  ]
+  "report": {
+    "optimization_run": false,
+    "fair_adaptation_retuning_pending": true,
+    "repeatability": "omitted: deterministic identical trials are not repeatability evidence",
+    "Known-inertia controller": {
+      "failure": null,
+      "end_time": 30.0
+    },
+    "Euclidean adaptive controller": {
+      "failure": null,
+      "end_time": 30.0
+    },
+    "Natural/Bregman adaptive controller": {
+      "failure": null,
+      "end_time": 30.0
+    },
+    "connection_realization_lc_failure": null,
+    "connection_realization_rb_failure": null,
+    "connection_realization_protocol_passed": true,
+    "nominal_reaching_passed": true,
+    "nominal_replay_duration_s": 20.882,
+    "nominal_energy_residual_relative_to_initial": 0.025379831983687488,
+    "connection_identity_passed": true,
+    "nominal_refinement_passed": true
+  }
 }

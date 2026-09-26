@@ -22,8 +22,8 @@ def connection_identity(
     wrench_rb, _, _ = controller(state, desired, cfg_rb, pi)
     I6 = inertia_from_pi(pi)
     theoretical = -(
-        coriolis("rb", state["V"], I6, diagnostics.Vr)
-        - coriolis("lc", state["V"], I6, diagnostics.Vr)
+        coriolis("rb", state["V"], I6, diagnostics.s)
+        - coriolis("lc", state["V"], I6, diagnostics.s)
     )
     difference = wrench_rb - wrench_lc
     residual = difference - theoretical

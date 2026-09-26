@@ -71,6 +71,9 @@ class PyBulletPlant:
         # Create UAV rigid body with realistic multicopter URDF
         self.pi = np.asarray(pi, dtype=float).ravel()
         self.uav_id, self.r_com = self._create_uav_body(self.pi)
+        dynamics = p.getDynamicsInfo(self.uav_id, -1, physicsClientId=self.client_id)
+        self.r_com = np.asarray(dynamics[3])
+        self.R_inertial = quat_to_rotm(np.asarray(dynamics[4]))
 
         # Create Visualizer in GUI mode
         if self.gui:
@@ -113,7 +116,7 @@ class PyBulletPlant:
                     tmp_path,
                     basePosition=[0.0, 0.0, 0.0],
                     baseOrientation=[0.0, 0.0, 0.0, 1.0],
-                    flags=p.URDF_MERGE_FIXED_LINKS,
+                    flags=p.URDF_USE_INERTIA_FROM_FILE,
                     physicsClientId=self.client_id,
                 )
         finally:
@@ -179,7 +182,8 @@ class PyBulletPlant:
             childLinkIndex=-1,
             jointType=p.JOINT_FIXED,
             jointAxis=[0.0, 0.0, 0.0],
-            parentFramePosition=center.tolist(),
+            parentFramePosition=(self.R_inertial.T @ (center-self.r_com)).tolist(),
+            parentFrameOrientation=rotm_to_quat(self.R_inertial.T).tolist(),
             childFramePosition=[0.0, 0.0, 0.0],
             physicsClientId=self.client_id,
         )
@@ -221,12 +225,12 @@ class PyBulletPlant:
     def set_state(self, H: np.ndarray, V: np.ndarray):
         """Set floating UAV state in PyBullet."""
         R = H[0:3, 0:3]
-        pos = H[0:3, 3].tolist()
-        quat = rotm_to_quat(R).tolist()
+        pos = (H[0:3, 3] + R @ self.r_com).tolist()
+        quat = rotm_to_quat(R @ self.R_inertial).tolist()
 
         # Body twist V = [omega_b; v_b] -> world velocities
         omega_w = (R @ V[0:3]).tolist()
-        v_w = (R @ V[3:6]).tolist()
+        v_w = (R @ (V[3:6] + np.cross(V[:3], self.r_com))).tolist()
 
         p.resetBasePositionAndOrientation(
             self.uav_id, pos, quat, physicsClientId=self.client_id
@@ -239,7 +243,7 @@ class PyBulletPlant:
             r_w = R @ self.payload_info['center']
             p_pay = (H[0:3, 3] + r_w).tolist()
             p.resetBasePositionAndOrientation(
-                self.payload_id, p_pay, quat, physicsClientId=self.client_id
+                self.payload_id, p_pay, rotm_to_quat(R).tolist(), physicsClientId=self.client_id
             )
             v_pay_w = (R @ (V[3:6] + skew(V[0:3]) @ self.payload_info['center'])).tolist()
             p.resetBaseVelocity(
@@ -251,14 +255,14 @@ class PyBulletPlant:
         pos, quat = p.getBasePositionAndOrientation(self.uav_id, physicsClientId=self.client_id)
         v_w, omega_w = p.getBaseVelocity(self.uav_id, physicsClientId=self.client_id)
 
-        R = quat_to_rotm(np.array(quat))
-        p_vec = np.array(pos)
+        R = quat_to_rotm(np.array(quat)) @ self.R_inertial.T
+        p_vec = np.array(pos) - R @ self.r_com
         v_w = np.array(v_w)
         omega_w = np.array(omega_w)
 
         # Left-trivialized body twist
         omega_b = R.T @ omega_w
-        v_b = R.T @ v_w
+        v_b = R.T @ v_w - np.cross(omega_b, self.r_com)
 
         H = np.eye(4, dtype=float)
         H[0:3, 0:3] = R
@@ -269,22 +273,24 @@ class PyBulletPlant:
     def apply_wrench(self, wrench: np.ndarray):
         """Apply commanded body wrench W = [tau_b; f_b] at body origin in link frame."""
         wrench = np.asarray(wrench, dtype=float).ravel()
-        tau_b = wrench[0:3].tolist()
-        f_b = wrench[3:6].tolist()
+        state = self.get_state()
+        R = state["H"][:3, :3]
+        tau_b = (R @ wrench[0:3]).tolist()
+        f_b = (R @ wrench[3:6]).tolist()
 
         p.applyExternalForce(
             objectUniqueId=self.uav_id,
             linkIndex=-1,
             forceObj=f_b,
-            posObj=[0.0, 0.0, 0.0],
-            flags=p.LINK_FRAME,
+            posObj=state["H"][:3, 3].tolist(),
+            flags=p.WORLD_FRAME,
             physicsClientId=self.client_id,
         )
         p.applyExternalTorque(
             objectUniqueId=self.uav_id,
             linkIndex=-1,
             torqueObj=tau_b,
-            flags=p.LINK_FRAME,
+            flags=p.WORLD_FRAME,
             physicsClientId=self.client_id,
         )
 
@@ -330,6 +336,7 @@ class PyBulletPlant:
             self.visualizer = None
         if p.isConnected(physicsClientId=self.client_id):
             p.disconnect(physicsClientId=self.client_id)
+        self.client_id = -1
 
     def __del__(self):
         try:

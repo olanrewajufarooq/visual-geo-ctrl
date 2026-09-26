@@ -92,6 +92,7 @@ def save_run(
     metrics: Optional[Dict[str, float]],
     scenario: dict,
     failure: Optional[Dict[str, Any]] = None,
+    cache_metadata: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Save simulation run arrays to run.npz and structured run metadata to metadata.json."""
     os.makedirs(save_dir, exist_ok=True)
@@ -131,10 +132,13 @@ def save_run(
         "controller": _to_json_serializable(scenario["controller"]),
         "plantPi": _to_json_serializable(scenario["plantPi"]),
         "plantGravity": _to_json_serializable(scenario["plantGravity"]),
+        "initial": _to_json_serializable(scenario["initial"]),
+        "initialEstimate": _to_json_serializable(scenario["initialEstimate"]),
         "payloadDrop": serializable_payload,
         "metrics": _to_json_serializable(metrics) if metrics else None,
         "failure": _to_json_serializable(failure) if failure else None,
         "completionStatus": "completed" if failure is None else "failed",
+        "cache": _to_json_serializable(cache_metadata) if cache_metadata else None,
     }
 
     metadata_path = os.path.join(save_dir, "metadata.json")

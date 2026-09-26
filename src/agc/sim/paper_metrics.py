@@ -68,9 +68,9 @@ def compute_recovery_time(
     eligible = np.flatnonzero(t >= float(release_time))
     for index in eligible:
         end = np.searchsorted(t, t[index] + dwell_time, side="left")
-        if end == len(t) and t[-1] - t[index] < dwell_time:
+        if end == len(t):
             continue
-        if end > index and np.all(position[index:end] <= position_tolerance) and np.all(attitude[index:end] <= attitude_tolerance):
+        if end > index and np.all(position[index:end+1] <= position_tolerance) and np.all(attitude[index:end+1] <= attitude_tolerance):
             return float(t[index])
     return None
 
@@ -79,17 +79,20 @@ def compute_reaching_time(
     run: Dict[str, Any],
     threshold: float = 1e-3,
     dwell_time: float = 0.5,
+    lambda_s: Optional[np.ndarray] = None,
 ) -> Optional[float]:
     """Return the first time the composite-error norm stays below threshold."""
     if threshold <= 0.0 or dwell_time <= 0.0:
         raise ValueError("threshold and dwell_time must be positive")
     t = np.asarray(run["t"], dtype=float)
-    s = np.linalg.norm(np.asarray(run["s"], dtype=float), axis=1)
+    vectors = np.asarray(run["s"], dtype=float)
+    metric = np.eye(6) if lambda_s is None else lambda_s
+    s = np.sqrt(np.einsum("ni,ij,nj->n", vectors, metric, vectors))
     for index in np.flatnonzero(s <= threshold):
         end = np.searchsorted(t, t[index] + dwell_time, side="left")
-        if end == len(t) and t[-1] - t[index] < dwell_time:
+        if end == len(t):
             continue
-        if end > index and np.all(s[index:end] <= threshold):
+        if end > index and np.all(s[index:end+1] <= threshold):
             return float(t[index])
     return None
 
@@ -106,7 +109,8 @@ def compute_nominal_reaching_bound(
         raise ValueError("ks must be positive and alpha must lie in (0, 1)")
     inertia = np.asarray(inertia, dtype=float)
     lambda_s = np.asarray(lambda_s, dtype=float)
-    initial_vs = float(np.asarray(run["Vs"], dtype=float)[0])
+    initial_s = np.asarray(run["s"], dtype=float)[0]
+    initial_vs = float(0.5 * initial_s @ inertia @ initial_s)
     q = (1.0 + alpha) / 2.0
     c_lambda = 2.0 * np.min(np.linalg.eigvalsh(lambda_s)) / np.max(np.linalg.eigvalsh(inertia))
     c_alpha = ks * c_lambda ** q

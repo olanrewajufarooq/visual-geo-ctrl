@@ -1,0 +1,3 @@
+Connection realization,Position RMSE [m],Geodesic attitude RMSE [deg],Maximum ||s||_{Lambda_s},Observed reaching time [s],RMS force norm [N],Peak force norm [N],RMS torque norm [N m],Peak torque norm [N m]
+C_LC,0.0603247,0.053974,1.03134,1.336,49.7943,122.722,0.313855,0.95844
+C_RB,0.0599697,0.0521702,1.03134,1.336,49.7878,122.672,0.313863,0.960623

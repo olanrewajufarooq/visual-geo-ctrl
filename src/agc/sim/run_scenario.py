@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 
 from ..paper.controller import controller
-from ..math.inertia import pi_from_pseudo
+from ..math.inertia import pi_from_pseudo, pseudo_from_pi, inertia_from_pi
 from ..viz.live_telemetry import make_snapshot
 from .validation import validate_scenario
 
@@ -15,6 +15,13 @@ def estimate_to_pi(mode: str, estimate: Any) -> np.ndarray:
     if mode.lower() == "bregman":
         return pi_from_pseudo(estimate)
     return np.asarray(estimate, dtype=float).ravel()
+
+
+def controller_estimate(cfg: dict, estimate: Any, active_pi: np.ndarray) -> Any:
+    """Select an explicitly configured known-inertia estimate for nominal validation."""
+    if str(cfg.get("knownInertiaSchedule", "")).lower() == "active-plant":
+        return np.asarray(active_pi, dtype=float).copy()
+    return estimate
 
 
 def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
@@ -51,6 +58,7 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
         "V": np.zeros((n, 6), dtype=float),
         "Hdesired": np.zeros((n, 4, 4), dtype=float),
         "Vdesired": np.zeros((n, 6), dtype=float),
+        "VdotDesired": np.zeros((n, 6), dtype=float),
         "wrench": np.zeros((n, 6), dtype=float),
         "s": np.zeros((n, 6), dtype=float),
         "activePlantPi": np.zeros((n, 10), dtype=float),
@@ -136,37 +144,37 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
                 else:
                     active_pi = payload_drop["barePi"]
 
-                # Evaluate and hold wrench only at controller sample instants
+                # Instantaneous diagnostics, independent of the zero-order-held command.
+                estimate_for_control = controller_estimate(scenario["controller"], estimate, active_pi)
+                evaluated_wrench, diagnostics, _ = controller(
+                    state, desired, scenario["controller"], estimate_for_control, dt_adapt=None
+                )
                 if k % control_every == 0:
-                    last_wrench, diagnostics, _ = controller(
-                        state, desired, scenario["controller"], estimate, dt_adapt=None
-                    )
-                    last_s = diagnostics.s
-                    last_psi = diagnostics.Psi
-                    last_vs = diagnostics.Vs
-
-                # Evaluate parameter update at adaptation sample instants
-                if k % adapt_every == 0 and mode != "nominal":
-                    _, _, estimate = controller(
-                        state, desired, scenario["controller"], estimate, dt_adapt=dt_adapt
-                    )
+                    last_wrench = evaluated_wrench
+                last_s = diagnostics.s
+                last_psi = diagnostics.Psi
+                last_vs = float(.5 * last_s @ inertia_from_pi(active_pi) @ last_s)
 
                 # Log pre-propagation state and signals
                 run["H"][k] = state["H"]
                 run["V"][k] = state["V"]
                 run["Hdesired"][k] = desired["H"]
                 run["Vdesired"][k] = desired["V"]
+                run["VdotDesired"][k] = desired.get("Vdot", np.zeros(6))
                 run["wrench"][k] = last_wrench
                 run["s"][k] = last_s
                 run["Psi"][k] = last_psi
                 run["Vs"][k] = last_vs
                 run["activePlantPi"][k] = active_pi
-                run["estimatePi"][k] = estimate_to_pi(mode, estimate)
+                run["estimatePi"][k] = estimate_to_pi(mode, estimate_for_control)
 
-                if mode == "bregman":
-                    J_sym = 0.5 * (estimate + estimate.T)
-                    eigvals = np.linalg.eigvalsh(J_sym)
-                    run["minPseudoEigenvalue"][k] = float(np.min(eigvals))
+                J_sym = estimate if mode == "bregman" else pseudo_from_pi(run["estimatePi"][k])
+                run["minPseudoEigenvalue"][k] = float(np.linalg.eigvalsh(J_sym).min())
+
+                if k % adapt_every == 0 and mode != "nominal" and k < n - 1:
+                    _, _, estimate = controller(
+                        state, desired, scenario["controller"], estimate, dt_adapt=dt_adapt
+                    )
 
                 logged_steps = k + 1
 
@@ -205,7 +213,7 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
             "time": failure_time,
         }
         # Trim logged run to finite steps
-        for key in ["t", "H", "V", "Hdesired", "Vdesired", "wrench", "s", "activePlantPi", "Psi", "Vs", "estimatePi", "minPseudoEigenvalue"]:
+        for key in ["t", "H", "V", "Hdesired", "Vdesired", "VdotDesired", "wrench", "s", "activePlantPi", "Psi", "Vs", "estimatePi", "minPseudoEigenvalue"]:
             run[key] = run[key][:logged_steps]
 
     finally:
