@@ -1,5 +1,5 @@
 {
-  "V_s(0)": 0.5318261358999999,
+  "V_s(0)": 8.509218174399999,
   "lambda_min(Lambda_s)": 0.04014627704445845,
   "lambda_max(I)": 3.646019336931921,
   "k_s": 1.0,
@@ -7,12 +7,12 @@
   "q": 0.75,
   "c_Lambda": 0.022021977030018187,
   "c_alpha": 0.05716658233391994,
-  "T_bound": 59.753064222505444,
-  "T_obs": 1.336,
+  "T_bound": 119.50612844501089,
+  "T_obs": 2.15,
   "epsilon_s": 0.001,
   "dwell_s": 0.5,
-  "max_integrated_energy_residual_J": 0.013497657973675747,
-  "energy_residual_relative_to_initial": 0.025379831983687488,
+  "max_integrated_energy_residual_J": 0.025831265338116083,
+  "energy_residual_relative_to_initial": 0.003035680224515749,
   "passed": true,
   "inertia": [
     [
@@ -223,13 +223,13 @@
     ],
     "gammaB": 0.001
   },
-  "failure": null,
+  "experiment": "connection-sensitivity",
+  "time_offset_s": 10.0,
+  "absolute_reaching_s": 12.15,
+  "later_threshold_departure": true,
   "step_refinement": {
-    "dt_coarse_s": 0.002,
-    "dt_fine_s": 0.001,
-    "T_obs_fine": 1.338,
+    "T_obs_fine": 2.152,
     "fine_passed": true,
-    "failure": null,
-    "fine_energy_residual_relative_to_initial": 0.001655291055729228
+    "fine_energy_residual_relative_to_initial": 0.0015351253677762212
   }
 }

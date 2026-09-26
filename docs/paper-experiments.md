@@ -5,11 +5,12 @@ publication artifacts to `results/papers/`:
 
 ```text
 conda activate agc
-python run/run_paper_experiments.py
-python run/run_paper_experiments.py adaptive-drop
-python run/run_paper_experiments.py nominal-connection
-python run/run_paper_experiments.py nominal-reaching
-python run/run_paper_experiments.py connection-realizations
+python run/run_paper_sim_figures.py
+python run/run_paper_sim_figures.py adaptive-drop
+python run/run_paper_sim_figures.py nominal-connection
+python run/run_paper_sim_figures.py nominal-reaching
+python run/run_paper_sim_figures.py connection-realizations
+python run/run_paper_sim_figures.py connection-sensitivity
 ```
 
 The adaptive release benchmark uses a 10 s release, a 5 cm position
@@ -32,7 +33,7 @@ Outputs are grouped without an extra paper-name directory:
 results/papers/
   figures/01-adaptive-tracking/       # states, errors, wrench, 3-D
   figures/02-physical-consistency/    # mass and pseudo-inertia margin
-  figures/04-nominal-validation/     # connection identity and reaching
+  figures/04-nominal-validation/     # all nominal figures use the 4x sensitivity pair
   tables/adaptive_performance_summary.csv
   tables/controller_gain_summary.csv
   tables/physical_consistency_summary.csv

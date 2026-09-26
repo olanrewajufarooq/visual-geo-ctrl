@@ -9,5 +9,7 @@
   "identical_initial_configuration": true,
   "identical_initial_velocity": true,
   "identical_desired_trajectory_samples": true,
-  "only_intended_controller_difference": true
+  "only_intended_controller_difference": true,
+  "experiment": "connection-sensitivity",
+  "multiplier": 4
 }
