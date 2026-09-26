@@ -51,7 +51,6 @@ adaptive-geo-ctrl-pybullet/
 |   |   |-- __init__.py
 |   |   |-- bounds.py
 |   |   |-- bregman_profile.py
-|   |   |-- de.py
 |   |   |-- encoding.py
 |   |   |-- objective.py
 |   |   |-- pso.py

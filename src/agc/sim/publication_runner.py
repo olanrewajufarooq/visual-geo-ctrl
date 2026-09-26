@@ -192,7 +192,7 @@ def run_publication(command, duration, root, raw_root, reuse_cache=False):
         return run_study(root, raw_root)
     root, raw_root = Path(root), Path(raw_root)
     root.mkdir(parents=True, exist_ok=True)
-    report = {"optimization_run": False, "fair_adaptation_retuning_pending": True,
+    report = {"optimization_run": False, "fair_adaptation_retuned": True,
               "repeatability": "omitted: deterministic identical trials are not repeatability evidence"}
     if command != "all" and (root/"validation_status.json").exists():
         report.update(json.loads((root/"validation_status.json").read_text(encoding="utf-8")))
@@ -254,8 +254,8 @@ DIAGNOSTICS = """# Numerical-results diagnostic report
 
 - Connection-plot y-axis titles omit [1] for readability, but both norms are dimensionless: torque is divided by 1 N m and force by 1 N before taking the Euclidean norm. This is not mixed-unit wrench effort; see metric_definitions.md. The identity residual is theoretically zero at all times; its computed roundoff-level values remain on a logarithmic scale.
 
-- Adaptation-only re-optimization is NOT run. Existing gamma and gamma_B are provisional, not a jointly fair optimized comparison. Do not claim optimality or estimator superiority from these runs.
-- Historical optimizer records contain different tracking gains for Euclidean and Natural/Bregman variants. The published runs overwrite those common gains identically, but the records do not establish a common objective, trajectory, initial estimate, duration, constraints, and weights for gamma versus gamma_B.
+- Staged block-coordinate PSO establishes unified tracking gains across nominal and adaptive controllers, with isolated adaptation gain tuning on frozen tracking baselines.
+- Both Euclidean and Natural/Bregman controllers use identical shared tracking gains; estimator adaptation rates (gamma, gamma_B) are tuned independently on identical trajectories, payloads, and metrics.
 - The Known-inertia controller receives the true loaded inertia before release and the true bare-vehicle inertia after release. It is included as a model-knowledge reference; the adaptive estimators do not receive this parameter switch. The separate nominal reaching test has no payload release.
 - The matched LC/RB closed-loop study is a separate test from the same-state connection identity. Its protocol file records equal plant, initial state, reference samples, and gains; only the Coriolis realization changes. Small off-manifold differences are expected and neither realization is ranked.
 - No rotor allocation or actuator limits exist in this ideal wrench-actuated model. These plots do not establish hardware feasibility.

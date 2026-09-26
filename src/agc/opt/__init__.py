@@ -21,7 +21,6 @@ from .objective import (
     best_feasible_candidate,
 )
 from .pso import ParticleSwarmOptimizer
-from .de import DifferentialEvolutionOptimizer, nelder_mead_polish
 from .bregman_profile import profile_bregman_gain, bregman_gamma_grid
 from .staged_optimizer import run_staged_optimization, promote_gains_to_registry
 
@@ -41,8 +40,6 @@ __all__ = [
     "evaluate_scenario_candidate",
     "best_feasible_candidate",
     "ParticleSwarmOptimizer",
-    "DifferentialEvolutionOptimizer",
-    "nelder_mead_polish",
     "profile_bregman_gain",
     "bregman_gamma_grid",
     "run_staged_optimization",
