@@ -36,6 +36,7 @@ from agc.opt.staged_optimizer import promote_gains_to_registry
 from agc.config.manual_gains import manual_gains
 from agc.sim.default_scenario import default_scenario
 from agc.opt.staged_optimizer import default_training_conditions
+from agc.opt.staged_optimizer import _optimization_context
 
 
 def test_default_convergence_uses_ten_stalled_iterations_at_one_milliunit():
@@ -277,8 +278,9 @@ def test_applying_gains_updates_default_reciprocal_lambda_s_but_keeps_explicit_m
 
 def test_promote_gains_loads_python_registry_without_relative_import_error():
     gains = manual_gains("bregman", "lc")
+    import agc.opt.staged_optimizer as staged_optimizer
 
-    with patch.object(Path, "write_text") as write_text:
+    with patch.object(staged_optimizer, "atomic_write_text") as write_text:
         promote_gains_to_registry(
             "bregman",
             "lc",
@@ -287,6 +289,26 @@ def test_promote_gains_loads_python_registry_without_relative_import_error():
         )
 
     write_text.assert_called_once()
+
+
+def test_promoting_changed_tracking_gains_invalidates_adaptive_costs(monkeypatch):
+    gains = manual_gains("nominal", "lc")
+    import agc.opt.staged_optimizer as staged_optimizer
+    captured = {}
+    monkeypatch.setattr(staged_optimizer, "atomic_write_text", lambda path, content: captured.update(content=content))
+    promote_gains_to_registry(
+        "nominal", "all", gains,
+        metadata={"cost": 1.0, "stage": "all", "contextHash": "new-context"},
+        target_file="unused_optimized_gains.py",
+    )
+    generated = captured["content"]
+    assert '"optimizationCost": None' in generated
+    assert '"optimizationMetadata": None' in generated
+    assert "'contextHash': 'new-context'" in generated
+    namespace = {}
+    exec(compile(generated, "optimized_gains.py", "exec"), namespace)
+    assert namespace["optimized_gains"]("nominal")["optimizationMetadata"]["contextHash"] == "new-context"
+    assert namespace["optimized_gains"]("euclidean")["optimizationCost"] is None
 
 
 def test_pso_sphere_function_convergence():
@@ -328,3 +350,97 @@ def test_pso_stall_early_stopping():
     )
     best_x, best_cost, hist = opt.optimize()
     assert len(hist) <= 5
+
+
+def test_pso_resumes_checkpoint_to_same_result_as_uninterrupted_run():
+    def sphere(x):
+        return float(np.sum(x**2))
+
+    kwargs = {
+        "cost_func": sphere,
+        "lower_bound": np.array([-5.0, -5.0]),
+        "upper_bound": np.array([5.0, 5.0]),
+        "swarm_size": 8,
+        "max_iter": 9,
+        "max_stall": 20,
+        "parallel": False,
+        "verbose": False,
+        "seed": 12,
+    }
+    expected = ParticleSwarmOptimizer(**kwargs).optimize()
+    checkpoint = {}
+
+    def interrupt_after_two_iterations(state):
+        checkpoint.update(state)
+        if state["iteration"] == 2:
+            raise RuntimeError("simulated interruption")
+
+    try:
+        ParticleSwarmOptimizer(**kwargs).optimize(checkpoint_callback=interrupt_after_two_iterations)
+    except RuntimeError as exc:
+        assert str(exc) == "simulated interruption"
+    else:
+        pytest.fail("expected the checkpoint callback to interrupt the PSO")
+
+    resumed = ParticleSwarmOptimizer(**{**kwargs, "seed": 999}).optimize(resume_state=checkpoint)
+    np.testing.assert_array_equal(resumed[0], expected[0])
+    assert resumed[1] == expected[1]
+    assert resumed[2] == expected[2]
+
+
+def test_training_objective_is_arithmetic_mean_and_rejects_any_failed_condition():
+    records = [
+        {"cost": 2.0, "failed": False},
+        {"cost": 6.0, "failed": False},
+        {"cost": 10.0, "failed": False},
+    ]
+    aggregate = aggregate_scenario_records(records, failure_cost=999.0)
+    assert aggregate["cost"] == pytest.approx(6.0)
+    assert aggregate["failed"] is False
+
+    records[1]["failed"] = True
+    rejected = aggregate_scenario_records(records, failure_cost=999.0)
+    assert rejected["cost"] == pytest.approx(999.0)
+    assert rejected["failed"] is True
+
+
+def test_optimization_context_fingerprint_tracks_training_and_pso_settings():
+    first = _optimization_context(trainingConditions=[{"replayId": "r1"}], maxIterations=12)
+    same = _optimization_context(trainingConditions=[{"replayId": "r1"}], maxIterations=12)
+    changed = _optimization_context(trainingConditions=[{"replayId": "r2"}], maxIterations=12)
+    assert first["contextHash"] == same["contextHash"]
+    assert first["contextHash"] != changed["contextHash"]
+    assert first["objectiveVersion"]
+
+
+def test_bregman_profile_resumes_after_a_completed_grid_point(monkeypatch):
+    import agc.opt.bregman_profile as profile_module
+
+    def fake_evaluate(args):
+        candidate = args[0]
+        return {
+            "cost": abs(float(candidate[15]) + 3.0), "failed": False,
+            "candidate": candidate.copy(), "gains": {}, "label": "adaptive",
+        }
+
+    monkeypatch.setattr(profile_module, "_eval_bregman_worker", fake_evaluate)
+    candidate = np.zeros(16)
+    candidate[15] = -3.0
+    checkpoint = {}
+
+    def stop_after_two(state):
+        checkpoint.update(state)
+        if len(state["records"]) == 2:
+            raise RuntimeError("pause profile")
+
+    with pytest.raises(RuntimeError, match="pause profile"):
+        profile_module.profile_bregman_gain(
+            base_scenarios=[{}], incumbent_candidate=candidate,
+            seed_values=[1e-3], parallel=False,
+            checkpoint_callback=stop_after_two,
+        )
+    resumed = profile_module.profile_bregman_gain(
+        base_scenarios=[{}], incumbent_candidate=candidate,
+        seed_values=[1e-3], parallel=False, resume_state=checkpoint,
+    )
+    assert resumed["best"]["cost"] == pytest.approx(0.0)

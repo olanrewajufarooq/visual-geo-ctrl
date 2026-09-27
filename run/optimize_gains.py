@@ -32,7 +32,7 @@ def main():
         type=str,
         default="hierarchical",
         choices=["hierarchical", "classic"],
-        help="Optimization schedule: hierarchical (7-stage) or classic (4-stage)",
+        help="Optimization schedule: hierarchical block stages or classic coarse stages",
     )
     parser.add_argument(
         "--duration",
@@ -96,20 +96,26 @@ def main():
         "--output-dir",
         type=str,
         default=None,
-        help="Custom output directory for optimization results and checkpoints",
+        help="New, empty run directory for optimization results and resumable checkpoints",
+    )
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help="Resume a compatible optimization from its timestamped run directory",
     )
     parser.add_argument(
         "--inplace-save",
         dest="inplace_save",
         action="store_true",
-        default=True,
-        help="Save optimization checkpoints under results/optimization/best-gain (default)",
+        default=False,
+        help="Explicitly save optimization output in the shared results/optimization/best-gain directory",
     )
     parser.add_argument(
         "--timestamped-save",
         dest="inplace_save",
         action="store_false",
-        help="Save optimization checkpoints under results/optimization/timestamped/<timestamp>",
+        help="Save to a unique immutable run directory (default)",
     )
     args = parser.parse_args()
 
@@ -136,6 +142,7 @@ def main():
         output_dir=args.output_dir,
         inplace_save=args.inplace_save,
         seed=args.seed,
+        resume_from=args.resume,
     )
 
 

@@ -3,6 +3,9 @@
 import os
 import json
 import time
+import hashlib
+import subprocess
+import importlib.metadata
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
@@ -22,18 +25,74 @@ from .encoding import (
 )
 from .objective import (
     objective_weights,
+    objective_scales,
     evaluate_scenario_set_candidate,
     best_feasible_candidate,
 )
 from .pso import ParticleSwarmOptimizer
 from .bregman_profile import profile_bregman_gain
 from ..sim.default_scenario import default_scenario, get_repository_root
-from ..io.persistence import default_results_root, load_best_gain, save_best_gain
+from ..io.persistence import (
+    _to_json_serializable, atomic_write_json, atomic_write_text, default_results_root,
+    load_best_gain, save_best_gain,
+)
 
 
 DEFAULT_TRAINING_REPLAY_IDS = ("lemniscate_02_auto", "lemniscate_03_auto")
 DEFAULT_TRAINING_PAYLOAD_PROFILES = ("flat_light", "tall_heavy")
 DEFAULT_TRAINING_CORIOLIS_FORMS = ("lc", "rb")
+OBJECTIVE_VERSION = "force-torque-separated-mean-v1"
+SCORING_SOURCE_FILES = (
+    "src/agc/opt/objective.py", "src/agc/opt/staged_optimizer.py",
+    "src/agc/opt/pso.py", "src/agc/opt/bregman_profile.py",
+    "src/agc/opt/encoding.py", "src/agc/opt/bounds.py",
+    "src/agc/sim/run_scenario.py", "src/agc/sim/metrics.py",
+    "src/agc/sim/default_scenario.py", "src/agc/sim/replay_trajectory.py",
+    "src/agc/sim/validation.py", "src/agc/paper/controller.py",
+    "src/agc/paper/adaptation.py", "src/agc/paper/errors.py",
+    "src/agc/paper/regressor.py", "src/agc/math/inertia.py",
+    "src/agc/math/se3.py", "src/agc/plant/pybullet_plant.py",
+    "src/agc/plant/compound_pi.py", "src/agc/plant/drone_urdf.py",
+    "src/agc/config/manual_gains.py",
+)
+
+
+def _optimization_context(**kwargs: Any) -> Dict[str, Any]:
+    """Describe the scoring and optimizer context used to validate a resume."""
+    try:
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
+            check=True, timeout=5,
+        ).stdout.strip()
+        dirty = bool(subprocess.run(
+            ["git", "status", "--porcelain"], capture_output=True, text=True,
+            check=True, timeout=5,
+        ).stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        revision = None
+        dirty = None
+    context = {
+        "objectiveVersion": OBJECTIVE_VERSION,
+        "weights": objective_weights(),
+        "scales": objective_scales(),
+        "codeRevision": revision,
+        "workingTreeDirty": dirty,
+        **kwargs,
+    }
+    root = get_repository_root()
+    source_hashes = {}
+    for rel_path in SCORING_SOURCE_FILES:
+        source_path = root / rel_path
+        if not source_path.is_file():
+            source_hashes[rel_path] = None
+        else:
+            source_hashes[rel_path] = hashlib.sha256(source_path.read_bytes()).hexdigest()
+    context["scoringSourceHashes"] = source_hashes
+    # Registry promotion changes tracked runtime data while a run is active;
+    # record dirty state for provenance, but exclude it from resume identity.
+    identity = {key: value for key, value in context.items() if key != "workingTreeDirty"}
+    blob = json.dumps(identity, sort_keys=True, separators=(",", ":"), default=lambda v: v.tolist() if isinstance(v, np.ndarray) else str(v))
+    return {**context, "contextHash": hashlib.sha256(blob.encode("utf-8")).hexdigest()}
 
 
 def default_training_conditions(
@@ -66,6 +125,38 @@ def is_strictly_improved(candidate: Dict[str, Any], reference: Dict[str, Any]) -
     if not ref_valid:
         return True
     return float(candidate["cost"]) < float(reference["cost"])
+
+
+def _capture_registry_seed_candidates(
+    condition: Dict[str, str], duration: float,
+) -> Dict[str, List[float]]:
+    """Freeze the runtime gain candidates used to seed this optimization run."""
+    seeds = {}
+    for mode in ("nominal", "euclidean", "bregman"):
+        coriolis = "lc" if mode == "bregman" else condition["coriolis"]
+        scenario = default_scenario(
+            replay_id=condition["replayId"], mode=mode, coriolis=coriolis,
+            duration=duration, gain_source="optimized", gui=False,
+            enable_pacing=False, payload_profile=condition["payloadProfile"],
+        )
+        seeds[mode] = encode_scenario_gains(scenario).tolist()
+    return seeds
+
+
+def _training_replay_artifacts(conditions: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+    """Fingerprint every trajectory artifact used by the training conditions."""
+    processed = get_repository_root() / "trajectories" / "processed"
+    replay_ids = sorted({condition["replayId"] for condition in conditions})
+    artifacts = []
+    for replay_id in replay_ids:
+        npz_path = processed / f"{replay_id}.npz"
+        artifact = npz_path if npz_path.is_file() else processed / f"{replay_id}.mat"
+        artifacts.append({
+            "replayId": replay_id,
+            "path": str(artifact.relative_to(get_repository_root())),
+            "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest() if artifact.is_file() else None,
+        })
+    return artifacts
 
 
 class BlockCostEvaluator:
@@ -121,6 +212,10 @@ def promote_gains_to_registry(
 
     if target_mode == "nominal":
         # Synchronize tracking gains across all controllers and Coriolis forms
+        base_changed = any(
+            tk in updated and not np.allclose(np.asarray(registry["nominal_lc"][tk]), np.asarray(updated[tk]))
+            for tk in tracking_keys
+        )
         for m in modes:
             for f in forms:
                 k = f"{m}_{f}"
@@ -129,18 +224,25 @@ def promote_gains_to_registry(
                         registry[k][tk] = updated[tk]
                 if m == "nominal":
                     registry[k]["optimizationCost"] = updated.get("optimizationCost")
+                    registry[k]["optimizationMetadata"] = metadata
+                elif base_changed:
+                    # Adaptive scores were computed with the old shared tracking gains.
+                    registry[k]["optimizationCost"] = None
+                    registry[k]["optimizationMetadata"] = None
     elif target_mode in ("euclidean", "adaptive"):
         for f in forms:
             k = f"euclidean_{f}"
             if "gammaE" in updated:
                 registry[k]["gammaE"] = updated["gammaE"]
             registry[k]["optimizationCost"] = updated.get("optimizationCost")
+            registry[k]["optimizationMetadata"] = metadata
     elif target_mode == "bregman":
         for f in forms:
             k = f"bregman_{f}"
             if "gammaB" in updated:
                 registry[k]["gammaB"] = updated["gammaB"]
             registry[k]["optimizationCost"] = updated.get("optimizationCost")
+            registry[k]["optimizationMetadata"] = metadata
 
     # Mirror only the canonical mode-level convenience aliases.
     registry["nominal"] = dict(registry["nominal_lc"])
@@ -191,6 +293,9 @@ def promote_gains_to_registry(
             lines.append('            "optimizationCost": None,')
         else:
             lines.append(f'            "optimizationCost": {float(cost):.12g},')
+        opt_metadata = v.get("optimizationMetadata")
+        meta_literal = repr(_to_json_serializable(opt_metadata)) if opt_metadata is not None else "None"
+        lines.append(f'            "optimizationMetadata": {meta_literal},')
         lines.append("        },")
 
     lines.extend([
@@ -203,7 +308,7 @@ def promote_gains_to_registry(
         "",
     ])
 
-    target_path.write_text("\n".join(lines), encoding="utf-8")
+    atomic_write_text(target_path, "\n".join(lines))
 
 
 def _run_optimization_stage_loop(
@@ -226,6 +331,8 @@ def _run_optimization_stage_loop(
     training_conditions: List[Dict[str, str]],
     schedule: str,
     extra_seeds: Optional[List[np.ndarray]] = None,
+    resume_dir: Optional[Path] = None,
+    context_hash: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     """Execute block optimization stages using ParticleSwarmOptimizer."""
     lb_full, ub_full = gain_bounds(sel_mode)
@@ -234,6 +341,36 @@ def _run_optimization_stage_loop(
 
     for s_idx, s_name in enumerate(stage_names, start=1):
         print(f"\n  --- Stage {s_idx}/{len(stage_names)}: {s_name} ---")
+
+        stage_checkpoint = (resume_dir / f"stage_{s_idx:02d}_{s_name}.json") if resume_dir else None
+        resume_state = None
+        saved = {}
+        if stage_checkpoint is not None and stage_checkpoint.is_file():
+            saved = json.loads(stage_checkpoint.read_text(encoding="utf-8"))
+            if saved.get("contextHash") != context_hash or saved.get("mode") != sel_mode or saved.get("stage") != s_name:
+                raise ValueError(f"Checkpoint context mismatch: {stage_checkpoint}")
+            if saved.get("status") == "completed":
+                incumbent = evaluate_scenario_set_candidate(
+                    np.asarray(saved["incumbentCandidate"], dtype=float),
+                    manual_scenarios, weights, label=saved.get("incumbentLabel", "resumed"),
+                )
+                stages_log = list(saved.get("stagesLog", []))
+                if promote and is_strictly_improved(incumbent, promoted):
+                    promote_gains_to_registry(
+                        mode=sel_mode, coriolis="all", gains=incumbent["gains"],
+                        metadata={"cost": incumbent["cost"], "stage": s_name, "artifact": str(res_dir),
+                                  "contextHash": context_hash, "objectiveVersion": OBJECTIVE_VERSION},
+                    )
+                    promoted = incumbent
+                print(f"    Restored completed stage {s_name} ({incumbent['cost']:.6g})")
+                continue
+            if saved.get("incumbentCandidate") is not None:
+                incumbent = evaluate_scenario_set_candidate(
+                    np.asarray(saved["incumbentCandidate"], dtype=float),
+                    manual_scenarios, weights, label=saved.get("incumbentLabel", "resumed"),
+                )
+            stages_log = list(saved.get("stagesLog", []))
+            resume_state = saved.get("psoState")
 
         seeds_full = [manual_rec["candidate"], reg_rec["candidate"], incumbent["candidate"]]
         if extra_seeds:
@@ -245,12 +382,25 @@ def _run_optimization_stage_loop(
         if s_name == "adaptive" and sel_mode == "bregman":
             # 1D log-grid scan for scalar gammaB
             seed_vals = 10.0 ** unique_seeds_full[:, 15]
+
+            def checkpoint_profile(state: Dict[str, Any]) -> None:
+                if stage_checkpoint is not None:
+                    atomic_write_json(stage_checkpoint, {
+                        "schemaVersion": 1, "contextHash": context_hash,
+                        "mode": sel_mode, "stage": s_name, "status": "running",
+                        "incumbentCandidate": np.asarray(incumbent["candidate"], dtype=float).tolist(),
+                        "incumbentLabel": incumbent.get("label", "incumbent"),
+                        "stagesLog": stages_log, "profileState": state,
+                    })
+
             profile = profile_bregman_gain(
                 base_scenarios=manual_scenarios,
                 incumbent_candidate=incumbent["candidate"],
                 seed_values=seed_vals.tolist(),
                 weights=weights,
                 parallel=parallel,
+                resume_state=saved.get("profileState") if stage_checkpoint and stage_checkpoint.is_file() else None,
+                checkpoint_callback=checkpoint_profile,
             )
             stage_result = {"method": "log-grid", "profile": profile}
             contender = profile["best"]
@@ -276,7 +426,19 @@ def _run_optimization_stage_loop(
                 seed=seed,
             )
 
-            best_block_x, best_cost, history = opt.optimize()
+            def checkpoint_pso(state: Dict[str, Any]) -> None:
+                if stage_checkpoint is not None:
+                    atomic_write_json(stage_checkpoint, {
+                        "schemaVersion": 1, "contextHash": context_hash,
+                        "mode": sel_mode, "stage": s_name, "status": "running",
+                        "incumbentCandidate": np.asarray(incumbent["candidate"], dtype=float).tolist(),
+                        "incumbentLabel": incumbent.get("label", "incumbent"),
+                        "stagesLog": stages_log, "psoState": state,
+                    })
+
+            best_block_x, best_cost, history = opt.optimize(
+                resume_state=resume_state, checkpoint_callback=checkpoint_pso
+            )
 
             full_cand = np.copy(incumbent["candidate"])
             full_cand[indices] = best_block_x
@@ -314,13 +476,7 @@ def _run_optimization_stage_loop(
             "incumbent_candidate": np.asarray(incumbent["candidate"], dtype=float).tolist(),
             "incumbent_gains": round_gains(incumbent["gains"], sig_figs=4),
         }
-        with open(res_dir / "optimization.json", "w", encoding="utf-8") as f:
-            json.dump(
-                chkpt,
-                f,
-                indent=2,
-                default=lambda o: o.tolist() if isinstance(o, np.ndarray) else str(o),
-            )
+        atomic_write_json(res_dir / "optimization.json", chkpt)
 
         # Preserve the best candidate scored by this run even when it does
         # not beat the canonical best-gain file. That file may originate
@@ -335,7 +491,18 @@ def _run_optimization_stage_loop(
             incumbent["cost"],
             s_name,
             incumbent["candidate"],
+            metadata={"contextHash": context_hash, "trainingConditions": training_conditions, "objectiveVersion": OBJECTIVE_VERSION},
+            evaluation=incumbent,
         )
+
+        if stage_checkpoint is not None:
+            atomic_write_json(stage_checkpoint, {
+                "schemaVersion": 1, "contextHash": context_hash,
+                "mode": sel_mode, "stage": s_name, "status": "completed",
+                "incumbentCandidate": np.asarray(incumbent["candidate"], dtype=float).tolist(),
+                "incumbentLabel": incumbent.get("label", "incumbent"),
+                "stagesLog": stages_log,
+            })
 
         if promote and is_strictly_improved(incumbent, promoted):
             print(f"    >>> PROMOTING NEW BEST GAINS for {sel_mode} (Cost: {incumbent['cost']:.6g} < {promoted['cost']:.6g})")
@@ -343,11 +510,14 @@ def _run_optimization_stage_loop(
                 mode=sel_mode,
                 coriolis="all",
                 gains=incumbent["gains"],
-                metadata={"cost": incumbent["cost"], "stage": s_name, "artifact": str(res_dir)},
+                metadata={"cost": incumbent["cost"], "stage": s_name, "artifact": str(res_dir),
+                          "contextHash": context_hash, "objectiveVersion": OBJECTIVE_VERSION},
             )
             save_best_gain(
                 best_gain_path, sel_mode, "all", incumbent["gains"],
                 incumbent["cost"], s_name, incumbent["candidate"],
+                metadata={"contextHash": context_hash, "trainingConditions": training_conditions, "objectiveVersion": OBJECTIVE_VERSION},
+                evaluation=incumbent,
             )
             promoted = incumbent
 
@@ -370,12 +540,12 @@ def run_staged_optimization(
     promote: bool = True,
     output_dir: Optional[str] = None,
     seed: Optional[int] = None,
-    inplace_save: bool = True,
+    inplace_save: bool = False,
+    resume_from: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute staged block-coordinate optimization for selected scenarios."""
     weights = objective_weights()
     root = get_repository_root()
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     if replay_id is not None and training_replay_ids is None:
         training_replay_ids = [replay_id]
@@ -389,6 +559,71 @@ def run_staged_optimization(
     training_conditions = default_training_conditions(
         training_replay_ids, training_payload_profiles, coriolis_forms
     )
+    sample = default_scenario(
+        replay_id=training_conditions[0]["replayId"], mode="nominal",
+        coriolis=training_conditions[0]["coriolis"], duration=duration,
+        gain_source="manual", gui=False, enable_pacing=False,
+        payload_profile=training_conditions[0]["payloadProfile"],
+    )
+    simulation_settings = {
+        key: sample.get(key) for key in (
+            "duration", "dtPlant", "dtControl", "dtAdaptation", "plantPi",
+            "plantGravity", "initial", "initialEstimate", "payloadDrop",
+        )
+    }
+    runtime_versions = {"python": os.sys.version.split()[0]}
+    for package in ("numpy", "pybullet", "scipy"):
+        try:
+            runtime_versions[package] = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            runtime_versions[package] = None
+
+    manifest = None
+    if resume_from is not None:
+        result_root = Path(resume_from).resolve()
+        manifest_path = result_root / "manifest.json"
+        if not manifest_path.is_file():
+            raise FileNotFoundError(f"Optimization manifest not found: {manifest_path}")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        registry_seeds = manifest.get("registrySeedCandidates")
+        if not isinstance(registry_seeds, dict) or not all(k in registry_seeds for k in ("nominal", "euclidean", "bregman")):
+            raise ValueError("The run manifest does not contain resumable registry seed candidates.")
+    else:
+        result_root = None
+        manifest_path = None
+        registry_seeds = _capture_registry_seed_candidates(training_conditions[0], duration)
+
+    context = _optimization_context(
+        mode=str(mode).lower(), coriolisForms=coriolis_forms,
+        schedule=str(schedule).lower(), duration=float(duration),
+        trainingConditions=training_conditions, swarmSize=int(swarm_size),
+        maxIterations=int(max_iter), maxStallIterations=int(max_stall),
+        functionTolerance=float(tol), seed=seed,
+        parallel=bool(parallel), promote=bool(promote),
+        simulationSettings=simulation_settings,
+        runtimeVersions=runtime_versions,
+        trainingReplayArtifacts=_training_replay_artifacts(training_conditions),
+        registrySeedCandidates=registry_seeds,
+    )
+    if resume_from is not None:
+        if manifest.get("context", {}).get("contextHash") != context["contextHash"]:
+            raise ValueError("Resume settings do not match the objective, conditions, gains schedule, or PSO configuration in the run manifest.")
+        if output_dir is not None and Path(output_dir).resolve() != result_root:
+            raise ValueError("output_dir cannot differ from resume_from.")
+    else:
+        if output_dir is not None:
+            result_root = Path(output_dir).resolve()
+            result_root.mkdir(parents=True, exist_ok=False)
+        else:
+            result_root = default_results_root(str(root), inplace_save=inplace_save)
+            result_root.mkdir(parents=True, exist_ok=inplace_save)
+        manifest_path = result_root / "manifest.json"
+        atomic_write_json(manifest_path, {
+            "schemaVersion": 1, "runId": result_root.name,
+            "createdAt": datetime.now().isoformat(timespec="seconds"),
+            "status": "running", "context": context,
+            "registrySeedCandidates": registry_seeds,
+        })
 
     modes_to_run = expand_scenario_selection(mode)
     overall_results = {}
@@ -400,11 +635,8 @@ def run_staged_optimization(
         print(f"Training conditions: {len(training_conditions)} (Coriolis: {coriolis_forms})")
         print("=" * 70)
 
-        result_root = default_results_root(str(root), inplace_save=inplace_save, timestamp=stamp)
         res_dir = (
-            Path(output_dir) / sel_mode
-            if output_dir is not None
-            else result_root / sel_mode
+            result_root / sel_mode
         )
         os.makedirs(res_dir, exist_ok=True)
 
@@ -428,7 +660,7 @@ def run_staged_optimization(
             ]
 
             manual_cand = encode_scenario_gains(manual_scenarios[0])
-            reg_cand = encode_scenario_gains(reg_scenarios[0])
+            reg_cand = np.asarray(registry_seeds["nominal"], dtype=float)
             manual_rec = evaluate_scenario_set_candidate(manual_cand, manual_scenarios, weights, label="manual")
             reg_rec = evaluate_scenario_set_candidate(reg_cand, manual_scenarios, weights, label="registered")
             incumbent = best_feasible_candidate(manual_rec, reg_rec)
@@ -447,7 +679,7 @@ def run_staged_optimization(
             hist_rec = evaluate_scenario_set_candidate(hist_cand, manual_scenarios, weights, label="historical-robust")
             incumbent = best_feasible_candidate(incumbent, hist_rec)
 
-            best_gain_path = result_root / "nominal.json"
+            best_gain_path = default_results_root(str(root), inplace_save=True) / "nominal.json"
             saved_best = load_best_gain(best_gain_path)
             if saved_best is not None and "candidate" in saved_best:
                 saved_cand = np.asarray(saved_best["candidate"], dtype=float)
@@ -475,6 +707,8 @@ def run_staged_optimization(
                 training_conditions=training_conditions,
                 schedule=schedule,
                 extra_seeds=[hist_rec["candidate"]],
+                resume_dir=res_dir,
+                context_hash=context["contextHash"],
             )
             overall_results["nominal"] = {
                 "incumbent": best_cand,
@@ -505,7 +739,7 @@ def run_staged_optimization(
                 for c in training_conditions
             ]
 
-            nom_cand = encode_scenario_gains(nominal_scenarios[0])
+            nom_cand = np.asarray(registry_seeds["nominal"], dtype=float)
             man_cand = encode_scenario_gains(manual_scenarios[0])
             nom_rec = evaluate_scenario_set_candidate(nom_cand, nominal_scenarios, weights, label="registered-nominal")
             man_rec = evaluate_scenario_set_candidate(man_cand, nominal_scenarios, weights, label="manual-nominal")
@@ -525,7 +759,7 @@ def run_staged_optimization(
             hist_rec = evaluate_scenario_set_candidate(hist_cand, nominal_scenarios, weights, label="historical-robust")
             incumbent_base = best_feasible_candidate(incumbent_base, hist_rec)
 
-            best_nom_path = result_root / "nominal.json"
+            best_nom_path = default_results_root(str(root), inplace_save=True) / "nominal.json"
             saved_best = load_best_gain(best_nom_path)
             if saved_best is not None and "candidate" in saved_best:
                 saved_cand = np.asarray(saved_best["candidate"], dtype=float)
@@ -557,6 +791,8 @@ def run_staged_optimization(
                 training_conditions=training_conditions,
                 schedule=schedule,
                 extra_seeds=[hist_rec["candidate"]],
+                resume_dir=res_dir,
+                context_hash=context["contextHash"],
             )
 
             # Common tracking gains established; freeze them for adaptive estimators
@@ -584,12 +820,12 @@ def run_staged_optimization(
                 ]
 
                 # Assemble candidate with locked base tracking gains + current adaptive seed
-                reg_adapt_cand = encode_scenario_gains(adapt_scenarios[0])
+                reg_adapt_cand = np.asarray(registry_seeds[adapt_type], dtype=float)
                 locked_cand = np.copy(reg_adapt_cand)
                 locked_cand[0:15] = common_base_candidate[0:15]
 
                 adapt_rec = evaluate_scenario_set_candidate(locked_cand, adapt_scenarios, weights, label=f"seed-{adapt_type}")
-                adapt_best_path = result_root / f"{adapt_type}.json"
+                adapt_best_path = default_results_root(str(root), inplace_save=True) / f"{adapt_type}.json"
                 adapt_saved = load_best_gain(adapt_best_path)
                 if adapt_saved is not None and "candidate" in adapt_saved:
                     cand_saved = np.asarray(adapt_saved["candidate"], dtype=float)
@@ -619,6 +855,8 @@ def run_staged_optimization(
                     best_gain_path=adapt_best_path,
                     training_conditions=conds,
                     schedule=schedule,
+                    resume_dir=adapt_res_dir,
+                    context_hash=context["contextHash"],
                 )
                 adaptive_results[adapt_type] = {
                     "incumbent": best_adapt,
@@ -632,4 +870,9 @@ def run_staged_optimization(
                 "base_stages": base_stages_log,
             }
 
+    if manifest_path is not None:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["status"] = "completed"
+        manifest["completedAt"] = datetime.now().isoformat(timespec="seconds")
+        atomic_write_json(manifest_path, manifest)
     return overall_results
