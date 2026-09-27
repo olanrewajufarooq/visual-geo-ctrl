@@ -311,6 +311,8 @@ def _run_optimization_stage_loop(
             "stages": stages_log,
             "incumbent_cost": float(incumbent["cost"]),
             "incumbent_label": incumbent["label"],
+            "incumbent_candidate": np.asarray(incumbent["candidate"], dtype=float).tolist(),
+            "incumbent_gains": round_gains(incumbent["gains"], sig_figs=4),
         }
         with open(res_dir / "optimization.json", "w", encoding="utf-8") as f:
             json.dump(
@@ -319,6 +321,21 @@ def _run_optimization_stage_loop(
                 indent=2,
                 default=lambda o: o.tolist() if isinstance(o, np.ndarray) else str(o),
             )
+
+        # Preserve the best candidate scored by this run even when it does
+        # not beat the canonical best-gain file. That file may originate
+        # from an older objective and remains protected by the promotion
+        # comparison below; this run-scoped record is always comparable to
+        # the current objective and is available for inspection.
+        save_best_gain(
+            res_dir / "best_gain.json",
+            sel_mode,
+            "all",
+            incumbent["gains"],
+            incumbent["cost"],
+            s_name,
+            incumbent["candidate"],
+        )
 
         if promote and is_strictly_improved(incumbent, promoted):
             print(f"    >>> PROMOTING NEW BEST GAINS for {sel_mode} (Cost: {incumbent['cost']:.6g} < {promoted['cost']:.6g})")
