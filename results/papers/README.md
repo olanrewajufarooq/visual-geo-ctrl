@@ -11,13 +11,15 @@ python run/run_paper_sim.py adaptive-drop
 python run/run_paper_sim.py nominal-connection
 python run/run_paper_sim.py nominal-reaching
 python run/run_paper_sim.py connection-realizations
+python run/run_paper_sim.py physical-consistency-mc
 ```
 
 Raw simulation arrays are written under the ignored `results/paper-runs/`
 directory. PDF/PNG figures are grouped by subsection under `figures/`:
 `01-adaptive-tracking`, `02-physical-consistency`, and `04-nominal-validation`.
-The summary CSVs are under `tables/`. See `metric_definitions.md` for windows,
-units, and threshold/dwell definitions, and `diagnostic_report.md` for limitations.
+The summary CSVs are under `tables/`. JSON and Markdown records are grouped
+under `metadata/`; the paired physical-consistency experiment is grouped under
+`physical_consistency/` and its outputs are replaced on rerun.
 
 Adaptive analysis compares the Known-inertia controller, which receives the
 true loaded inertia before release and true bare-vehicle inertia after release,
@@ -44,9 +46,9 @@ bound outside the view is explicitly annotated.
 Every figure in `04-nominal-validation` now uses the 4x connection sensitivity
 experiment, superseding the original 1x nominal figures. Full tracking views span
 10–30 s; detail views use the observed-reaching window. See
-[experiment description and diagnostics](connection_sensitivity_diagnostics.md),
-[protocol](connection_sensitivity_protocol.json), and
-[nominal artifact provenance](connection_sensitivity_manifest.json).
+[experiment description and diagnostics](metadata/connection_sensitivity_diagnostics.md),
+[protocol](metadata/connection_sensitivity_protocol.json), and
+[nominal artifact provenance](metadata/connection_sensitivity_manifest.json).
 
 | Figure | PDF | PNG |
 | --- | --- | --- |
@@ -73,13 +75,18 @@ experiment, superseding the original 1x nominal figures. Full tracking views spa
 - [Physical-consistency summary](tables/physical_consistency_summary.csv)
 - [LC/RB realization summary](tables/connection_realization_summary.csv)
 - [Nominal reaching summary](tables/nominal_reaching_summary.csv)
-- [Common gains and tuning qualification](gain_summary.json)
-- [Reaching bound and step-refinement results](finite_time_reaching_summary.json)
-- [Connection residual summary](connection_equivalence_summary.json)
-- [Matched LC/RB protocol record](connection_realization_protocol.json)
-- [Metric definitions](metric_definitions.md)
-- [Diagnostic report](diagnostic_report.md)
-- [Validation status](validation_status.json)
-- [Generation provenance](manifest.json)
+- [Common gains and tuning qualification](metadata/gain_summary.json)
+- [Reaching bound and step-refinement results](metadata/finite_time_reaching_summary.json)
+- [Connection residual summary](metadata/connection_equivalence_summary.json)
+- [Connection sensitivity protocol](metadata/connection_sensitivity_protocol.json)
+- [Metric definitions](metadata/metric_definitions.md)
+- [Diagnostic report](metadata/diagnostic_report.md)
+- [Generation provenance and validation status](metadata/manifest.json)
+- [Physical-consistency parameters (JSON)](physical_consistency/metadata/implemented_parameters.json)
+- [Physical-consistency parameters (LaTeX)](physical_consistency/tables/implemented_parameters.tex)
+- Physical-consistency Monte Carlo: [report](physical_consistency/metadata/report.md),
+  [trial CSV](physical_consistency/tables/monte_carlo_trials.csv),
+  [margin distribution PDF](physical_consistency/figures/figure1_margin_ecdf.pdf),
+  [paired history PDF](physical_consistency/figures/figure2_trial.pdf)
 
 Simulation-setup artwork is intentionally excluded: another agent owns it.

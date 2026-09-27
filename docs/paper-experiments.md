@@ -11,6 +11,7 @@ python run/run_paper_sim.py nominal-connection
 python run/run_paper_sim.py nominal-reaching
 python run/run_paper_sim.py connection-realizations
 python run/run_paper_sim.py connection-sensitivity
+python run/run_paper_sim.py physical-consistency-mc
 ```
 
 The adaptive release benchmark uses a 10 s release, a 5 cm position
@@ -39,13 +40,8 @@ results/papers/
   tables/physical_consistency_summary.csv
   tables/connection_realization_summary.csv
   tables/nominal_reaching_summary.csv
-  gain_summary.json
-  finite_time_reaching_summary.json
-  connection_equivalence_summary.json
-  metric_definitions.md
-  diagnostic_report.md
-  validation_status.json
-  manifest.json
+  metadata/                          # protocols, summaries, definitions, diagnostics, provenance
+  physical_consistency/              # paired Monte Carlo CSV, figures, report, and initializations
 ```
 
 Each figure is saved as vector PDF and 400 dpi
@@ -71,8 +67,9 @@ in the CSV are intrinsic and in degrees; RPY figures are only visualization.
 Raw logs and metadata are stored under ignored `results/paper-runs/`. Old flat
 debug figures and deterministic repeatability tables are superseded; never cite
 them as validation. Failed runs retain failure metadata and partial-data status;
-failed reaching figures use a `_FAILED` filename. Read `diagnostic_report.md`
-and `validation_status.json` before choosing manuscript figures.
+failed reaching figures use a `_FAILED` filename. Read
+`metadata/diagnostic_report.md` and the report in `metadata/manifest.json`
+before choosing manuscript figures.
 
 Simulation-setup artwork is owned by a separate workflow and is not generated,
 overwritten, or included by this pipeline.

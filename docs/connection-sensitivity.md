@@ -30,8 +30,8 @@ Outputs in `results/papers`:
 - `figures/04-nominal-validation/connection_sensitivity_tracking.{pdf,png}`
 - `figures/04-nominal-validation/connection_sensitivity_separation.{pdf,png}`
 - `tables/connection_sensitivity_summary.csv`
-- `connection_sensitivity_protocol.json`
-- `connection_sensitivity_diagnostics.md`
+- `metadata/connection_sensitivity_protocol.json`
+- `metadata/connection_sensitivity_diagnostics.md`
 
 Raw trajectories and scenario/source fingerprints are saved separately under
 `results/paper-runs/connection-sensitivity`. The protocol JSON records all gains,

@@ -1,0 +1,26 @@
+\begin{table*}[t]\centering\small
+\caption{Implemented manuscript and experiment parameters.}
+\begin{tabular}{p{0.24\linewidth}p{0.61\linewidth}p{0.12\linewidth}}\hline
+Quantity & Value & Source \\
+\hline
+Adaptive $\Lambda$ & $\operatorname{diag}(4.392,\;19.97,\;15.26,\;0.7227,\;0.967,\;0.1144)$ & optimized_gains.py \\
+Adaptive $\Lambda_s$ & $\operatorname{diag}(0.2276867,\;0.050075113,\;0.065530799,\;1.3837,\;1.0341262,\;8.7412587)$ (six diagonal entries; reciprocal of configured $\Lambda$) & optimized_gains.py \\
+$K_R$, $K_\xi$ & $\operatorname{diag}(0.1784,\;6.418,\;0.4457),\quad \operatorname{diag}(9.833,\;1.762,\;33.96)$ & optimized_gains.py \\
+$k_d,k_s,\alpha$ & 7.934, 0.4086, 0.5731 & optimized_gains.py \\
+Euclidean $\Gamma$ & $\operatorname{diag}(0.06224,\;0.04911,\;0.003038,\;0.01321,\;0.08969,\;0.004635,\;0.009389,\;0.000774,\;5.955e-05,\;0.0001565)$ & optimized_gains.py \\
+Natural/Bregman $\gamma_B$ & 0.09054 (scalar) & optimized_gains.py \\
+Plant/control/adaptation step & 0.002 / 0.02 / 0.01 s & default_scenario.py \\
+Reference update & At each plant step; linear interpolation and quaternion SLERP & replay_trajectory.py \\
+Reference source grid / endpoint & 0.002 s samples over 0–25.664 s; requests past the endpoint are clamped to the final sample & lemniscate_02_auto.npz / replay_trajectory.py \\
+Integrator & PyBullet stepSimulation once per plant step; default internal method, no explicit substeps & pybullet_plant.py \\
+Duration and random seed & 30 s; deterministic manuscript runs have no seed; Monte Carlo seed 20260927 & default_scenario.py / experiment \\
+Nominal reaching duration and replay & 20 s; source time 10–30 s on lemniscate_01_auto & publication_runner.py \\
+Payload release & 10 s; mass 0.75 kg, dimensions [0.12 0.12 0.08], center [ 0.2   0.05 -0.12] m & default_scenario.py \\
+Pre-release loaded $\pi$ & $[4.396, 0.15, 0.0375, -0.09834934, 0.054895, 0.08227, 0.102885, -0.00744344, 0.01801313, 0.00443506]$ & compound_pi.py \\
+Post-release bare $\pi$ & $[3.646, 0, 0, -0.00834934, 0.04092, 0.04017, 0.06921, 5.656e-05, 1.313e-05, -6.494e-05]$ & default_scenario.py \\
+Nominal reaching $K_R$, $K_\xi$ & $\operatorname{diag}(1,\;2,\;3),\quad \operatorname{diag}(1,\;1,\;1)$ & publication_runner.py: nominal_scenario \\
+Nominal reaching $\Lambda$ (derived, not tuned) & $\begin{bmatrix}24.4494 & -0.03444909 & -0.00467068 & -7.888842e-05 & -0.05598913 & 0 \\-0.03444909 & 24.90614 & 0.02337606 & 0.05703506 & 7.888842e-05 & 0 \\-0.00467068 & 0.02337606 & 14.4488 & 5.353118e-05 & 1.069586e-05 & 0 \\-7.888842e-05 & 0.05703506 & 5.353118e-05 & 0.2744038 & 1.806545e-07 & 0 \\-0.05598913 & 7.888842e-05 & 1.069586e-05 & 1.806545e-07 & 0.2744014 & 0 \\0 & 0 & 0 & 0 & 0 & 0.2742732\end{bmatrix}$ & publication_runner.py \\
+Nominal reaching $\Lambda_s$ (derived, not tuned) & $\begin{bmatrix}0.04092 & 5.656e-05 & 1.313e-05 & 8.144528e-22 & 0.00834934 & 0 \\5.656e-05 & 0.04017 & -6.494e-05 & -0.00834934 & -4.011061e-25 & 0 \\1.313e-05 & -6.494e-05 & 0.06921 & -1.70992e-21 & 4.2748e-22 & 0 \\-5.048304e-22 & -0.00834934 & 1.70992e-21 & 3.646 & 0 & 0 \\0.00834934 & 3.967104e-21 & 8.5496e-22 & 0 & 3.646 & 0 \\0 & 0 & 0 & 0 & 0 & 3.646\end{bmatrix}$ & publication_runner.py \\
+Nominal reaching $k_d,k_s,\alpha$ & 1, 1, 0.5 & publication_runner.py \\
+Safeguards & No wrench clipping/allocation; no Euclidean projection. Bregman symmetrizes, clips exponent eigenvalues to [-50,50], floors eigenvalues at 1e-14 max eigenvalue, falls back to prior symmetrized state on nonfinite update. & adaptation.py / pybullet_plant.py \\
+\hline\end{tabular}\end{table*}

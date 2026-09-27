@@ -80,13 +80,15 @@ def audit(run, scenario):
 
 def run_study(root, raw_root):
     root, raw_root = Path(root), Path(raw_root)/'connection-sensitivity'
+    metadata = root/'metadata'
+    metadata.mkdir(parents=True, exist_ok=True)
     runs, scenarios, audits = {}, {}, {}
     for form in ('lc', 'rb'):
         print(f'Running sensitivity C_{form.upper()} (fresh, 10–30 s)', flush=True)
         scenario = sensitivity_scenario(form)
         run, failure, _ = load_or_run(raw_root/form, scenario, reuse_cache=False)
         if failure:
-            write_json(root/'connection_sensitivity_failure.json', {'form': form, 'failure': failure})
+            write_json(metadata/'connection_sensitivity_failure.json', {'form': form, 'failure': failure})
             raise RuntimeError(f'Sensitivity simulation failed: {failure}')
         runs[form], scenarios[form] = run, scenario
         audits[form] = audit(run, scenario)
@@ -101,7 +103,7 @@ def run_study(root, raw_root):
         scenario = sensitivity_scenario(form, end, .001)
         fine[form], failure, _ = load_or_run(raw_root/'refinement'/form, scenario, reuse_cache=False)
         if failure:
-            write_json(root/'connection_sensitivity_failure.json', {'form': form, 'refinement': True, 'failure': failure})
+            write_json(metadata/'connection_sensitivity_failure.json', {'form': form, 'refinement': True, 'failure': failure})
             raise RuntimeError(str(failure))
         fine_audits[form] = audit(fine[form], scenario)
     fine_series = separation(fine['lc'], fine['rb'])
@@ -126,7 +128,7 @@ def run_study(root, raw_root):
         'Fine-run later-departure checks cover only the focused interval, not the full 10–30 s run.',
         'Different configurations at reaching may retain position separation while following the same reduced vector field.',
     ]
-    write_json(root/'connection_sensitivity_protocol.json', report)
+    write_json(metadata/'connection_sensitivity_protocol.json', report)
     rows = []
     for form in runs:
         row = connection_realization_row(runs[form], form, scenarios[form])
@@ -152,11 +154,10 @@ def run_study(root, raw_root):
     identity = connection_test(runs['lc'], scenarios['lc'])
     scenarios['lc']['focusElapsedEnd'] = end
     theory_figures(runs['lc'], scenarios['lc'], root/'figures', nominal, identity)
-    write_json(root/'finite_time_reaching_summary.json', nominal)
-    write_json(root/'connection_equivalence_summary.json', {
+    write_json(metadata/'finite_time_reaching_summary.json', nominal)
+    write_json(metadata/'connection_equivalence_summary.json', {
         **{k:v for k,v in identity.items() if k not in ('t', 'difference', 'theory', 'residual')},
         'experiment': 'connection-sensitivity', 'all_sample_audit': audits['lc']})
-    write_json(root/'connection_realization_protocol.json', {**protocol, 'experiment': 'connection-sensitivity', 'multiplier': 4})
     write_csv(root/'tables'/'connection_realization_summary.csv',
               [connection_realization_row(runs[k], k, scenarios[k]) for k in runs])
     write_csv(root/'tables'/'nominal_reaching_summary.csv', [{k:nominal[k] for k in (
@@ -198,7 +199,7 @@ def run_study(root, raw_root):
     notes += '\n'.join(f'- {form}: {audits[form]}' for form in audits)
     notes += '\n\nRefinement relative trace differences: '+str({k:v['relative_to_coarse_peak'] for k,v in refinement.items()})+'\n'
     notes += '\n\n'+'\n'.join('- '+item for item in report['qualifications'])+'\n'
-    (root/'connection_sensitivity_diagnostics.md').write_text(notes, encoding='utf-8')
+    (metadata/'connection_sensitivity_diagnostics.md').write_text(notes, encoding='utf-8')
     description = ('## Nominal figures: connection sensitivity experiment\n\n'
                    'All figures in figures/04-nominal-validation use the same 4x sensitivity pair. '
                    'The previous 1x experiment is superseded in this folder. '
@@ -213,20 +214,27 @@ def run_study(root, raw_root):
                    '\n\nSee connection_sensitivity_diagnostics.md for physical separation definitions, '
                    'refinement sensitivity and later threshold departures. Finite sampled dwell does not '
                    'establish permanent sliding, and the two-step comparison does not establish numerical convergence.\n')
-    status_path = root/'validation_status.json'
-    status = json.loads(status_path.read_text()) if status_path.exists() else {}
+    manifest_path = metadata/'manifest.json'
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    status = manifest.get('report', {})
     status.update(nominal_experiment='connection-sensitivity', nominal_replay_duration_s=20.,
                   nominal_reaching_passed=nominal['passed'], nominal_refinement_passed=refined_nominal['passed'],
                   nominal_energy_residual_relative_to_initial=nominal['energy_residual_relative_to_initial'],
                   connection_identity_passed=all(a['identity_passed'] for a in audits.values()),
                   connection_realization_protocol_passed=report['protocol_passed'],
                   nominal_later_threshold_departure=any(a['later_threshold_departure'] for a in audits.values()))
-    write_json(status_path, status)
-    (root/'diagnostic_report.md').write_text(DIAGNOSTICS+'\n'+description+'\n## Current checks\n\n'+
+    manifest['report'] = status
+    manifest['connection_sensitivity'] = {'protocol_passed': report['protocol_passed'],
+                                          'source_sha256': source_fingerprint()}
+    write_json(manifest_path, manifest)
+    (metadata/'diagnostic_report.md').write_text(DIAGNOSTICS+'\n'+description+'\n## Current checks\n\n'+
         '\n'.join(f'- {k}: {v}' for k,v in status.items())+'\n', encoding='utf-8')
-    (root/'metric_definitions.md').write_text(DEFINITIONS+'\n'+description, encoding='utf-8')
-    (out/'README.md').write_text('# Nominal connection sensitivity figures\n\n'+description, encoding='utf-8')
-    write_json(root/'connection_sensitivity_manifest.json', {
+    (metadata/'metric_definitions.md').write_text(DEFINITIONS+'\n'+description, encoding='utf-8')
+    figure_description = description.replace('connection_sensitivity_protocol.json',
+        '../../metadata/connection_sensitivity_protocol.json').replace(
+        'connection_sensitivity_diagnostics.md', '../../metadata/connection_sensitivity_diagnostics.md')
+    (out/'README.md').write_text('# Nominal connection sensitivity figures\n\n'+figure_description, encoding='utf-8')
+    write_json(metadata/'connection_sensitivity_manifest.json', {
         'experiment': 'connection-sensitivity', 'export_source_sha256': source_fingerprint(),
         'raw_provenance': {k:runs[k]['metadata'].get('cache') for k in runs},
         'full_source_interval_s': [10.,30.], 'focused_source_interval_s': [10.,OFFSET+end],
