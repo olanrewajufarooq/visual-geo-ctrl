@@ -2,14 +2,15 @@
   "command": "adaptive-drop",
   "duration_s": 30.0,
   "reuse_cache": false,
-  "base_commit": "dd27a0daf48a12a6c9cc8b1def584d2e0fcdce31",
+  "base_commit": "7a6fee92099a1c8c3b5964509c571768ad3f1f98",
   "worktree_dirty_at_generation": true,
-  "source_sha256": "ba01593207c44b4a433ad8b4f7cd2453f4caff45498d9fd10adc04a8f684293a",
+  "source_sha256": "db04ff46fd694dbd859c67b616c1f0fbe3ef28c9e2c87aeedd729e2260694ae5",
   "environment": "agc",
   "report": {
     "optimization_run": false,
-    "fair_adaptation_retuning_pending": true,
+    "fair_adaptation_retuned": true,
     "repeatability": "omitted: deterministic identical trials are not repeatability evidence",
+    "fair_adaptation_retuning_pending": true,
     "Known-inertia controller": {
       "failure": null,
       "end_time": 30.0
@@ -32,5 +33,9 @@
     "nominal_refinement_passed": true,
     "nominal_experiment": "connection-sensitivity",
     "nominal_later_threshold_departure": true
+  },
+  "connection_sensitivity": {
+    "protocol_passed": true,
+    "source_sha256": "db04ff46fd694dbd859c67b616c1f0fbe3ef28c9e2c87aeedd729e2260694ae5"
   }
 }

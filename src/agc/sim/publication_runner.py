@@ -183,6 +183,11 @@ def connection_pair_passed(protocol):
 
 
 def run_publication(command, duration, root, raw_root, reuse_cache=False):
+    if command == "physical-consistency-mc":
+        if duration != 30.0 or reuse_cache:
+            raise ValueError("The physical-consistency Monte Carlo uses its fixed 30 s protocol and fresh paired runs")
+        from .physical_consistency_experiment import run_experiment
+        return run_experiment(Path(root) / "physical_consistency")
     if command in ("all", "nominal-connection", "nominal-reaching", "connection-realizations", "connection-sensitivity"):
         if duration != 30. or reuse_cache:
             raise ValueError("The nominal sensitivity study requires fresh runs over source time 10–30 s")
@@ -192,10 +197,13 @@ def run_publication(command, duration, root, raw_root, reuse_cache=False):
         return run_study(root, raw_root)
     root, raw_root = Path(root), Path(raw_root)
     root.mkdir(parents=True, exist_ok=True)
+    metadata_root = root / "metadata"
+    metadata_root.mkdir(parents=True, exist_ok=True)
     report = {"optimization_run": False, "fair_adaptation_retuned": True,
               "repeatability": "omitted: deterministic identical trials are not repeatability evidence"}
-    if command != "all" and (root/"validation_status.json").exists():
-        report.update(json.loads((root/"validation_status.json").read_text(encoding="utf-8")))
+    prior_manifest = metadata_root / "manifest.json"
+    if command != "all" and prior_manifest.exists():
+        report.update(json.loads(prior_manifest.read_text(encoding="utf-8")).get("report", {}))
     if command in ("all", "adaptive-drop"):
         runs, scenarios, rows = {}, {}, []
         for mode in PRIMARY_MODES:
@@ -215,11 +223,11 @@ def run_publication(command, duration, root, raw_root, reuse_cache=False):
         gain = gain_report()
         gain["actual_saved_run_gains"] = controller_gain_rows(scenarios)[0]
         gain["known_inertia_baseline"] = "uses the true loaded inertia before release and true bare-vehicle inertia after release"
-        write_json(root/"gain_summary.json", gain)
+        write_json(metadata_root/"gain_summary.json", gain)
         if runs:
             adaptive_figures(runs, scenarios, root/"figures")
     else:
-        write_json(root/"gain_summary.json", gain_report())
+        write_json(metadata_root/"gain_summary.json", gain_report())
     repo = Path(__file__).resolve().parents[3]
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
     source_files = sorted((repo/"src").rglob("*.py")) + [repo/"run"/"run_paper_sim.py"]
@@ -228,12 +236,11 @@ def run_publication(command, duration, root, raw_root, reuse_cache=False):
         digest.update(str(path.relative_to(repo)).replace("\\", "/").encode())
         digest.update(path.read_bytes())
     dirty = bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=normal"], cwd=repo, text=True).strip())
-    write_json(root/"manifest.json", {"command": command, "duration_s": duration, "reuse_cache": reuse_cache, "base_commit": commit,
+    write_json(metadata_root/"manifest.json", {"command": command, "duration_s": duration, "reuse_cache": reuse_cache, "base_commit": commit,
                                      "worktree_dirty_at_generation": dirty, "source_sha256": digest.hexdigest(),
                                      "environment": "agc", "report": report})
-    write_json(root/"validation_status.json", report)
-    (root/"diagnostic_report.md").write_text(DIAGNOSTICS + "\n## Current checks\n\n" + "\n".join(f"- {k}: {v}" for k, v in report.items()) + "\n", encoding="utf-8")
-    (root/"metric_definitions.md").write_text(DEFINITIONS, encoding="utf-8")
+    (metadata_root/"diagnostic_report.md").write_text(DIAGNOSTICS + "\n## Current checks\n\n" + "\n".join(f"- {k}: {v}" for k, v in report.items()) + "\n", encoding="utf-8")
+    (metadata_root/"metric_definitions.md").write_text(DEFINITIONS, encoding="utf-8")
 
 
 DIAGNOSTICS = """# Numerical-results diagnostic report

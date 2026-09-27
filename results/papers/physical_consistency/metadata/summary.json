@@ -1,0 +1,225 @@
+{
+  "completed_pairs": 100,
+  "euclidean": {
+    "completed": 100,
+    "loss_pd_count": 86,
+    "loss_pd_percent": 86.0,
+    "near_count": 86,
+    "near_percent": 86.0,
+    "min": -0.0258347019098808,
+    "p05": -0.015616923832379547,
+    "median": -0.005148256490217435,
+    "p95": 0.0020422614702219457,
+    "position_rmse_median_q25_q75": [
+      0.026847505522736452,
+      0.021171886498856575,
+      0.03386017843830106
+    ],
+    "attitude_rmse_rad_median_q25_q75": [
+      0.01750538017863241,
+      0.014534484457083595,
+      0.021489571348437552
+    ],
+    "position_rmse_iqr_m": 0.012688291939444485,
+    "attitude_rmse_rad_iqr": 0.006955086891353957
+  },
+  "natural_bregman": {
+    "completed": 100,
+    "loss_pd_count": 0,
+    "loss_pd_percent": 0.0,
+    "near_count": 0,
+    "near_percent": 0.0,
+    "min": 0.005048523921966302,
+    "p05": 0.006881407043947181,
+    "median": 0.01009434366177367,
+    "p95": 0.01449873920998218,
+    "position_rmse_median_q25_q75": [
+      0.019931081931815066,
+      0.019737264129232643,
+      0.02016138156801015
+    ],
+    "attitude_rmse_rad_median_q25_q75": [
+      0.029239346960510573,
+      0.024981431089386608,
+      0.037307216825161714
+    ],
+    "position_rmse_iqr_m": 0.00042411743877750555,
+    "attitude_rmse_rad_iqr": 0.012325785735775106
+  },
+  "paired_consistency": {
+    "both_consistent": 14,
+    "only_natural_consistent": 86,
+    "only_euclidean_consistent": 0,
+    "both_lose": 0
+  },
+  "elapsed_s": 1413.6065616607666,
+  "figure2": {
+    "trial": 1,
+    "selection": "first Euclidean violation"
+  },
+  "certificate": {
+    "V_s(0)": 8.509218174399999,
+    "c_Lambda": 0.022021977030018187,
+    "q": 0.75,
+    "a": 0.022021977030018187,
+    "b": 0.05716658233391994,
+    "old_bound_s": 119.50612844501089,
+    "new_bound_s": 91.83118309217951,
+    "observed_s": 2.15,
+    "old_over_observed": 55.58424578837716,
+    "new_over_observed": 42.712178182409076,
+    "initial_s": [
+      1.2,
+      -0.7999999999999999,
+      0.39999999999999963,
+      1.6,
+      -0.8,
+      1.2
+    ],
+    "initial_H": [
+      [
+        0.8157351194335771,
+        0.5765236766660471,
+        0.046868594667974946,
+        0.10615533279237738
+      ],
+      [
+        -0.577744112651057,
+        0.8160270990265792,
+        0.017649757825771453,
+        0.149999155850693
+      ],
+      [
+        -0.028070540068381104,
+        -0.04147558194563063,
+        0.9987451230832323,
+        0.6743211155111415
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "initial_V": [
+      1.1997873752500807,
+      -0.8030233839629296,
+      0.3984966677129074,
+      1.5975159021931282,
+      -0.8029260644030578,
+      1.2022276968833683
+    ],
+    "Lambda": [
+      [
+        24.449400831670125,
+        -0.034449093633822155,
+        -0.004670679917069921,
+        -7.888842442145276e-05,
+        -0.05598912790452459,
+        0.0
+      ],
+      [
+        -0.034449093633822155,
+        24.906140692261893,
+        0.023376059719042046,
+        0.05703506218527975,
+        7.888842442145273e-05,
+        0.0
+      ],
+      [
+        -0.004670679917069921,
+        0.02337605971904204,
+        14.448801898097758,
+        5.353117675660628e-05,
+        1.0695857010090118e-05,
+        0.0
+      ],
+      [
+        -7.888842442145273e-05,
+        0.05703506218527974,
+        5.353117675660627e-05,
+        0.2744037863757834,
+        1.8065449192512674e-07,
+        0.0
+      ],
+      [
+        -0.05598912790452458,
+        7.88884244214527e-05,
+        1.0695857010090117e-05,
+        1.8065449192512674e-07,
+        0.2744013911862804,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.27427317608337903
+      ]
+    ],
+    "Lambda_s": [
+      [
+        0.04092,
+        5.6559999999999994e-05,
+        1.3130000000000001e-05,
+        8.14452795635467e-22,
+        0.00834934,
+        0.0
+      ],
+      [
+        5.6559999999999994e-05,
+        0.04016999999999999,
+        -6.493999999999998e-05,
+        -0.00834934,
+        -4.011060824845106e-25,
+        0.0
+      ],
+      [
+        1.313e-05,
+        -6.493999999999997e-05,
+        0.06920999999999998,
+        -1.709920047351584e-21,
+        4.274800118378961e-22,
+        0.0
+      ],
+      [
+        -5.048303606335004e-22,
+        -0.008349339999999998,
+        1.709920047351584e-21,
+        3.6459999999999995,
+        0.0,
+        0.0
+      ],
+      [
+        0.00834934,
+        3.967103608322526e-21,
+        8.549600236757922e-22,
+        0.0,
+        3.6460000000000004,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        3.6460000000000004
+      ]
+    ]
+  },
+  "figure2_statement": "Figure 2 shows the first violating Euclidean trial, trial 1.",
+  "failed_or_nonfinite_trials": [],
+  "runtime_warnings": "Final simulation batch completed all 100 pairs with no failed or nonfinite trial values. run_scenario suppresses RuntimeWarning; no integrator failures were reported.",
+  "implementation_changes": [
+    "Four independent worker processes were used to execute paired trials; per-trial model, gains, initial conditions, timestep, and integration settings were unchanged."
+  ],
+  "existing_bregman_safeguards": "Exponent clip [-50,50], eigenvalue floors and nonfinite fallback remain unchanged.",
+  "postprocessing_issues": [
+    "An earlier complete simulation batch encountered a figure-export MathText error at \\mathcal J; that batch was discarded and the 100 trials were rerun with the label corrected to \\mathcal{J}. Final simulation and figure export completed successfully.",
+    "A Python SyntaxWarning from an unescaped LaTeX backslash in a report string was corrected; it did not affect simulation results."
+  ]
+}
