@@ -3,7 +3,7 @@
 Run from the repository worktree with the `agc` environment:
 
 ```powershell
-python run/run_paper_sim_figures.py connection-sensitivity
+python run/run_paper_sim.py connection-sensitivity
 ```
 
 This command generates every figure in `figures/04-nominal-validation` from the

@@ -27,12 +27,12 @@ conda env create -f environment.yml
 
 Run headless:
 ```powershell
-python run/run_theory_suite.py --mode bregman --coriolis lc --duration 30
+python run/run_sim.py --mode bregman --coriolis lc --duration 30
 ```
 
 Run with interactive **3D PyBullet GUI** (camera tracking drone and trajectory visual trail):
 ```powershell
-python run/run_theory_suite.py --mode bregman --coriolis lc --gui
+python run/run_sim.py --mode bregman --coriolis lc --gui
 ```
 
 Controller options:
@@ -46,9 +46,9 @@ Controller options:
 ### Run 6-Variant Comparison Batch
 
 ```powershell
-python run/run_batch.py
+python run/run_batch_sim.py
 ```
-Simulates all 6 variants (`nominal`, `euclidean`, `bregman` $\times$ `c1`, `c2`) with the 10-second payload drop, and writes results and publication figures to `results/inplace/` by default. Pass `--timestamped-save` to use `results/timestamped/<timestamp>/`.
+Simulates all 6 variants (`nominal`, `euclidean`, `bregman` $\times$ `lc`, `rb`) with the 10-second payload drop, and writes results and publication figures to `results/inplace/` by default. Pass `--timestamped-save` to use `results/timestamped/<timestamp>/`.
 
 ---
 

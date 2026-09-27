@@ -2,22 +2,22 @@
 
 The framework provides batch execution to simulate and compare all controller and Coriolis variants over benchmark trajectories with payload detachment.
 
-Batch simulation is orchestrated by `src/agc/batch/run_batch.py` and executed via the CLI runner `run/run_batch.py`.
+Batch simulation is orchestrated by `src/agc/batch/run_batch.py` and executed via the CLI runner `run/run_batch_sim.py`.
 
 ## Running Batch Simulations
 
 ### Parallel Execution (Recommended)
-By default, `run/run_batch.py` launches worker processes to execute scenarios concurrently, maintaining independent PyBullet physics client contexts:
+By default, `run/run_batch_sim.py` launches worker processes to execute scenarios concurrently, maintaining independent PyBullet physics client contexts:
 
 ```powershell
-python run/run_batch.py --duration 30.0 --replay-id lemniscate_01_auto
+python run/run_batch_sim.py --duration 30.0 --replay-id lemniscate_01_auto
 ```
 
 ### Serial Execution
 For single-threaded debugging or memory-constrained environments:
 
 ```powershell
-python run/run_batch.py --serial --duration 10.0
+python run/run_batch_sim.py --serial --duration 10.0
 ```
 
 ## The 6-Variant Matrix
@@ -41,7 +41,7 @@ By default, results are stored in `results/inplace/` containing:
   - `euclidean_vs_bregman_parameter_error.png`
   - Per-variant standalone state and error trajectories.
 
-Use `python run/run_batch.py --timestamped-save` to store the suite under `results/timestamped/<timestamp>/`.
+Use `python run/run_batch_sim.py --timestamped-save` to store the suite under `results/timestamped/<timestamp>/`.
 
 ## Failure Isolation & Diagnostics
 

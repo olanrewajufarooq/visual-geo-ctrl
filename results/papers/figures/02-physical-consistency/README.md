@@ -19,5 +19,5 @@ Euclidean blue dash-dot, Natural/Bregman solid green, and true values black dash
 
 ## Artifact-generation status
 
-The figures are generated using `run/run_paper_sim_figures.py` with the repository's saved optimized gains. Simulations cover 0–30 s with payload release at 10 s.
+The figures are generated using `run/run_paper_sim.py` with the repository's saved optimized gains. Simulations cover 0–30 s with payload release at 10 s.
 
