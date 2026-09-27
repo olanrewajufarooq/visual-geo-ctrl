@@ -29,16 +29,26 @@ def bregman_step(J: np.ndarray, G: np.ndarray, gamma: float, dt: float) -> np.nd
         raise ValueError("J must be symmetric positive definite.")
 
     # Eigendecomposition of symmetric J
-    w, Q = np.linalg.eigh(0.5 * (J + J.T))
+    try:
+        w, Q = np.linalg.eigh(0.5 * (J + J.T))
+    except np.linalg.LinAlgError:
+        return 0.5 * (J + J.T)
     w_safe = np.maximum(w, 1e-14)
     J_half = Q @ np.diag(np.sqrt(w_safe)) @ Q.T
     G_sym = 0.5 * (G + G.T)
+    if not np.all(np.isfinite(G_sym)):
+        return 0.5 * (J + J.T)
 
     # Symmetric matrix M = -gamma * dt * (J_half @ G_sym @ J_half)
     M = -gamma * dt * (J_half @ G_sym @ J_half)
     M_sym = 0.5 * (M + M.T)
+    if not np.all(np.isfinite(M_sym)):
+        return 0.5 * (J + J.T)
     # Spectral decomposition of symmetric matrix exponential
-    w_m, Q_m = np.linalg.eigh(M_sym)
+    try:
+        w_m, Q_m = np.linalg.eigh(M_sym)
+    except np.linalg.LinAlgError:
+        return 0.5 * (J + J.T)
     # Bound eigenvalues in Lie algebra to prevent float64 exponential overflow
     w_m_safe = np.clip(w_m, -50.0, 50.0)
     # B = J_half @ Q_m @ diag(exp(0.5 * w_m_safe))
@@ -48,7 +58,10 @@ def bregman_step(J: np.ndarray, G: np.ndarray, gamma: float, dt: float) -> np.nd
     if not np.all(np.isfinite(J_raw_sym)):
         return 0.5 * (J + J.T)
     # Clean floating-point roundoff to guarantee SPD
-    w_j, Q_j = np.linalg.eigh(J_raw_sym)
+    try:
+        w_j, Q_j = np.linalg.eigh(J_raw_sym)
+    except np.linalg.LinAlgError:
+        return 0.5 * (J + J.T)
     w_j = np.maximum(w_j, 1e-14 * np.max(w_j))
     J_next = Q_j @ np.diag(w_j) @ Q_j.T
     return 0.5 * (J_next + J_next.T)

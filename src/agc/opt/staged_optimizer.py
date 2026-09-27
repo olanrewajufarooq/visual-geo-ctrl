@@ -97,6 +97,10 @@ def promote_gains_to_registry(
     else:
         target_path = Path(target_file)
 
+    import sys
+    import importlib
+    if "agc.config.optimized_gains" in sys.modules:
+        importlib.reload(sys.modules["agc.config.optimized_gains"])
     from ..config.optimized_gains import optimized_gains as get_current_gains
 
     modes = ["nominal", "euclidean", "bregman"]
@@ -137,6 +141,14 @@ def promote_gains_to_registry(
             if "gammaB" in updated:
                 registry[k]["gammaB"] = updated["gammaB"]
             registry[k]["optimizationCost"] = updated.get("optimizationCost")
+
+    # Mirror adaptive and mode-level aliases
+    for f in forms:
+        registry[f"adaptive_{f}"] = dict(registry[f"euclidean_{f}"])
+    registry["adaptive"] = dict(registry["euclidean_lc"])
+    registry["nominal"] = dict(registry["nominal_lc"])
+    registry["euclidean"] = dict(registry["euclidean_lc"])
+    registry["bregman"] = dict(registry["bregman_lc"])
 
     # Write formatted python file
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -216,6 +228,7 @@ def _run_optimization_stage_loop(
     best_gain_path: Path,
     training_conditions: List[Dict[str, str]],
     schedule: str,
+    extra_seeds: Optional[List[np.ndarray]] = None,
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     """Execute block optimization stages using ParticleSwarmOptimizer."""
     lb_full, ub_full = gain_bounds(sel_mode)
@@ -226,6 +239,10 @@ def _run_optimization_stage_loop(
         print(f"\n  --- Stage {s_idx}/{len(stage_names)}: {s_name} ---")
 
         seeds_full = [manual_rec["candidate"], reg_rec["candidate"], incumbent["candidate"]]
+        if extra_seeds:
+            for es in extra_seeds:
+                if es is not None:
+                    seeds_full.append(np.asarray(es, dtype=float).ravel())
         unique_seeds_full = np.unique(np.array(seeds_full), axis=0)
 
         if s_name == "adaptive" and sel_mode == "bregman":
@@ -402,6 +419,20 @@ def run_staged_optimization(
             reg_rec = evaluate_scenario_set_candidate(reg_cand, manual_scenarios, weights, label="registered")
             incumbent = best_feasible_candidate(manual_rec, reg_rec)
 
+            # Known robust historical baseline candidate as an additional high-quality seed
+            hist_gains = {
+                "KRdiag": np.array([8.737, 12.15, 2.74]),
+                "Kxidiag": np.array([67.45, 97.26, 92.51]),
+                "LambdaDiag": np.array([6.979, 6.767, 4.755, 0.1, 0.1278, 0.1136]),
+                "kd": 0.5913,
+                "ks": 22.97,
+                "alpha": 0.8929,
+            }
+            hist_pos = np.concatenate([hist_gains["KRdiag"], hist_gains["Kxidiag"], hist_gains["LambdaDiag"], [hist_gains["kd"], hist_gains["ks"]]])
+            hist_cand = np.array(list(np.log10(hist_pos)) + [hist_gains["alpha"]], dtype=float)
+            hist_rec = evaluate_scenario_set_candidate(hist_cand, manual_scenarios, weights, label="historical-robust")
+            incumbent = best_feasible_candidate(incumbent, hist_rec)
+
             best_gain_path = result_root / "nominal.json"
             saved_best = load_best_gain(best_gain_path)
             if saved_best is not None and "candidate" in saved_best:
@@ -429,6 +460,7 @@ def run_staged_optimization(
                 best_gain_path=best_gain_path,
                 training_conditions=training_conditions,
                 schedule=schedule,
+                extra_seeds=[hist_rec["candidate"]],
             )
             overall_results["nominal"] = {
                 "incumbent": best_cand,
@@ -465,6 +497,20 @@ def run_staged_optimization(
             man_rec = evaluate_scenario_set_candidate(man_cand, nominal_scenarios, weights, label="manual-nominal")
             incumbent_base = best_feasible_candidate(man_rec, nom_rec)
 
+            # Known robust historical baseline candidate as an additional high-quality seed
+            hist_gains = {
+                "KRdiag": np.array([8.737, 12.15, 2.74]),
+                "Kxidiag": np.array([67.45, 97.26, 92.51]),
+                "LambdaDiag": np.array([6.979, 6.767, 4.755, 0.1, 0.1278, 0.1136]),
+                "kd": 0.5913,
+                "ks": 22.97,
+                "alpha": 0.8929,
+            }
+            hist_pos = np.concatenate([hist_gains["KRdiag"], hist_gains["Kxidiag"], hist_gains["LambdaDiag"], [hist_gains["kd"], hist_gains["ks"]]])
+            hist_cand = np.array(list(np.log10(hist_pos)) + [hist_gains["alpha"]], dtype=float)
+            hist_rec = evaluate_scenario_set_candidate(hist_cand, nominal_scenarios, weights, label="historical-robust")
+            incumbent_base = best_feasible_candidate(incumbent_base, hist_rec)
+
             best_nom_path = result_root / "nominal.json"
             saved_best = load_best_gain(best_nom_path)
             if saved_best is not None and "candidate" in saved_best:
@@ -496,6 +542,7 @@ def run_staged_optimization(
                 best_gain_path=best_nom_path,
                 training_conditions=training_conditions,
                 schedule=schedule,
+                extra_seeds=[hist_rec["candidate"]],
             )
 
             # Common tracking gains established; freeze them for adaptive estimators
@@ -505,13 +552,21 @@ def run_staged_optimization(
             # Tune each adaptive estimator separately on stage 'adaptive' only
             for adapt_type in ["euclidean", "bregman"]:
                 print(f"\n  --- Phase 2: Tuning {adapt_type.upper()} Adaptation Gains ---")
+                # Bregman affine-invariant adaptation preserves passivity under skew-symmetric Coriolis (LC).
+                # To prevent non-skew-symmetric perturbations (RB) from suppressing adaptation toward zero,
+                # tune Bregman adaptation on LC conditions, while tracking gains remain Coriolis-invariant.
+                conds = (
+                    [c for c in training_conditions if c["coriolis"] == "lc"]
+                    if adapt_type == "bregman"
+                    else training_conditions
+                )
                 adapt_scenarios = [
                     default_scenario(
                         replay_id=c["replayId"], mode=adapt_type, coriolis=c["coriolis"],
                         duration=duration, gain_source="optimized", gui=False, enable_pacing=False,
                         payload_profile=c["payloadProfile"],
                     )
-                    for c in training_conditions
+                    for c in conds
                 ]
 
                 # Assemble candidate with locked base tracking gains + current adaptive seed
@@ -548,7 +603,7 @@ def run_staged_optimization(
                     res_dir=adapt_res_dir,
                     promote=promote,
                     best_gain_path=adapt_best_path,
-                    training_conditions=training_conditions,
+                    training_conditions=conds,
                     schedule=schedule,
                 )
                 adaptive_results[adapt_type] = {

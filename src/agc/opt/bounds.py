@@ -41,7 +41,7 @@ def gain_bounds(mode: str) -> Tuple[np.ndarray, np.ndarray]:
         lb.extend([np.log10(1e-5)] * 10)
         ub.extend([0.0] * 10)
     elif mode == "bregman":
-        # 1 scalar adaptation gain gammaB in log10 space [-5, -1]
+        # 1 scalar adaptation gain gammaB in log10 space [-5, -1] (1e-5 to 1e-1)
         lb.append(np.log10(1e-5))
         ub.append(np.log10(1e-1))
 
