@@ -49,7 +49,7 @@ def main():
     parser.add_argument(
         "--train-replay-ids",
         type=str,
-        default="lemniscate_02_auto,lemniscate_03_auto",
+        default="lemniscate_02_auto",
         help="Comma-separated replay IDs used to train each gain candidate",
     )
     parser.add_argument(
@@ -73,7 +73,7 @@ def main():
     parser.add_argument(
         "--max-stall",
         type=int,
-        default=10,
+        default=15,
         help="Maximum iterations without improvement before early stopping",
     )
     parser.add_argument(
