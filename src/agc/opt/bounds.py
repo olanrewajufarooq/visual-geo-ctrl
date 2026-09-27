@@ -11,9 +11,9 @@ def gain_bounds(mode: str) -> Tuple[np.ndarray, np.ndarray]:
         raise ValueError(f"Unknown controller mode: {mode}")
 
     # 14 positive parameters in log10 space:
-    # 3 KR, 3 Kxi, 3 Lambda_R, 3 Lambda_p, 1 kd (> 0.5), 1 ks
+    # 3 KR (KR >= 0.5 for SE(3) attitude stiffness), 3 Kxi, 3 Lambda_R, 3 Lambda_p, 1 kd (> 0.5), 1 ks
     pos_lb = [
-        np.log10(1e-3), np.log10(1e-3), np.log10(1e-3),   # KRdiag
+        np.log10(0.5), np.log10(0.5), np.log10(0.5),      # KRdiag (prevent zero-stiffness collapse)
         np.log10(1e-2), np.log10(1e-2), np.log10(1e-2),   # Kxidiag
         np.log10(1e-2), np.log10(1e-2), np.log10(1e-2),   # LambdaDiag (angular)
         np.log10(1e-2), np.log10(1e-2), np.log10(1e-2),   # LambdaDiag (linear)
@@ -41,9 +41,11 @@ def gain_bounds(mode: str) -> Tuple[np.ndarray, np.ndarray]:
         lb.extend([np.log10(1e-5)] * 10)
         ub.extend([0.0] * 10)
     elif mode == "bregman":
-        # 1 scalar adaptation gain gammaB in log10 space [-5, -1]
-        lb.append(np.log10(1e-5))
-        ub.append(np.log10(1e-1))
+        # 1 scalar adaptation gain gammaB in log10 space [-8, -5.7] (approx 1e-8 to 2e-6).
+        # Values >= 3e-6 cause exponential runaway in the affine-invariant update,
+        # leading to LinAlgError (non-convergent eigenvalues) during aggressive maneuvers.
+        lb.append(np.log10(1e-8))
+        ub.append(np.log10(2e-6))
 
     return np.array(lb, dtype=float), np.array(ub, dtype=float)
 

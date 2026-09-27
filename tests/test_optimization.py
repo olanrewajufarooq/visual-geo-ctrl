@@ -128,10 +128,10 @@ def test_gain_blocks_cover_and_partition_adaptive_controllers():
 
 
 def test_bregman_grid_includes_bounds_and_seed_values():
-    grid = bregman_gamma_grid([1e-3, 3e-4, 1e-5])
-    assert np.isclose(grid[0], -5.0, atol=1e-12)
-    assert np.isclose(grid[-1], -1.0, atol=1e-12)
-    assert np.any(np.isclose(grid, np.log10(3e-4), atol=1e-12))
+    grid = bregman_gamma_grid([1e-7, 5e-7, 1e-6])
+    assert np.isclose(grid[0], -8.0, atol=1e-12)
+    assert np.isclose(grid[-1], np.log10(2e-6), atol=1e-12)
+    assert np.any(np.isclose(grid, np.log10(5e-7), atol=1e-12))
     assert len(grid) == len(np.unique(grid))
 
 
