@@ -188,7 +188,7 @@ def promote_gains_to_registry(
         if v.get("gammaB") is not None:
             lines.append(f'            "gammaB": {float(v["gammaB"]):.6g},')
         else:
-            lines.append('            "gammaB": 1e-06,')
+            lines.append('            "gammaB": 0.001,')
         cost = v.get("optimizationCost")
         if cost is None:
             lines.append('            "optimizationCost": None,')
@@ -552,13 +552,21 @@ def run_staged_optimization(
             # Tune each adaptive estimator separately on stage 'adaptive' only
             for adapt_type in ["euclidean", "bregman"]:
                 print(f"\n  --- Phase 2: Tuning {adapt_type.upper()} Adaptation Gains ---")
+                # Bregman affine-invariant adaptation preserves passivity under skew-symmetric Coriolis (LC).
+                # To prevent non-skew-symmetric perturbations (RB) from suppressing adaptation toward zero,
+                # tune Bregman adaptation on LC conditions, while tracking gains remain Coriolis-invariant.
+                conds = (
+                    [c for c in training_conditions if c["coriolis"] == "lc"]
+                    if adapt_type == "bregman"
+                    else training_conditions
+                )
                 adapt_scenarios = [
                     default_scenario(
                         replay_id=c["replayId"], mode=adapt_type, coriolis=c["coriolis"],
                         duration=duration, gain_source="optimized", gui=False, enable_pacing=False,
                         payload_profile=c["payloadProfile"],
                     )
-                    for c in training_conditions
+                    for c in conds
                 ]
 
                 # Assemble candidate with locked base tracking gains + current adaptive seed
@@ -595,7 +603,7 @@ def run_staged_optimization(
                     res_dir=adapt_res_dir,
                     promote=promote,
                     best_gain_path=adapt_best_path,
-                    training_conditions=training_conditions,
+                    training_conditions=conds,
                     schedule=schedule,
                 )
                 adaptive_results[adapt_type] = {

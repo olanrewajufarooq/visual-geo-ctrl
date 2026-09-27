@@ -9,7 +9,7 @@ from .objective import evaluate_scenario_set_candidate
 
 
 def bregman_gamma_grid(seed_values: Optional[List[float]] = None) -> np.ndarray:
-    """Build the log10 gammaB diagnostic profile grid spanning stable bounds with seeds."""
+    """Build the log10 gammaB diagnostic profile grid spanning [-5, -1] with seeds."""
     lb, ub = gain_bounds("bregman")
     grid = np.linspace(lb[15], ub[15], 21)
 

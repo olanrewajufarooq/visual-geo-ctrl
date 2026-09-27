@@ -89,6 +89,17 @@ def test_bregman_step_preserves_positive_definiteness():
     assert np.allclose(J_next, J_next.T, atol=1e-12)
 
 
+def test_bregman_step_handles_non_finite_and_extreme_inputs():
+    J = np.diag([2.0, 3.0, 4.0, 5.0])
+    G_nan = np.full((4, 4), np.nan)
+    J_next = bregman_step(J, G_nan, gamma=1.0, dt=0.01)
+    assert np.allclose(J_next, J)
+
+    G_inf = np.full((4, 4), np.inf)
+    J_next = bregman_step(J, G_inf, gamma=1.0, dt=0.01)
+    assert np.allclose(J_next, J)
+
+
 def test_euclidean_step_matches_gradient_update():
     pi_hat = np.array([2.0, 0.1, -0.2, 0.3, 0.4, 0.5, 0.6, 0.01, -0.02, 0.03])
     gradient = np.array([0.2, -0.3, 0.1, 0.4, -0.5, 0.6, -0.7, 0.8, -0.9, 1.0])
