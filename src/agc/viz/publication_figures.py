@@ -10,11 +10,11 @@ from ..math.inertia import center_and_principal_moments
 from ..sim.publication import NAMES, PRIMARY_MODES
 from ..sim.paper_metrics import _pose_errors
 
-STYLES = {"nominal": {"color": "#E69F00", "linestyle": "--"},
-          "euclidean": {"color": "#0072B2", "linestyle": "-."},
-          "bregman": {"color": "#009E73", "linestyle": "-"}}
-CONNECTION_STYLES = {"lc": {"color": "#0072B2", "linestyle": "-"},
-                     "rb": {"color": "#E69F00", "linestyle": "--"}}
+STYLES = {"nominal": {"color": "#FF0000", "linestyle": "--"},
+          "euclidean": {"color": "#00FF00", "linestyle": "-."},
+          "bregman": {"color": "#0000FF", "linestyle": "-"}}
+CONNECTION_STYLES = {"lc": {"color": "#0000FF", "linestyle": "-"},
+                     "rb": {"color": "#FF0000", "linestyle": "--"}}
 plt.rcParams.update({"font.size": 8, "axes.labelsize": 9, "legend.fontsize": 7,
                      "lines.linewidth": 1.1, "pdf.fonttype": 42, "savefig.dpi": 400})
 
@@ -31,7 +31,7 @@ def panels(labels, release=True, xlim=(0, 30)):
     fig, axes = plt.subplots(len(labels), 1, figsize=(7.16, 1.45*len(labels)+.55), sharex=True, layout="constrained")
     axes = np.atleast_1d(axes)
     for ax, label in zip(axes, labels):
-        ax.set_ylabel(label); ax.set_xlim(*xlim); ax.grid(True, alpha=.22, linewidth=.5)
+        ax.set_ylabel(label); ax.set_xlim(*xlim); ax.margins(x=0); ax.grid(True, alpha=.22, linewidth=.5)
         if release: ax.axvline(10, color="black", ls=":", lw=.8)
     axes[-1].set_xlabel("Time [s]")
     return fig, axes
@@ -111,7 +111,8 @@ def adaptive_figures(runs, scenarios, output_dir):
         i = np.searchsorted(run["t"], 10)
         if i < len(run["t"]): ax.scatter(*run["H"][i, :3, 3], marker="x", color="black", label="Release (10 s)")
         ax.set(xlabel="x [m]", ylabel="y [m]", zlabel="z [m]")
-        ax.legend(loc="upper center", bbox_to_anchor=(.5, 1.15), fontsize=6)
+        fig.legend(*ax.get_legend_handles_labels(), loc="outside upper center", ncol=2,
+                   frameon=False, fontsize=6)
         save(fig, out, "tracking_3d_bregman")
 
 
@@ -200,33 +201,34 @@ def theory_figures(run, scenario, root, summary, connection):
             (out/f"{name}.{extension}").unlink(missing_ok=True)
     metric = np.asarray(scenario["controller"].get("Lambda_s", np.linalg.inv(scenario["controller"]["Lambda"])))
     r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
-    horizon = min(run["t"][-1], max(1., 1.6*(summary["T_obs"] or min(summary["T_bound"], 5.))))
-    horizon = min(run["t"][-1], scenario.get("focusElapsedEnd", horizon))
     time_offset = float(scenario.get("timeOffset", 0.0))
-    visible_run = np.asarray(run["t"]) <= horizon
+    horizon = float(summary.get("final_source_time_s", scenario.get("displayEnd", 30.0)))
+    visible_run = time_offset + np.asarray(run["t"]) <= horizon
     run_time = time_offset + np.asarray(run["t"])[visible_run]
-    fig, axes = panels([r"$\|s\|_{\Lambda_s}$", "$V_s$ [J]"], False, (time_offset, time_offset + horizon))
-    axes[0].plot(run_time, r[visible_run], color="#0072B2", label="Known-inertia controller")
-    axes[1].plot(run_time, np.asarray(run["Vs"])[visible_run], color="#0072B2")
-    axes[0].axhline(summary["epsilon_s"], color="gray", ls=":", label=r"$\epsilon_s$")
+    fig, axes = panels([r"$\|s\|_{\Lambda_s}$", "$V_s$ [J]"], False, (time_offset, horizon))
+    axes[0].plot(run_time, r[visible_run], color="#FF0000", label="Known-inertia controller")
+    axes[1].plot(run_time, np.asarray(run["Vs"])[visible_run], color="#FF0000")
+    axes[0].set_yscale("symlog", linthresh=summary["epsilon_s"])
+    axes[0].axhline(summary["epsilon_s"], color="black", ls=":", label=r"$\epsilon_s$")
     for index, ax in enumerate(axes):
-        if summary["T_bound"] <= horizon:
-            ax.axvline(time_offset + summary["T_bound"], color="#D55E00", ls="--", label=r"$T_{\rm bound}$")
-        elif index == 0:
-            ax.annotate(f"$T_{{bound}}$ = {summary['T_bound']:.3g} s (outside view)",
-                        xy=(.995, .75), xytext=(.48, .75), xycoords="axes fraction",
-                        textcoords="axes fraction", color="#D55E00", fontsize=7,
-                        arrowprops={"arrowstyle": "->", "color": "#D55E00"})
-        if summary["T_obs"] is not None: ax.axvline(time_offset + summary["T_obs"], color="black", ls=":", label=r"$T_{\rm obs}$")
+        if time_offset + summary["T_bound"] <= horizon:
+            ax.axvline(time_offset + summary["T_bound"], color="#FF0000", ls="--", label=r"$T_{\rm bound}$")
+        if summary["T_obs"] is not None:
+            ax.axvline(time_offset + summary["T_obs"], color="black", ls=":", label=r"$T_{\mathrm{obs}}$")
+    if time_offset + summary["T_bound"] > horizon:
+        axes[0].text(.99, .96,
+                     rf"$T_{{\mathrm{{bound}}}}={summary['T_bound']:.2f}\,\mathrm{{s}}$ elapsed (outside view)",
+                     transform=axes[0].transAxes, ha="right", va="top", color="#FF0000", fontsize=7)
     axes[-1].set_xlabel("Lemniscate time [s]" if time_offset else "Time [s]")
     legend(fig, axes[0]); save(fig, out, "nominal_reaching" if summary["passed"] else "nominal_reaching_FAILED")
     if connection["passed"]:
         fig, axes = panels(["Scaled wrench\nnorm", "Scaled residual\nnorm"], False,
-                           (time_offset, time_offset + horizon))
-        visible = np.asarray(connection["t"]) <= horizon
+                            (time_offset, horizon))
+        visible = time_offset + np.asarray(connection["t"]) <= horizon
         time = time_offset + np.asarray(connection["t"])[visible]
-        axes[0].plot(time, np.asarray(connection["difference"])[visible], label=r"$\|\mathcal{W}_c^{RB}-\mathcal{W}_c^{LC}\|_*$")
-        axes[1].semilogy(time, np.maximum(np.asarray(connection["residual"])[visible], 1e-18))
+        axes[0].plot(time, np.asarray(connection["difference"])[visible], color="black",
+                     label=r"$\|\mathcal{W}_c^{RB}-\mathcal{W}_c^{LC}\|_*$")
+        axes[1].semilogy(time, np.maximum(np.asarray(connection["residual"])[visible], 1e-18), color="black")
         axes[1].set_xlabel("Lemniscate time [s]" if time_offset else r"Time since initialization, $t$ [s]")
         if summary["T_obs"] is not None:
             for ax in axes:

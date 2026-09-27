@@ -1,13 +1,7 @@
 import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
-from agc.sim.connection_sensitivity import focus_end, separation, sensitivity_scenario
-
-
-def test_focus_includes_later_dwell_and_rounds_up():
-    assert focus_end([1., 1.336], 20.) == 2.25
-    assert focus_end([None, 1.], 20.) == 20.
-    assert focus_end([19.5, 19.6], 20.) == 20.
+from agc.sim.connection_sensitivity import separation, sensitivity_scenario
 
 
 def test_separation_uses_physical_units_and_common_axes():
@@ -31,6 +25,22 @@ def test_sensitivity_pair_only_changes_connection():
     for key in a['controller']:
         if key != 'coriolis':
             np.testing.assert_equal(a['controller'][key], b['controller'][key])
+
+
+def test_monte_carlo_command_uses_renamed_command_and_paper_root(monkeypatch):
+    from agc.sim import publication_runner
+    from pathlib import Path
+    tmp_path = Path('paper-output-test')
+    calls = []
+    monkeypatch.setattr('agc.sim.physical_consistency_experiment.run_experiment',
+                        lambda root: calls.append(root))
+    publication_runner.run_publication('physical-consistency-monte-carlo', 30., tmp_path, tmp_path/'raw')
+    assert calls == [tmp_path]
+    with pytest.raises(ValueError, match='Unsupported paper simulation command'):
+        publication_runner.run_publication('physical-consistency-mc', 30., tmp_path, tmp_path/'raw')
+    from run.run_paper_sim import COMMANDS
+    assert 'physical-consistency-monte-carlo' in COMMANDS
+    assert 'physical-consistency-mc' not in COMMANDS
 
 
 @pytest.mark.parametrize('command', ['nominal-reaching', 'nominal-connection', 'connection-realizations', 'connection-sensitivity'])

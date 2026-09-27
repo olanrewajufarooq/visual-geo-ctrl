@@ -11,7 +11,7 @@ python run/run_paper_sim.py nominal-connection
 python run/run_paper_sim.py nominal-reaching
 python run/run_paper_sim.py connection-realizations
 python run/run_paper_sim.py connection-sensitivity
-python run/run_paper_sim.py physical-consistency-mc
+python run/run_paper_sim.py physical-consistency-monte-carlo
 ```
 
 The adaptive release benchmark uses a 10 s release, a 5 cm position
@@ -41,17 +41,17 @@ results/papers/
   tables/connection_realization_summary.csv
   tables/nominal_reaching_summary.csv
   metadata/                          # protocols, summaries, definitions, diagnostics, provenance
-  physical_consistency/              # paired Monte Carlo CSV, figures, report, and initializations
+  figures/03-monte-carlo-verification/ # paired Monte Carlo figures
+  metadata/physical_consistency_monte_carlo_*.json
+  tables/physical_consistency_monte_carlo_*.csv
 ```
 
-Each figure is saved as vector PDF and 400 dpi
-PNG. Payload time histories use 0--30 s and mark 10 s. The reaching and
-connection-equivalence plots share a focused transient window. Connection
-equivalence retains its logarithmic residual panel and labels its time axis
-"Time since initialization, t [s]". For reaching, a conservative bound outside the view
-is annotated with its value and an arrow, never falsely drawn at the edge.
-The numerical bound uses the specified eigenvalue estimate, not a tighter
-replacement. Numerical reaching is threshold-and-dwell evidence only.
+Each figure is saved as vector PDF and 400 dpi PNG. Payload histories use
+0--30 s; connection histories use the full source interval 10--30 s. Persistent
+reaching requires weighted s <= 1e-8 at every saved sample through source time
+30 s, with LC and RB assessed independently. The nominal bound includes both
+the linear and fractional dissipation terms. Figures omit titles, use exact
+full-intensity RGB primaries, and place legends above the plotting area.
 
 The adaptive comparison includes the Known-inertia controller, which uses the
 true loaded inertia before release and the true bare-vehicle inertia after

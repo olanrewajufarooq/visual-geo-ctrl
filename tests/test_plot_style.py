@@ -58,14 +58,14 @@ def test_clip_for_display_preserves_source_and_reports_out_of_bounds():
 
 
 def test_shared_palette_is_rgb_and_black_only():
-    assert COMPONENT_COLORS == ("r", "g", "b")
+    assert COMPONENT_COLORS == ("#FF0000", "#00FF00", "#0000FF")
     assert COLOR_BLACK == "k"
 
 
 def test_reference_and_truth_keep_their_component_color_but_use_dashes():
-    assert color_for_series("x desired", 0) == "r"
-    assert color_for_series("y desired", 1) == "g"
-    assert color_for_series("Izz true", 2) == "b"
+    assert color_for_series("x desired", 0) == "#FF0000"
+    assert color_for_series("y desired", 1) == "#00FF00"
+    assert color_for_series("Izz true", 2) == "#0000FF"
     assert line_style_for_series("x") == "-"
     assert line_style_for_series("x desired") == "--"
     assert line_style_for_series("Izz true") == "--"
@@ -111,7 +111,7 @@ def test_time_plot_pairs_reference_with_component_color_and_preferred_bounds():
         (0.0, 2.0),
     )
 
-    assert [line.get_color() for line in lines] == ["r", "g", "b", "r", "g", "b"]
+    assert [line.get_color() for line in lines] == ["#FF0000", "#00FF00", "#0000FF"]*2
     assert [line.get_linestyle() for line in lines] == ["-", "-", "-", "--", "--", "--"]
     assert axis.get_ylim() == (-125.0, 125.0)
     plt.close(figure)
@@ -127,7 +127,7 @@ def test_preferred_bounds_distinguish_altitude_and_inertia_families():
     assert altitude_axis.get_ylim() == (0.0, 1.2)
     assert principal_axis.get_ylim() == (0.03, 0.12)
     assert off_diagonal_axis.get_ylim() == (-0.01, 0.02)
-    assert [line.get_color() for line in altitude_lines] == ["r", "r"]
+    assert [line.get_color() for line in altitude_lines] == ["#FF0000", "#FF0000"]
     assert [line.get_linestyle() for line in altitude_lines] == ["-", "--"]
     plt.close(figure)
 
@@ -143,7 +143,7 @@ def test_comparison_series_use_stable_distinct_colors_and_styles():
         (0.0, 1.0),
     )
 
-    assert [line.get_color() for line in lines] == ["#E69F00", "#0072B2"]
+    assert [line.get_color() for line in lines] == ["#0000FF", "#FF0000"]
     assert [line.get_linestyle() for line in lines] == ["-", "--"]
     plt.close(figure)
 

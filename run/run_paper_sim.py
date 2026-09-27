@@ -7,10 +7,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 from agc.sim.publication_runner import run_publication
 
+COMMANDS = ("all", "adaptive-drop", "nominal-connection", "nominal-reaching",
+            "connection-realizations", "connection-sensitivity",
+            "physical-consistency-monte-carlo")
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", nargs="?", default="all", choices=["all", "adaptive-drop", "nominal-connection", "nominal-reaching", "connection-realizations", "connection-sensitivity", "physical-consistency-mc"])
+    parser.add_argument("command", nargs="?", default="all", choices=COMMANDS)
     parser.add_argument("--duration", type=float, default=30.)
     parser.add_argument("--output-dir", type=Path, default=REPO_ROOT/"results"/"papers")
     parser.add_argument("--raw-output-dir", type=Path, default=REPO_ROOT/"results"/"paper-runs")

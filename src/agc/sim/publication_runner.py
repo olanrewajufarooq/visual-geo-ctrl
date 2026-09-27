@@ -14,6 +14,12 @@ from ..paper.diagnostics import connection_identity
 from ..math.inertia import inertia_from_pi
 from ..viz.publication_figures import adaptive_figures, theory_figures, connection_realization_figures
 
+PUBLICATION_COMMANDS = {
+    "all", "adaptive-drop", "nominal-connection", "nominal-reaching",
+    "connection-realizations", "connection-sensitivity",
+    "physical-consistency-monte-carlo",
+}
+
 
 def nominal_scenario(duration, dt=.002):
     scenario = default_scenario(mode="nominal", payload_enabled=False, duration=duration, enable_pacing=False)
@@ -183,11 +189,13 @@ def connection_pair_passed(protocol):
 
 
 def run_publication(command, duration, root, raw_root, reuse_cache=False):
-    if command == "physical-consistency-mc":
+    if command not in PUBLICATION_COMMANDS:
+        raise ValueError(f"Unsupported paper simulation command: {command}")
+    if command == "physical-consistency-monte-carlo":
         if duration != 30.0 or reuse_cache:
             raise ValueError("The physical-consistency Monte Carlo uses its fixed 30 s protocol and fresh paired runs")
         from .physical_consistency_experiment import run_experiment
-        return run_experiment(Path(root) / "physical_consistency")
+        return run_experiment(Path(root))
     if command in ("all", "nominal-connection", "nominal-reaching", "connection-realizations", "connection-sensitivity"):
         if duration != 30. or reuse_cache:
             raise ValueError("The nominal sensitivity study requires fresh runs over source time 10–30 s")
@@ -270,7 +278,7 @@ DIAGNOSTICS = """# Numerical-results diagnostic report
 - Bregman stepping uses an SPD-preserving exponential update with numerical eigenvalue/exponent safeguards; it is not exact continuous-time integration.
 - Identical repeated trials and all old flat figures/tables are superseded and must not be cited.
 - FAILED reaching figures are diagnostics only; numerical threshold crossing is not exact finite-time convergence.
-- All payload time histories use 0--30 s. Every figure in 04-nominal-validation uses the 4x connection sensitivity experiment on source time 10--30 s. Reaching, identity, and sensitivity-detail figures use the shared observed-reaching window; summaries retain elapsed reaching durations. The connection residual remains logarithmic. See connection_sensitivity_diagnostics.md for the experiment and numerical limitations.
+- Payload time histories use 0--30 s. Every figure in 04-nominal-validation uses the 4x connection sensitivity experiment on source time 10--30 s. `T_obs` is the first saved sample from which weighted s stays <=1e-8 through source time 30 s; LC and RB are assessed independently. The connection residual remains logarithmic. See connection_sensitivity_diagnostics.md for the experiment and numerical limitations.
 - The nominal transverse-energy integral's relative numerical residual is retained in the reaching summary. Report the threshold-and-dwell bound check as numerical evidence, not as a pointwise reproduction of the continuous-time energy identity.
 """
 
@@ -288,10 +296,12 @@ at every sample through the first sample at or after t+1 s (inclusive).
 Report absolute time and duration t-10. Blank means not observed with a complete dwell.
 This is sampled dwell evidence, not a guarantee between samples or for all future time.
 
-Observed reaching: first sample with sqrt(s.T Lambda_s s)<=0.001 throughout a
-0.5 s sampled dwell, including the endpoint. No incomplete terminal dwell qualifies.
-Lambda_s is the configured transverse metric (default inverse(Lambda)). Bound uses true I and actual s(0), never estimated energy.
-The nominal controller is continuous in theory but evaluated at finite sample rate.
+T_obs: first saved sample with sqrt(s.T Lambda_s s)<=1e-8 at every sample
+through source time 30 s. The complete horizon is required; incomplete logs
+do not qualify. LC and RB times are assessed independently.
+Lambda_s is the configured transverse metric. The bound uses true I and
+actual s(0), never estimated energy. The nominal controller is continuous
+in theory but evaluated at finite sample rate.
 
 Physical margin: smallest eigenvalue of Jhat directly (Bregman) or pseudo_from_pi
 (Euclidean), with full-run and post-release minima and nonpositive flag.
@@ -328,8 +338,9 @@ Theory predicts r_K = W_RB - W_LC + K_RB(V)s = 0 at every time, including off
 the sliding manifold. The wrench difference itself need only vanish when s=0.
 The computed small residual is consistent with floating-point roundoff; the
 logarithmic panel retains these values rather than setting them to zero.
-T_obs marks numerical threshold-and-dwell reaching, not the onset of validity
-of the algebraic identity.
+T_obs uses the 1e-8 persistence threshold through source time 30 s. It does
+not determine when the algebraic identity becomes valid; that identity holds
+at every sample.
 
 Relative residual uses max(norm(left),norm(right)) only above 1e-6.
 Separate maximum force and torque residuals are also saved.

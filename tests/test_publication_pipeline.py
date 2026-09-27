@@ -17,7 +17,7 @@ def test_connection_identity_off_manifold():
 
 def test_bound_uses_true_initial_energy_not_logged_estimate():
     run = {"s": np.ones((1, 6)), "Vs": np.zeros(1)}
-    assert compute_nominal_reaching_bound(run, np.eye(6), np.eye(6), 1, .5) > 0
+    assert compute_nominal_reaching_bound(run, np.eye(6), np.eye(6), 1, 1, .5) > 0
 
 
 def test_recovery_includes_dwell_endpoint():
@@ -121,11 +121,11 @@ def test_short_adaptive_run_has_no_post_release_physical_margin():
 
 def test_publication_styles_follow_paper_controller_convention():
     from agc.viz.publication_figures import STYLES, CONNECTION_STYLES
-    assert STYLES["nominal"] == {"color": "#E69F00", "linestyle": "--"}
-    assert STYLES["euclidean"] == {"color": "#0072B2", "linestyle": "-."}
-    assert STYLES["bregman"] == {"color": "#009E73", "linestyle": "-"}
-    assert CONNECTION_STYLES["lc"] == {"color": "#0072B2", "linestyle": "-"}
-    assert CONNECTION_STYLES["rb"] == {"color": "#E69F00", "linestyle": "--"}
+    assert STYLES["nominal"] == {"color": "#FF0000", "linestyle": "--"}
+    assert STYLES["euclidean"] == {"color": "#00FF00", "linestyle": "-."}
+    assert STYLES["bregman"] == {"color": "#0000FF", "linestyle": "-"}
+    assert CONNECTION_STYLES["lc"] == {"color": "#0000FF", "linestyle": "-"}
+    assert CONNECTION_STYLES["rb"] == {"color": "#FF0000", "linestyle": "--"}
 
 
 def test_paper_summary_rows_use_final_controller_names_and_physical_labels():
@@ -254,7 +254,7 @@ def test_publication_exports_pdf_and_png_with_shared_limits(tmp_path):
     plt.close(fig)
 
 
-def test_connection_figure_focuses_transient_and_preserves_log_residual(monkeypatch, tmp_path):
+def test_connection_figure_uses_full_horizon_and_preserves_log_residual(monkeypatch, tmp_path):
     from agc.viz import publication_figures as figures
     import matplotlib.pyplot as plt
 
@@ -265,16 +265,16 @@ def test_connection_figure_focuses_transient_and_preserves_log_residual(monkeypa
     residual = np.array([1e-14, 1e-16, 1e-17, 2e-15])
     run = {"t": t, "s": np.zeros((4, 6)), "Vs": np.zeros(4)}
     scenario = {"controller": {"Lambda": np.eye(6)}}
-    summary = {"T_obs": 1.336, "T_bound": 59.75, "epsilon_s": .001, "passed": True}
+    summary = {"T_obs": 1.336, "T_bound": 59.75, "epsilon_s": 1e-8, "passed": True}
     connection = {"passed": True, "t": t, "difference": np.exp(-t),
                   "theory": np.exp(-t), "residual": residual}
     try:
         figures.theory_figures(run, scenario, tmp_path, summary, connection)
         axes = captured["connection_equivalence"].axes
-        assert axes[0].get_xlim() == pytest.approx((0, 1.6*summary["T_obs"]))
+        assert axes[0].get_xlim() == pytest.approx((0, 30))
         assert axes[1].get_xlabel() == r"Time since initialization, $t$ [s]"
         assert axes[1].get_yscale() == "log"
-        np.testing.assert_array_equal(axes[1].lines[0].get_ydata(), residual[:3])
+        np.testing.assert_array_equal(axes[1].lines[0].get_ydata(), residual)
         fig = captured["connection_equivalence"]
         fig.canvas.draw()
         renderer = fig.canvas.get_renderer()
@@ -284,6 +284,7 @@ def test_connection_figure_focuses_transient_and_preserves_log_residual(monkeypa
             markers = [line for line in ax.lines if line.get_label() == r"$T_{\mathrm{obs}}$"]
             assert len(markers) == 1
             np.testing.assert_allclose(markers[0].get_xdata(), [1.336, 1.336])
+        assert all(ax.get_title() == "" for ax in axes)
     finally:
         for fig in captured.values():
             plt.close(fig)
@@ -313,7 +314,7 @@ def test_connection_tracking_draws_reference_below_realizations(monkeypatch, tmp
     assert labels[:3] == ["Desired reference", r"$C_{\mathrm{LC}}$", r"$C_{\mathrm{RB}}$"]
 
 
-def test_connection_identity_autoscales_only_visible_reaching_interval(monkeypatch, tmp_path):
+def test_connection_identity_uses_fixed_full_horizon(monkeypatch, tmp_path):
     from agc.viz import publication_figures as figures
 
     captured = {}
@@ -321,14 +322,13 @@ def test_connection_identity_autoscales_only_visible_reaching_interval(monkeypat
     t = np.array([0.0, 1.0, 2.0, 30.0])
     run = {"t": t, "s": np.zeros((4, 6)), "Vs": np.zeros(4)}
     scenario = {"controller": {"Lambda": np.eye(6)}}
-    summary = {"T_obs": 1.0, "T_bound": 59.75, "epsilon_s": .001, "passed": True}
+    summary = {"T_obs": 1.0, "T_bound": 59.75, "epsilon_s": 1e-8, "passed": True}
     connection = {"passed": True, "t": t, "difference": np.array([.2, .1, .05, 2.0]),
                   "theory": np.array([.2, .1, .05, 2.0]), "residual": np.full(4, 1e-14)}
 
     figures.theory_figures(run, scenario, tmp_path, summary, connection)
 
-    ymax = captured["connection_equivalence"].axes[0].get_ylim()[1]
-    assert ymax < .3, "Out-of-view values must not flatten the reaching-interval plot"
+    assert captured["connection_equivalence"].axes[0].get_xlim() == pytest.approx((0, 30))
 
 
 def test_connection_identity_uses_lemniscate_source_time_when_available(monkeypatch, tmp_path):
@@ -339,14 +339,14 @@ def test_connection_identity_uses_lemniscate_source_time_when_available(monkeypa
     t = np.array([0.0, 1.0, 2.0])
     run = {"t": t, "s": np.zeros((3, 6)), "Vs": np.zeros(3)}
     scenario = {"controller": {"Lambda": np.eye(6)}, "timeOffset": 10.0}
-    summary = {"T_obs": 1.0, "T_bound": 59.75, "epsilon_s": .001, "passed": True}
+    summary = {"T_obs": 1.0, "T_bound": 59.75, "epsilon_s": 1e-8, "passed": True}
     connection = {"passed": True, "t": t, "difference": np.array([.2, .1, .05]),
                   "theory": np.array([.2, .1, .05]), "residual": np.full(3, 1e-14)}
 
     figures.theory_figures(run, scenario, tmp_path, summary, connection)
 
     axes = captured["connection_equivalence"].axes
-    assert axes[0].get_xlim() == pytest.approx((10.0, 11.6))
+    assert axes[0].get_xlim() == pytest.approx((10.0, 30.0))
     np.testing.assert_allclose(axes[0].lines[-1].get_xdata(), [11.0, 11.0])
     assert axes[1].get_xlabel() == "Lemniscate time [s]"
 
@@ -362,7 +362,7 @@ def test_nominal_figures_use_the_paper_time_window(monkeypatch, tmp_path):
            "Vdesired": np.zeros((len(t), 6)), "s": np.zeros((len(t), 6)), "Vs": np.zeros(len(t))}
     scenarios = {key: {"controller": {"Lambda": np.eye(6)}, "timeOffset": 10.0,
                        "displayEnd": 30.0} for key in ("lc", "rb")}
-    summary = {"T_obs": 1.0, "T_bound": 59.75, "epsilon_s": .001, "passed": True}
+    summary = {"T_obs": 1.0, "T_bound": 59.75, "epsilon_s": 1e-8, "passed": True}
     connection = {"passed": True, "t": t, "difference": np.array([.2, .1, .05]),
                   "theory": np.array([.2, .1, .05]), "residual": np.full(3, 1e-14)}
 
@@ -377,8 +377,9 @@ def test_nominal_figures_use_the_paper_time_window(monkeypatch, tmp_path):
         for line in ax.lines:
             np.testing.assert_allclose(line.get_xdata(), [10.0, 30.0])
     reaching_axes = captured["nominal_reaching"].axes
-    assert reaching_axes[0].get_xlim() == pytest.approx((10.0, 11.6))
-    np.testing.assert_allclose(reaching_axes[0].lines[-1].get_xdata(), [11.0, 11.0])
+    assert reaching_axes[0].get_xlim() == pytest.approx((10.0, 30.0))
+    assert reaching_axes[0].get_yscale() == "symlog"
+    assert any("59.75" in text.get_text() for text in reaching_axes[0].texts)
 
 
 def test_connection_identity_shows_one_signal_and_its_residual(monkeypatch, tmp_path):
@@ -389,7 +390,7 @@ def test_connection_identity_shows_one_signal_and_its_residual(monkeypatch, tmp_
     t = np.array([0.0, 1.0])
     run = {"t": t, "s": np.zeros((2, 6)), "Vs": np.zeros(2)}
     scenario = {"controller": {"Lambda": np.eye(6)}}
-    summary = {"T_obs": None, "T_bound": 1.0, "epsilon_s": .001, "passed": True}
+    summary = {"T_obs": None, "T_bound": 1.0, "epsilon_s": 1e-8, "passed": True}
     connection = {"passed": True, "t": t, "difference": np.array([.2, .1]),
                   "theory": np.array([.2, .1]), "residual": np.full(2, 1e-14)}
 

@@ -7,8 +7,8 @@ from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
 import numpy as np
 
 COLOR_BLACK = "k"
-COMPONENT_COLORS = ("r", "g", "b")
-COMPARISON_COLORS = {"lc": "#E69F00", r"$c_{\mathrm{lc}}$": "#E69F00", "c_{lc}": "#E69F00", "c_lc": "#E69F00", "euclidean": "#E69F00", "rb": "#0072B2", r"$c_{\mathrm{rb}}$": "#0072B2", "c_{rb}": "#0072B2", "c_rb": "#0072B2", "bregman": "#0072B2"}
+COMPONENT_COLORS = ("#FF0000", "#00FF00", "#0000FF")
+COMPARISON_COLORS = {"lc": "#0000FF", r"$c_{\mathrm{lc}}$": "#0000FF", "c_{lc}": "#0000FF", "c_lc": "#0000FF", "euclidean": "#00FF00", "rb": "#FF0000", r"$c_{\mathrm{rb}}$": "#FF0000", "c_{rb}": "#FF0000", "c_rb": "#FF0000", "bregman": "#0000FF"}
 SIGNED_FAMILIES = {
     "position", "orientation", "linear_velocity", "angular_velocity",
     "force", "torque", "linear_acceleration", "angular_acceleration",

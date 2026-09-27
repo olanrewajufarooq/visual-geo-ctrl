@@ -9,7 +9,8 @@ from pathlib import Path
 import numpy as np
 
 from .default_scenario import default_scenario
-from .paper_metrics import _pose_errors, compute_recovery_time, compute_reaching_time, compute_nominal_reaching_bound
+from .paper_metrics import (_pose_errors, compute_recovery_time, compute_persistent_reaching_time,
+                           compute_nominal_reaching_bound)
 from ..math.inertia import inertia_from_pi
 from ..config.optimized_gains import optimized_gains
 
@@ -108,7 +109,7 @@ def physical_consistency_row(run, mode):
     }
 
 
-def connection_realization_row(run, connection, scenario, epsilon=1e-3, dwell=.5):
+def connection_realization_row(run, connection, scenario, epsilon=1e-8, final_time=30., time_offset=10.):
     position, attitude = _pose_errors(run)
     metric = np.asarray(scenario["controller"].get("Lambda_s", np.linalg.inv(scenario["controller"]["Lambda"])))
     weighted = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
@@ -119,7 +120,9 @@ def connection_realization_row(run, connection, scenario, epsilon=1e-3, dwell=.5
         "Position RMSE [m]": float(np.sqrt(np.mean(position**2))),
         "Geodesic attitude RMSE [deg]": float(np.degrees(np.sqrt(np.mean(attitude**2)))),
         "Maximum ||s||_{Lambda_s}": float(np.max(weighted)),
-        "Observed reaching time [s]": compute_reaching_time(run, epsilon, dwell, metric),
+        "T_obs [source s]": (None if (elapsed := compute_persistent_reaching_time(
+            run, epsilon, metric, final_time=final_time, time_offset=time_offset)) is None
+            else elapsed + time_offset),
         "RMS force norm [N]": float(np.sqrt(np.mean(force**2))),
         "Peak force norm [N]": float(np.max(force)),
         "RMS torque norm [N m]": float(np.sqrt(np.mean(torque**2))),
@@ -161,7 +164,7 @@ def gain_report():
     }
 
 
-def reaching_summary(run, scenario, epsilon=1e-3, dwell=.5):
+def reaching_summary(run, scenario, epsilon=1e-8, final_time=30., time_offset=10.):
     cfg = scenario["controller"]
     inertia = inertia_from_pi(scenario["plantPi"])
     metric = np.asarray(cfg.get("Lambda_s", np.linalg.inv(cfg["Lambda"])))
@@ -170,17 +173,19 @@ def reaching_summary(run, scenario, epsilon=1e-3, dwell=.5):
     lo, hi = float(np.linalg.eigvalsh(metric).min()), float(np.linalg.eigvalsh(inertia).max())
     q = (1 + cfg["alpha"]) / 2
     c = 2 * lo / hi
-    bound = compute_nominal_reaching_bound(run, inertia, metric, cfg["ks"], cfg["alpha"])
-    observed = compute_reaching_time(run, epsilon, dwell, metric)
+    bound = compute_nominal_reaching_bound(run, inertia, metric, cfg["kd"], cfg["ks"], cfg["alpha"])
+    observed = compute_persistent_reaching_time(run, epsilon, metric, final_time=final_time, time_offset=time_offset)
     r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
     loss = cfg["kd"]*r**2 + cfg["ks"]*r**(1+cfg["alpha"])
     integral = np.r_[0., np.cumsum(.5*(loss[:-1]+loss[1:])*np.diff(run["t"]))]
     true_energy = .5*np.einsum("ni,ij,nj->n", run["s"], inertia, run["s"])
     energy_residual = true_energy-v0+integral
     return {"V_s(0)": v0, "lambda_min(Lambda_s)": lo, "lambda_max(I)": hi,
-            "k_s": cfg["ks"], "alpha": cfg["alpha"], "q": q, "c_Lambda": c,
-            "c_alpha": cfg["ks"] * c**q, "T_bound": bound, "T_obs": observed,
-            "epsilon_s": epsilon, "dwell_s": dwell,
+            "k_d": cfg["kd"], "k_s": cfg["ks"], "alpha": cfg["alpha"], "q": q, "c_Lambda": c,
+            "a": cfg["kd"]*c, "b": cfg["ks"]*c**q,
+            "T_bound": bound, "T_obs": observed,
+            "T_obs_source_time_s": None if observed is None else observed+time_offset,
+            "epsilon_s": epsilon, "final_source_time_s": final_time,
             "max_integrated_energy_residual_J": float(np.abs(energy_residual).max()),
             "energy_residual_relative_to_initial": float(np.abs(energy_residual).max()/v0) if v0 else None,
             "passed": bool(v0 > 0 and observed is not None and observed <= bound),
