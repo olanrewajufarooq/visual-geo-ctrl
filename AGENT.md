@@ -20,7 +20,7 @@ This is a paper-aligned Python/PyBullet simulator for a fully actuated UAV on `S
 ```powershell
 conda activate agc
 pytest tests/ -v
-python run/run_theory_suite.py --mode bregman --coriolis lc --duration 30
-python run/run_batch.py
+python run/run_sim.py --mode bregman --coriolis lc --duration 30
+python run/run_batch_sim.py
 python run/plot_trajectories.py --replay-id lemniscate_01_auto
 ```

@@ -31,7 +31,7 @@ python -c "import agc.math, agc.paper, agc.plant; print('Imports OK')"
 ### Solutions:
 1. Run in headless mode:
    ```powershell
-   python run/run_theory_suite.py --mode bregman --coriolis lc
+   python run/run_sim.py --mode bregman --coriolis lc
    ```
 2. Update OpenGL / GPU display drivers. PyBullet utilizes hardware OpenGL acceleration for the 3D window when `--gui` is specified.
 3. For remote machines or Docker containers, use `pybullet.DIRECT` (default in batch and test scripts).
@@ -54,11 +54,11 @@ python -c "import agc.math, agc.paper, agc.plant; print('Imports OK')"
 ## Batch Process Isolation & Multi-Processing
 
 ### Symptoms:
-- Parallel batch runs (`run_batch.py`) stall or encounter pickling errors.
+- Parallel batch runs (`run_batch_sim.py`) stall or encounter pickling errors.
 
 ### Solutions:
 1. Run in serial mode for debugging:
    ```powershell
-   python run/run_batch.py --serial --duration 5.0
+   python run/run_batch_sim.py --serial --duration 5.0
    ```
 2. On Windows, Python uses `spawn` for multiprocessing. All scenario arguments and callable wrappers must be top-level picklable objects.

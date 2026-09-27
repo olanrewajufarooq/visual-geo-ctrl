@@ -10,20 +10,20 @@ conda activate agc
 
 ## Script Overview
 
-### 1. `run_theory_suite.py`
+### 1. `run_sim.py`
 Simulates a single UAV tracking experiment in PyBullet.
 - Releases the 0.75 kg payload at 10.0 s (when duration $\ge 10$ s).
-- Saves results to `results/timestamped/<timestamp>/<mode>_<coriolis>/` with `run.npz` and `metadata.json`.
+- Saves results to `results/timestamped/<timestamp>/<mode>_<coriolis>/` or `results/inplace/<mode>_<coriolis>/` with `run.npz` and `metadata.json`.
 
 ```powershell
 # Headless run (fast)
-python run/run_theory_suite.py --mode bregman --coriolis lc --duration 30
+python run/run_sim.py --mode bregman --coriolis lc --duration 30
 
 # Interactive 3D PyBullet GUI with trajectory trail and camera tracking
-python run/run_theory_suite.py --mode bregman --coriolis lc --gui --speed 1.0
+python run/run_sim.py --mode bregman --coriolis lc --gui --speed 1.0
 
 # Export paper figures
-python run/run_theory_suite.py --mode bregman --coriolis lc --save-figures
+python run/run_sim.py --mode bregman --coriolis lc --save-figures
 ```
 
 **Options:**
@@ -40,15 +40,15 @@ python run/run_theory_suite.py --mode bregman --coriolis lc --save-figures
 
 ---
 
-### 2. `run_batch.py`
+### 2. `run_batch_sim.py`
 Runs the full 6-variant comparison matrix (`nominal`, `euclidean`, `bregman` $\times$ `lc`, `rb`) with payload drop, saving run data, `manifest.json`, and comparison figures.
 
 ```powershell
 # Default batch (parallel execution)
-python run/run_batch.py
+python run/run_batch_sim.py
 
 # Serial execution (single process)
-python run/run_batch.py --serial --duration 10.0
+python run/run_batch_sim.py --serial --duration 10.0
 ```
 
 **Options:**
@@ -62,7 +62,31 @@ python run/run_batch.py --serial --duration 10.0
 
 ---
 
-### 3. `optimize_gains.py`
+### 3. `run_paper_sim.py`
+Runs the official publication experiment suite and generates multi-panel LaTeX-ready publication figures in `results/papers/figures/`.
+
+```powershell
+# Run all publication studies and export all figures
+python run/run_paper_sim.py all
+
+# Run specific paper studies
+python run/run_paper_sim.py adaptive-drop
+python run/run_paper_sim.py nominal-connection
+python run/run_paper_sim.py nominal-reaching
+python run/run_paper_sim.py connection-realizations
+python run/run_paper_sim.py connection-sensitivity
+```
+
+**Options:**
+- `command`: Study to run: `all`, `adaptive-drop`, `nominal-connection`, `nominal-reaching`, `connection-realizations`, `connection-sensitivity` (default: `all`).
+- `--duration`: Flight duration in seconds (default: 30.0 s).
+- `--reuse-cache`: Reuse raw run cache when source code fingerprint matches.
+- `--output-dir`: Output directory for figures and summaries (default: `results/papers`).
+- `--raw-output-dir`: Output directory for raw simulation runs (default: `results/paper-runs`).
+
+---
+
+### 4. `optimize_gains.py`
 Performs staged block-coordinate gain optimization (Particle Swarm Optimization) over tracking gains ($K_R, K_\xi$), damping/metric gains ($\Lambda, k_s, k_d$), and adaptation gains ($\gamma_E, \gamma_B$).
 
 ```powershell
@@ -94,7 +118,7 @@ python run/optimize_gains.py --mode adaptive --swarm-size 20 --max-iter 30
 
 ---
 
-### 4. `replay_run.py`
+### 5. `replay_run.py`
 Visualizes a previously saved simulation run (`run.npz`) in the interactive 3D PyBullet GUI.
 
 ```powershell
@@ -108,7 +132,7 @@ python run/replay_run.py results/inplace/bregman_lc --speed 1.5
 
 ---
 
-### 5. `plot_trajectories.py`
+### 6. `plot_trajectories.py`
 Inspects reference trajectory geometry and time profiles directly from `trajectories/processed/*.mat`.
 
 ```powershell
@@ -121,7 +145,7 @@ python run/plot_trajectories.py --replay-id lemniscate_01_auto
 
 ---
 
-### 6. `plot_simulation_setup.py`
+### 7. `plot_simulation_setup.py`
 Generates publication-quality 3D simulation-setup figures (arena, gates, trajectory, vehicle, and IEEE composite panels) in both PNG and 300 DPI PDF formats.
 
 ```powershell

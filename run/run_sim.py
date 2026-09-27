@@ -1,4 +1,4 @@
-"""Run paper theory tracking scenarios with PyBullet simulation."""
+"""Run single UAV tracking scenario with PyBullet simulation."""
 
 import os
 import sys
@@ -18,7 +18,7 @@ from agc.viz.paper_figures import export_run_figures
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run AGC UAV theory tracking simulation in PyBullet.")
+    parser = argparse.ArgumentParser(description="Run single AGC UAV tracking simulation in PyBullet.")
     parser.add_argument("--replay-id", type=str, default="lemniscate_01_auto", help="Trajectory artifact ID")
     parser.add_argument("--mode", type=str, default="bregman", choices=["nominal", "euclidean", "bregman"], help="Controller mode")
     parser.add_argument("--coriolis", type=str.lower, default="lc", choices=["lc", "rb"], help="Coriolis factorization (lc or rb)")

@@ -4,7 +4,7 @@ Simulation runs and batch comparison suites write structured results under `resu
 
 ## Directory Hierarchy
 
-### Single Runs (`run_theory_suite.py`)
+### Single Runs (`run_sim.py`)
 ```text
 results/timestamped/<timestamp>/
 `-- <mode>_<coriolis>/
@@ -15,7 +15,7 @@ results/timestamped/<timestamp>/
         `-- parameter_estimates.png
 ```
 
-### Batch Suites (`run_batch.py`)
+### Batch Suites (`run_batch_sim.py`)
 ```text
 results/inplace/
 `--

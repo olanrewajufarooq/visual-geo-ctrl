@@ -5,12 +5,12 @@ publication artifacts to `results/papers/`:
 
 ```text
 conda activate agc
-python run/run_paper_sim_figures.py
-python run/run_paper_sim_figures.py adaptive-drop
-python run/run_paper_sim_figures.py nominal-connection
-python run/run_paper_sim_figures.py nominal-reaching
-python run/run_paper_sim_figures.py connection-realizations
-python run/run_paper_sim_figures.py connection-sensitivity
+python run/run_paper_sim.py
+python run/run_paper_sim.py adaptive-drop
+python run/run_paper_sim.py nominal-connection
+python run/run_paper_sim.py nominal-reaching
+python run/run_paper_sim.py connection-realizations
+python run/run_paper_sim.py connection-sensitivity
 ```
 
 The adaptive release benchmark uses a 10 s release, a 5 cm position

@@ -85,7 +85,7 @@ def _json_ready(value):
 
 def source_fingerprint():
     repo = Path(__file__).resolve().parents[3]
-    source_files = sorted((repo/"src").rglob("*.py")) + [repo/"run"/"run_paper_sim_figures.py"]
+    source_files = sorted((repo/"src").rglob("*.py")) + [repo/"run"/"run_paper_sim.py"]
     digest = hashlib.sha256()
     for path in source_files:
         digest.update(str(path.relative_to(repo)).replace("\\", "/").encode())
@@ -222,7 +222,7 @@ def run_publication(command, duration, root, raw_root, reuse_cache=False):
         write_json(root/"gain_summary.json", gain_report())
     repo = Path(__file__).resolve().parents[3]
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
-    source_files = sorted((repo/"src").rglob("*.py")) + [repo/"run"/"run_paper_sim_figures.py"]
+    source_files = sorted((repo/"src").rglob("*.py")) + [repo/"run"/"run_paper_sim.py"]
     digest = hashlib.sha256()
     for path in source_files:
         digest.update(str(path.relative_to(repo)).replace("\\", "/").encode())

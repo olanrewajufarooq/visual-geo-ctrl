@@ -35,7 +35,7 @@ python -c "import agc.math, agc.paper, agc.plant; print('AGC imported successful
 Run an adaptive tracking experiment in the 3D PyBullet GUI:
 
 ```powershell
-python run/run_theory_suite.py --mode bregman --coriolis lc --gui --speed 1.0
+python run/run_sim.py --mode bregman --coriolis lc --gui --speed 1.0
 ```
 
 GUI mode opens the PyBullet scene together with a live Matplotlib diagnostics
@@ -52,7 +52,7 @@ optional future extensions.
 Run headlessly and generate paper figures:
 
 ```powershell
-python run/run_theory_suite.py --mode bregman --coriolis lc --duration 30 --save-figures
+python run/run_sim.py --mode bregman --coriolis lc --duration 30 --save-figures
 ```
 
 The results and figures will be saved in `results/inplace/bregman_lc/`.
@@ -66,10 +66,10 @@ Run all 6 controller variants (`nominal`, `euclidean`, `bregman` $\times$ `lc`, 
 
 ```powershell
 # Parallel execution across CPU cores
-python run/run_batch.py
+python run/run_batch_sim.py
 
 # Serial execution (single process)
-python run/run_batch.py --serial --duration 10.0
+python run/run_batch_sim.py --serial --duration 10.0
 ```
 
 ---

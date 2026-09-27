@@ -27,9 +27,9 @@ adaptive-geo-ctrl-pybullet/
 |   |-- plot_simulation_setup.py
 |   |-- plot_trajectories.py
 |   |-- replay_run.py
-|   |-- run_batch.py
-|   |-- run_paper_experiments.py
-|   |-- run_theory_suite.py
+|   |-- run_batch_sim.py
+|   |-- run_paper_sim.py
+|   |-- run_sim.py
 |   `-- README.md
 |-- src/agc/
 |   |-- __init__.py
