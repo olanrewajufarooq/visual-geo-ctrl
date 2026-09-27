@@ -189,7 +189,7 @@ def reaching_certificate():
     if failure:
         raise RuntimeError(f"Nominal reaching simulation failed: {failure}")
     I = inertia_from_pi(s["plantPi"])
-    Ls = np.linalg.inv(s["controller"]["Lambda"])
+    Ls = np.asarray(s["controller"]["Lambda_s"])
     S = run["s"]
     v0 = float(.5*S[0]@I@S[0])
     lo, hi = np.linalg.eigvalsh(Ls).min(), np.linalg.eigvalsh(I).max()
@@ -222,12 +222,12 @@ def write_audit(s, gamma_e, gamma_b):
     pi0, pil = s["payloadDrop"]["barePi"], s["payloadDrop"]["loadedPi"]
     nom = nominal_scenario(20.0, dt=.002)
     Lnom = nom["controller"]["Lambda"]
-    Lsnom = np.linalg.inv(Lnom)
+    Lsnom = np.asarray(nom["controller"]["Lambda_s"])
     def diag(x): return r"\operatorname{diag}(" + r",\;".join(f"{v:.8g}" for v in x) + ")"
     def mat(x): return r"\begin{bmatrix}" + r" \\".join(" & ".join(f"{v:.7g}" for v in row) for row in x) + r"\end{bmatrix}"
     rows = [
         (r"Adaptive $\Lambda$", f"${diag(np.diag(cfg['Lambda']))}$", "optimized_gains.py: LambdaDiag"),
-        (r"Adaptive $\Lambda_s$", rf"${diag(np.diag(np.linalg.inv(cfg['Lambda'])))}$ (six diagonal entries; reciprocal of configured $\Lambda$)", "optimized_gains.py: LambdaDiag"),
+        (r"Adaptive $\Lambda_s$", rf"${diag(np.diag(cfg['Lambda_s']))}$ (six diagonal entries)", "default_scenario.py: Lambda_s"),
         (r"$K_R$, $K_\xi$", rf"${diag(np.diag(cfg['KR']))},\quad {diag(np.diag(cfg['Kxi']))}$", "optimized_gains.py: KRdiag, Kxidiag"),
         (r"$k_d,k_s,\alpha$", f"{cfg['kd']}, {cfg['ks']}, {cfg['alpha']}", "optimized_gains.py: kd, ks, alpha"),
         (r"Euclidean $\Gamma$", f"${diag(gamma_e)}$", "optimized_gains.py: gammaE"),
@@ -254,8 +254,8 @@ def write_audit(s, gamma_e, gamma_b):
     table += [r"\hline\end{tabular}\end{table*}"]
     (TABLES/"implemented_parameters.tex").write_text("\n".join(table)+"\n", encoding="utf-8")
     dump(META/"implemented_parameters.json", {
-        "adaptive_controller": {"Lambda": cfg["Lambda"], "Lambda_s": np.linalg.inv(cfg["Lambda"]),
-            "Lambda_structure": "diagonal; six configured entries; Lambda_s is its reciprocal",
+        "adaptive_controller": {"Lambda": cfg["Lambda"], "Lambda_s": cfg["Lambda_s"],
+            "Lambda_structure": "diagonal; six configured entries; Lambda_s configured independently (default reciprocal)",
             "KR": cfg["KR"], "Kxi": cfg["Kxi"], "kd": cfg["kd"], "ks": cfg["ks"], "alpha": cfg["alpha"]},
         "estimators": {"euclidean_gamma": gamma_e, "euclidean_gamma_structure": "diagonal 10-vector",
             "natural_bregman_gamma": gamma_b, "natural_bregman_gamma_structure": "scalar"},

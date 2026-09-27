@@ -142,10 +142,7 @@ def promote_gains_to_registry(
                 registry[k]["gammaB"] = updated["gammaB"]
             registry[k]["optimizationCost"] = updated.get("optimizationCost")
 
-    # Mirror adaptive and mode-level aliases
-    for f in forms:
-        registry[f"adaptive_{f}"] = dict(registry[f"euclidean_{f}"])
-    registry["adaptive"] = dict(registry["euclidean_lc"])
+    # Mirror only the canonical mode-level convenience aliases.
     registry["nominal"] = dict(registry["nominal_lc"])
     registry["euclidean"] = dict(registry["euclidean_lc"])
     registry["bregman"] = dict(registry["bregman_lc"])

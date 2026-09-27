@@ -1,4 +1,10 @@
-"""Coriolis factorizations for SE(3) rigid-body dynamics."""
+"""Coriolis factorizations for SE(3) rigid-body dynamics.
+
+The controller and inertial regressor currently wire only the canonical
+``lc`` and ``rb`` realizations. The three-form helpers below construct
+admissible gyroscopic perturbations for analysis, but are not selectable
+controller/regressor factorizations.
+"""
 
 from typing import Dict, Tuple
 import numpy as np

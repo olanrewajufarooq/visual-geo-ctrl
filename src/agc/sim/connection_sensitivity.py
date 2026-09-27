@@ -51,7 +51,7 @@ def separation(lc, rb):
 
 
 def audit(run, scenario):
-    metric = np.linalg.inv(scenario['controller']['Lambda'])
+    metric = np.asarray(scenario['controller'].get('Lambda_s', np.linalg.inv(scenario['controller']['Lambda'])))
     r = np.sqrt(np.einsum('ni,ij,nj->n', run['s'], metric, run['s']))
     observed = compute_reaching_time(run, EPSILON, DWELL, metric)
     residuals, relative, command_errors, difference = [], [], [], []
@@ -166,7 +166,7 @@ def run_study(root, raw_root):
     fig, axes = panels([r'$\|p-p_d\|$ [m]', 'Geodesic attitude\nerror [deg]', r'$\|s\|_{\Lambda_s}$'], False, (OFFSET, OFFSET+end))
     for form, run in runs.items():
         pos, angle = _pose_errors(run)
-        metric = np.linalg.inv(scenarios[form]['controller']['Lambda'])
+        metric = np.asarray(scenarios[form]['controller'].get('Lambda_s', np.linalg.inv(scenarios[form]['controller']['Lambda'])))
         r = np.sqrt(np.einsum('ni,ij,nj->n', run['s'], metric, run['s']))
         for ax, values in zip(axes, (pos, np.degrees(angle), r)):
             ax.plot(OFFSET+run['t'][mask], values[mask], label=f'$C_{{{form.upper()}}}$', **CONNECTION_STYLES[form])

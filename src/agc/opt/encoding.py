@@ -85,6 +85,10 @@ def apply_scenario_gains(candidate: np.ndarray, scenario: Dict[str, Any]) -> Dic
     if len(cand) != expected_len:
         raise ValueError(f"Candidate length {len(cand)} does not match expected {expected_len} for mode {mode}")
 
+    old_lambda = np.asarray(c["Lambda"], dtype=float)
+    old_lambda_s = np.asarray(c.get("Lambda_s", np.linalg.inv(old_lambda)), dtype=float)
+    lambda_s_tracks_lambda = np.allclose(old_lambda_s, np.linalg.inv(old_lambda))
+
     positive = 10.0 ** cand[0:14]
     alpha = float(cand[14])
 
@@ -96,6 +100,8 @@ def apply_scenario_gains(candidate: np.ndarray, scenario: Dict[str, Any]) -> Dic
     c["KR"] = np.diag(positive[0:3])
     c["Kxi"] = np.diag(positive[3:6])
     c["Lambda"] = np.diag(positive[6:12])
+    if lambda_s_tracks_lambda:
+        c["Lambda_s"] = np.linalg.inv(c["Lambda"])
     c["kd"] = float(positive[12])
     c["ks"] = float(positive[13])
     c["alpha"] = alpha

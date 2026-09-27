@@ -148,6 +148,7 @@ def test_nominal_controller_uses_fractional_dissipation():
         "KR": np.eye(3),
         "Kxi": np.eye(3),
         "Lambda": np.eye(6),
+        "Lambda_s": np.diag([4.0, 1.0, 1.0, 1.0, 1.0, 1.0]),
         "kd": 1.0,
         "ks": 2.0,
         "alpha": 0.5,
@@ -156,8 +157,8 @@ def test_nominal_controller_uses_fractional_dissipation():
 
     W, diagnostics, _ = controller(state, desired, cfg, pi, dt_adapt=None)
 
-    s_norm = np.linalg.norm(diagnostics.s)
-    expected_D = (1.0 + 2.0 * (s_norm ** (-0.5))) * diagnostics.s
+    s_norm = np.sqrt(diagnostics.s @ cfg["Lambda_s"] @ diagnostics.s)
+    expected_D = (1.0 + 2.0 * (s_norm ** (-0.5))) * cfg["Lambda_s"] @ diagnostics.s
     I6 = inertia_from_pi(pi)
     expected = (
         I6 @ diagnostics.VrDot

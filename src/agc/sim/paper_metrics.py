@@ -34,8 +34,10 @@ def compute_window_metrics(run: Dict[str, Any], start_time: float, end_time: flo
     sliding = np.asarray(run.get("s", np.zeros((len(t), 6))), dtype=float)
     sliding_norm = np.linalg.norm(sliding, axis=1)
     selected_t = t[mask]
-    selected_wrench = wrench[mask]
-    effort = float(np.trapezoid(np.sum(selected_wrench ** 2, axis=1), selected_t)) if len(selected_t) > 1 else 0.0
+    selected_force = wrench[mask, 3:]
+    selected_torque = wrench[mask, :3]
+    integrated_force = float(np.trapezoid(np.sum(selected_force ** 2, axis=1), selected_t)) if len(selected_t) > 1 else 0.0
+    integrated_torque = float(np.trapezoid(np.sum(selected_torque ** 2, axis=1), selected_t)) if len(selected_t) > 1 else 0.0
     return {
         "startTime": float(start_time),
         "endTime": float(end_time),
@@ -44,10 +46,12 @@ def compute_window_metrics(run: Dict[str, Any], start_time: float, end_time: flo
         "maxPositionError": float(np.max(position[mask])),
         "maxAttitudeError": float(np.max(attitude[mask])),
         "maxSlidingNorm": float(np.max(sliding_norm[mask])),
-        "wrenchRMS": float(np.sqrt(np.mean(np.sum(selected_wrench ** 2, axis=1)))),
+        "forceRMS": float(np.sqrt(np.mean(force_norm[mask] ** 2))),
+        "torqueRMS": float(np.sqrt(np.mean(torque_norm[mask] ** 2))),
         "peakForce": float(np.max(force_norm[mask])),
         "peakTorque": float(np.max(torque_norm[mask])),
-        "integratedSquaredWrench": effort,
+        "integratedSquaredForce": integrated_force,
+        "integratedSquaredTorque": integrated_torque,
         "maxPsi": float(np.max(np.asarray(run["Psi"])[mask])),
         "maxVs": float(np.max(np.asarray(run["Vs"])[mask])),
     }

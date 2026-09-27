@@ -19,7 +19,8 @@ def objective_scales() -> Dict[str, float]:
         "linVel": 0.20,
         "angVel": 0.50,
         "inertia": 0.05,
-        "effort": 50.0,
+        "force": 50.0,
+        "torque": 5.0,
     }
 
 
@@ -33,11 +34,10 @@ def objective_weights() -> Dict[str, float]:
         "linVel": 0.5,
         "angVel": 0.5,
         "inertia": 1.5,
-        # Effort weight raised from 0.01: at 0.01 the wrenchRMS term was
-        # negligible (~0.026) vs the tracking/estimation terms (~9+), giving
-        # the optimizer free rein to drive gains — and therefore wrench — as
-        # high as needed.  0.5 makes effort a real trade-off.
-        "effort": 0.5,
+        # The total effort weight remains 0.5 and is split evenly between
+        # separately scaled force and torque RMS terms.
+        "forceEffort": 0.25,
+        "torqueEffort": 0.25,
         "failure": 1e6,
     }
 
@@ -77,6 +77,7 @@ def evaluate_scenario_candidate(
     # 1. Decode and round candidate to 4 significant figures
     temp_scenario = apply_scenario_gains(candidate, base_scenario)
     c = temp_scenario["controller"]
+    lambda_s_tracks_lambda = np.allclose(c["Lambda_s"], np.linalg.inv(c["Lambda"]))
     raw_gains = {
         "KRdiag": np.diag(c["KR"]),
         "Kxidiag": np.diag(c["Kxi"]),
@@ -93,6 +94,8 @@ def evaluate_scenario_candidate(
     c["KR"] = np.diag(gains["KRdiag"])
     c["Kxi"] = np.diag(gains["Kxidiag"])
     c["Lambda"] = np.diag(gains["LambdaDiag"])
+    if lambda_s_tracks_lambda:
+        c["Lambda_s"] = np.linalg.inv(c["Lambda"])
     c["kd"] = gains["kd"]
     c["ks"] = gains["ks"]
     c["alpha"] = gains["alpha"]
@@ -121,7 +124,8 @@ def evaluate_scenario_candidate(
             + weights["linVel"] * (metrics["linearVelocityRMSE"] / scales["linVel"]) ** 2
             + weights["angVel"] * (metrics["angularVelocityRMSE"] / scales["angVel"]) ** 2
             + weights["inertia"] * (metrics["inertiaEstimationRMSE"] / scales["inertia"]) ** 2
-            + weights["effort"] * (metrics["wrenchRMS"] / scales["effort"]) ** 2
+            + weights["forceEffort"] * (metrics["forceRMS"] / scales["force"]) ** 2
+            + weights["torqueEffort"] * (metrics["torqueRMS"] / scales["torque"]) ** 2
         )
         failed = not np.isfinite(cost)
     else:

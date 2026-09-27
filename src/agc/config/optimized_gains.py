@@ -1,5 +1,5 @@
 """Optimized per-scenario gain registry.
-Last promotion: 2026-09-25 (Synchronized with results/optimization/best-gain records)
+Last promotion: 2026-09-27 09:57:45 (Stage: all, Cost: 10618.7)
 """
 
 import numpy as np
@@ -10,53 +10,107 @@ def optimized_gains(mode: str, coriolis: str = "lc") -> dict:
     m = mode.lower()
     c = coriolis.lower() if coriolis else "lc"
     key = f"{m}_{c}"
-
-    # Shared base tracking and sliding surface gains
-    base_tracking = {
-        "KRdiag": np.array([0.1784, 6.418, 0.4457]),
-        "Kxidiag": np.array([9.833, 1.762, 33.96]),
-        "LambdaDiag": np.array([4.392, 19.97, 15.26, 0.7227, 0.967, 0.1144]),
-        "kd": 7.934,
-        "ks": 0.4086,
-        "alpha": 0.5731,
-    }
-
-    nominal_entry = {
-        **base_tracking,
-        "gammaE": 0.001 * np.ones(10),
-        "gammaB": 0.001,
-        "optimizationCost": 61.3517,
-    }
-
-    euclidean_entry = {
-        **base_tracking,
-        "gammaE": np.array([0.06224, 0.04911, 0.003038, 0.01321, 0.08969, 0.004635, 0.009389, 0.000774, 5.955e-05, 0.0001565]),
-        "gammaB": 0.001,
-        "optimizationCost": 79.7507,
-    }
-
-    bregman_entry = {
-        **base_tracking,
-        "gammaE": 0.001 * np.ones(10),
-        "gammaB": 0.09054,
-        "optimizationCost": 61.3517,
-    }
-
     registry = {
-        "nominal_lc": nominal_entry,
-        "nominal_rb": nominal_entry,
-        "nominal": nominal_entry,
-        "euclidean_lc": euclidean_entry,
-        "euclidean_rb": euclidean_entry,
-        "euclidean": euclidean_entry,
-        "bregman_lc": bregman_entry,
-        "bregman_rb": bregman_entry,
-        "bregman": bregman_entry,
-        "adaptive_lc": euclidean_entry,
-        "adaptive_rb": euclidean_entry,
-        "adaptive": euclidean_entry,
+        "nominal_lc": {
+            "KRdiag": np.array([np.float64(0.002629), np.float64(0.002944), np.float64(0.1783)]),
+            "Kxidiag": np.array([np.float64(32.3), np.float64(0.1116), np.float64(13.85)]),
+            "LambdaDiag": np.array([np.float64(8.936), np.float64(11.53), np.float64(3.649), np.float64(0.09005), np.float64(0.1241), np.float64(0.1542)]),
+            "kd": 22.1,
+            "ks": 0.4749,
+            "alpha": 0.947,
+            "gammaE": np.array([np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001)]),
+            "gammaB": 0.001,
+            "optimizationCost": 10618.6606262,
+        },
+        "nominal_rb": {
+            "KRdiag": np.array([np.float64(0.002629), np.float64(0.002944), np.float64(0.1783)]),
+            "Kxidiag": np.array([np.float64(32.3), np.float64(0.1116), np.float64(13.85)]),
+            "LambdaDiag": np.array([np.float64(8.936), np.float64(11.53), np.float64(3.649), np.float64(0.09005), np.float64(0.1241), np.float64(0.1542)]),
+            "kd": 22.1,
+            "ks": 0.4749,
+            "alpha": 0.947,
+            "gammaE": np.array([np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001)]),
+            "gammaB": 0.001,
+            "optimizationCost": 10618.6606262,
+        },
+        "euclidean_lc": {
+            "KRdiag": np.array([np.float64(0.002629), np.float64(0.002944), np.float64(0.1783)]),
+            "Kxidiag": np.array([np.float64(32.3), np.float64(0.1116), np.float64(13.85)]),
+            "LambdaDiag": np.array([np.float64(8.936), np.float64(11.53), np.float64(3.649), np.float64(0.09005), np.float64(0.1241), np.float64(0.1542)]),
+            "kd": 22.1,
+            "ks": 0.4749,
+            "alpha": 0.947,
+            "gammaE": np.array([np.float64(0.06224), np.float64(0.04911), np.float64(0.003038), np.float64(0.01321), np.float64(0.08969), np.float64(0.004635), np.float64(0.009389), np.float64(0.000774), np.float64(6e-05), np.float64(0.000156)]),
+            "gammaB": 0.001,
+            "optimizationCost": 79.7507,
+        },
+        "euclidean_rb": {
+            "KRdiag": np.array([np.float64(0.002629), np.float64(0.002944), np.float64(0.1783)]),
+            "Kxidiag": np.array([np.float64(32.3), np.float64(0.1116), np.float64(13.85)]),
+            "LambdaDiag": np.array([np.float64(8.936), np.float64(11.53), np.float64(3.649), np.float64(0.09005), np.float64(0.1241), np.float64(0.1542)]),
+            "kd": 22.1,
+            "ks": 0.4749,
+            "alpha": 0.947,
+            "gammaE": np.array([np.float64(0.06224), np.float64(0.04911), np.float64(0.003038), np.float64(0.01321), np.float64(0.08969), np.float64(0.004635), np.float64(0.009389), np.float64(0.000774), np.float64(6e-05), np.float64(0.000156)]),
+            "gammaB": 0.001,
+            "optimizationCost": 79.7507,
+        },
+        "bregman_lc": {
+            "KRdiag": np.array([np.float64(0.002629), np.float64(0.002944), np.float64(0.1783)]),
+            "Kxidiag": np.array([np.float64(32.3), np.float64(0.1116), np.float64(13.85)]),
+            "LambdaDiag": np.array([np.float64(8.936), np.float64(11.53), np.float64(3.649), np.float64(0.09005), np.float64(0.1241), np.float64(0.1542)]),
+            "kd": 22.1,
+            "ks": 0.4749,
+            "alpha": 0.947,
+            "gammaE": np.array([np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001)]),
+            "gammaB": 0.09054,
+            "optimizationCost": 61.3517,
+        },
+        "bregman_rb": {
+            "KRdiag": np.array([np.float64(0.002629), np.float64(0.002944), np.float64(0.1783)]),
+            "Kxidiag": np.array([np.float64(32.3), np.float64(0.1116), np.float64(13.85)]),
+            "LambdaDiag": np.array([np.float64(8.936), np.float64(11.53), np.float64(3.649), np.float64(0.09005), np.float64(0.1241), np.float64(0.1542)]),
+            "kd": 22.1,
+            "ks": 0.4749,
+            "alpha": 0.947,
+            "gammaE": np.array([np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001)]),
+            "gammaB": 0.09054,
+            "optimizationCost": 61.3517,
+        },
+        "nominal": {
+            "KRdiag": np.array([np.float64(0.002629), np.float64(0.002944), np.float64(0.1783)]),
+            "Kxidiag": np.array([np.float64(32.3), np.float64(0.1116), np.float64(13.85)]),
+            "LambdaDiag": np.array([np.float64(8.936), np.float64(11.53), np.float64(3.649), np.float64(0.09005), np.float64(0.1241), np.float64(0.1542)]),
+            "kd": 22.1,
+            "ks": 0.4749,
+            "alpha": 0.947,
+            "gammaE": np.array([np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001)]),
+            "gammaB": 0.001,
+            "optimizationCost": 10618.6606262,
+        },
+        "euclidean": {
+            "KRdiag": np.array([np.float64(0.002629), np.float64(0.002944), np.float64(0.1783)]),
+            "Kxidiag": np.array([np.float64(32.3), np.float64(0.1116), np.float64(13.85)]),
+            "LambdaDiag": np.array([np.float64(8.936), np.float64(11.53), np.float64(3.649), np.float64(0.09005), np.float64(0.1241), np.float64(0.1542)]),
+            "kd": 22.1,
+            "ks": 0.4749,
+            "alpha": 0.947,
+            "gammaE": np.array([np.float64(0.06224), np.float64(0.04911), np.float64(0.003038), np.float64(0.01321), np.float64(0.08969), np.float64(0.004635), np.float64(0.009389), np.float64(0.000774), np.float64(6e-05), np.float64(0.000156)]),
+            "gammaB": 0.001,
+            "optimizationCost": 79.7507,
+        },
+        "bregman": {
+            "KRdiag": np.array([np.float64(0.002629), np.float64(0.002944), np.float64(0.1783)]),
+            "Kxidiag": np.array([np.float64(32.3), np.float64(0.1116), np.float64(13.85)]),
+            "LambdaDiag": np.array([np.float64(8.936), np.float64(11.53), np.float64(3.649), np.float64(0.09005), np.float64(0.1241), np.float64(0.1542)]),
+            "kd": 22.1,
+            "ks": 0.4749,
+            "alpha": 0.947,
+            "gammaE": np.array([np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001), np.float64(0.001)]),
+            "gammaB": 0.09054,
+            "optimizationCost": 61.3517,
+        },
     }
-
     if key in registry:
         return registry[key]
     if m in registry:

@@ -23,6 +23,8 @@ from agc.opt.encoding import (
 )
 from agc.opt.objective import (
     aggregate_scenario_records,
+    evaluate_scenario_candidate,
+    evaluate_scenario_set_candidate,
     objective_scales,
     objective_weights,
     optimization_options,
@@ -55,7 +57,8 @@ def test_optimizer_defaults_use_shared_velocity_and_effort_weights():
         "linVel": 0.5,
         "angVel": 0.5,
         "inertia": 1.5,
-        "effort": 0.5,
+        "forceEffort": 0.25,
+        "torqueEffort": 0.25,
         "failure": 1e6,
     }
     for k, v in expected.items():
@@ -73,7 +76,8 @@ def test_optimizer_uses_explicit_physical_error_scales():
         "linVel": 0.20,
         "angVel": 0.50,
         "inertia": 0.05,
-        "effort": 50.0,
+        "force": 50.0,
+        "torque": 5.0,
     }
     for k, v in expected.items():
         assert np.isclose(scales[k], v)
@@ -185,6 +189,47 @@ def test_training_cost_averages_all_finite_conditions_and_rejects_any_failure():
     assert failed["cost"] == pytest.approx(1e6)
 
 
+def test_scenario_set_objective_scores_every_condition_and_uses_arithmetic_mean(monkeypatch):
+    from agc.opt import objective
+
+    calls = []
+    costs = iter([1.0, 5.0, 9.0])
+
+    def score_one(candidate, scenario, weights=None, label="candidate"):
+        calls.append(scenario["id"])
+        return {"cost": next(costs), "failed": False, "candidate": [1.0], "gains": {}}
+
+    monkeypatch.setattr(objective, "evaluate_scenario_candidate", score_one)
+    scenarios = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+    aggregate = evaluate_scenario_set_candidate(np.array([1.0]), scenarios)
+
+    assert calls == ["a", "b", "c"]
+    assert aggregate["cost"] == pytest.approx((1.0 + 5.0 + 9.0) / 3.0)
+    assert len(aggregate["conditionRecords"]) == len(scenarios)
+
+
+def test_objective_uses_separately_scaled_force_and_torque_effort(monkeypatch):
+    from agc.opt import objective
+
+    scenario = default_scenario(mode="nominal", duration=1.0)
+    candidate = encode_scenario_gains(scenario)
+    H = np.repeat(np.eye(4)[None], 2, axis=0)
+    pi = np.array([2.0, 0., 0., 0., .2, .2, .2, 0., 0., 0.])
+    run = {
+        "t": np.array([0., 1.]), "H": H, "Hdesired": H.copy(),
+        "V": np.zeros((2, 6)), "Vdesired": np.zeros((2, 6)),
+        "wrench": np.tile([3., 4., 0., 0., 0., 50.], (2, 1)),
+        "s": np.zeros((2, 6)), "Psi": np.zeros(2), "Vs": np.zeros(2),
+        "minPseudoEigenvalue": np.array([1., 1.]),
+        "activePlantPi": np.tile(pi, (2, 1)), "estimatePi": np.tile(pi, (2, 1)),
+    }
+    monkeypatch.setattr(objective, "run_scenario", lambda scenario: (run, None))
+    result = evaluate_scenario_candidate(candidate, scenario)
+    assert result["metrics"]["forceRMS"] == pytest.approx(50.0)
+    assert result["metrics"]["torqueRMS"] == pytest.approx(5.0)
+    assert result["cost"] == pytest.approx(0.5)
+
+
 def test_staged_schedule_hierarchical_and_classic():
     assert gain_optimization_stages("nominal", "classic") == ["all"]
     assert gain_optimization_stages("adaptive", "classic") == ["all", "nonadaptive", "adaptive"]
@@ -216,6 +261,18 @@ def test_encode_decode_roundtrip():
     new_sc = apply_scenario_gains(cand, scenario)
     cand2 = encode_scenario_gains(new_sc)
     assert np.allclose(cand, cand2, atol=1e-12)
+
+
+def test_applying_gains_updates_default_reciprocal_lambda_s_but_keeps_explicit_metric():
+    scenario = default_scenario(mode="nominal", duration=2.0)
+    candidate = encode_scenario_gains(scenario)
+    candidate[6] += 0.2
+    updated = apply_scenario_gains(candidate, scenario)
+    np.testing.assert_allclose(updated["controller"]["Lambda_s"], np.linalg.inv(updated["controller"]["Lambda"]))
+
+    scenario["controller"]["Lambda_s"] = np.diag([2., 3., 4., 5., 6., 7.])
+    explicit = apply_scenario_gains(candidate, scenario)
+    np.testing.assert_array_equal(explicit["controller"]["Lambda_s"], scenario["controller"]["Lambda_s"])
 
 
 def test_promote_gains_loads_python_registry_without_relative_import_error():

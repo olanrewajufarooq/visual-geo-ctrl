@@ -34,7 +34,7 @@ def nominal_scenario(duration, dt=.002):
     }
     inertia = inertia_from_pi(scenario["plantPi"])
     scenario["controller"].update(KR=np.diag([1., 2., 3.]), Kxi=np.eye(3),
-                                   Lambda=np.linalg.inv(inertia), kd=1., ks=1., alpha=.5)
+                                   Lambda=np.linalg.inv(inertia), Lambda_s=inertia.copy(), kd=1., ks=1., alpha=.5)
     scenario.update(dtPlant=dt, dtControl=dt, dtAdaptation=dt)
     return scenario
 
@@ -55,7 +55,7 @@ def connection_test(run, scenario):
     # gravity-compensating wrenches. Retain absolute checks at every sample.
     meaningful = scales > 1e-6
     rel = float(np.max(values[meaningful, 2]/scales[meaningful])) if meaningful.any() else None
-    metric = np.linalg.inv(scenario["controller"]["Lambda"])
+    metric = np.asarray(scenario["controller"].get("Lambda_s", np.linalg.inv(scenario["controller"]["Lambda"])))
     r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
     i = int(indices[min(5, len(indices)-1)])
     on_manifold = connection_identity({"H": run["H"][i], "V": run["V"][i]-run["s"][i]},
@@ -290,7 +290,7 @@ This is sampled dwell evidence, not a guarantee between samples or for all futur
 
 Observed reaching: first sample with sqrt(s.T Lambda_s s)<=0.001 throughout a
 0.5 s sampled dwell, including the endpoint. No incomplete terminal dwell qualifies.
-Lambda_s=inverse(Lambda). Bound uses true I and actual s(0), never estimated energy.
+Lambda_s is the configured transverse metric (default inverse(Lambda)). Bound uses true I and actual s(0), never estimated energy.
 The nominal controller is continuous in theory but evaluated at finite sample rate.
 
 Physical margin: smallest eigenvalue of Jhat directly (Bregman) or pseudo_from_pi

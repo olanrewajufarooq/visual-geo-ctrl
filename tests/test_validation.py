@@ -69,6 +69,25 @@ def test_lambda_must_be_a_6x6_symmetric_positive_definite_matrix():
     with pytest.raises(ValueError, match="Lambda must be a 6x6 symmetric positive definite matrix"):
         validate_scenario(scen)
 
+
+def test_lambda_s_is_independent_spd_metric_with_reciprocal_default():
+    scen = default_scenario(duration=1.0)
+    np.testing.assert_allclose(scen["controller"]["Lambda_s"], np.linalg.inv(scen["controller"]["Lambda"]))
+    scen["controller"]["Lambda_s"] = np.diag([2., 3., 4., 5., 6., 7.])
+    validate_scenario(scen)
+    scen["controller"]["Lambda_s"][-1, -1] = 0.0
+    with pytest.raises(ValueError, match="Lambda_s must be a 6x6 symmetric positive definite matrix"):
+        validate_scenario(scen)
+
+
+def test_alpha_must_be_strictly_less_than_one():
+    scen = default_scenario(duration=1.0)
+    scen["controller"]["alpha"] = 1.0
+    with pytest.raises(ValueError, match="alpha must satisfy 0 < alpha < 1"):
+        validate_scenario(scen)
+    scen["controller"]["alpha"] = 0.5
+    validate_scenario(scen)
+
     scen["controller"]["Lambda"] = np.diag([1.0, 1.0, 1.0, 1.0, 1.0, -1.0])
     with pytest.raises(ValueError, match="Lambda must be a 6x6 symmetric positive definite matrix"):
         validate_scenario(scen)

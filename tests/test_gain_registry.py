@@ -69,7 +69,7 @@ def test_optimized_registry_exposes_persisted_cost():
 
 def test_optimized_gains_coriolis_invariance():
     """Optimized gains must be invariant to Coriolis factorization form (lc vs rb)."""
-    modes = ["nominal", "euclidean", "bregman", "adaptive"]
+    modes = ["nominal", "euclidean", "bregman"]
     for m in modes:
         g_lc = agc_optimized_gains(m, "lc")
         g_rb = agc_optimized_gains(m, "rb")
@@ -86,7 +86,7 @@ def test_optimized_gains_coriolis_invariance():
 def test_shared_tracking_gains_across_all_modes():
     """All controller modes must share identical tracking and sliding gains."""
     tracking_keys = ["KRdiag", "Kxidiag", "LambdaDiag", "kd", "ks", "alpha"]
-    modes = ["nominal", "euclidean", "bregman", "adaptive"]
+    modes = ["nominal", "euclidean", "bregman"]
     base = agc_optimized_gains("nominal", "lc")
 
     for m in modes:
@@ -96,6 +96,12 @@ def test_shared_tracking_gains_across_all_modes():
                 np.testing.assert_array_equal(g[k], base[k])
             for k in ["kd", "ks", "alpha"]:
                 assert g[k] == base[k]
+
+
+def test_adaptive_registry_aliases_are_not_exposed():
+    for alias in ("adaptive", "adaptive_lc", "adaptive_rb"):
+        with pytest.raises(ValueError):
+            agc_optimized_gains(alias)
 
 
 def test_gain_promotion_synchronizes_nominal_tracking_gains(tmp_path):

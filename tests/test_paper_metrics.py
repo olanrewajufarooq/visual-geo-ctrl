@@ -34,6 +34,9 @@ def test_window_metrics_and_recovery_use_intrinsic_errors():
     assert metrics["attitudeRMSE"] == pytest.approx(0.0)
     assert metrics["peakForce"] == pytest.approx(np.sqrt(3.0))
     assert metrics["peakTorque"] == pytest.approx(np.sqrt(3.0))
+    assert metrics["forceRMS"] == pytest.approx(np.sqrt(3.0))
+    assert metrics["torqueRMS"] == pytest.approx(np.sqrt(3.0))
+    assert "wrenchRMS" not in metrics
     assert compute_recovery_time(run, 0.0, dwell_time=1.0) == pytest.approx(2.0)
 
 

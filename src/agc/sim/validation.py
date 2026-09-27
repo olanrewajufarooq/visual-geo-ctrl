@@ -138,6 +138,10 @@ def validate_scenario(scenario: Dict[str, Any]) -> None:
     if mat_lambda.shape != (6, 6) or not is_spd(mat_lambda):
         raise ValueError("controller gain Lambda must be a 6x6 symmetric positive definite matrix.")
 
+    mat_lambda_s = np.asarray(c.get("Lambda_s", np.linalg.inv(mat_lambda)), dtype=float)
+    if mat_lambda_s.shape != (6, 6) or not is_spd(mat_lambda_s):
+        raise ValueError("controller gain Lambda_s must be a 6x6 symmetric positive definite matrix.")
+
     for scalar_name in ["kd", "ks", "alpha"]:
         if scalar_name not in c:
             raise KeyError(f"controller missing scalar gain: {scalar_name!r}")
@@ -145,8 +149,8 @@ def validate_scenario(scenario: Dict[str, Any]) -> None:
         if not np.isfinite(val) or val <= 0.0:
             raise ValueError(f"controller scalar gain {scalar_name} must be positive, got {val}")
 
-    if float(c["alpha"]) > 1.0:
-        raise ValueError(f"controller dissipation exponent alpha must satisfy 0 < alpha <= 1, got {c['alpha']}")
+    if not 0.0 < float(c["alpha"]) < 1.0:
+        raise ValueError(f"controller dissipation exponent alpha must satisfy 0 < alpha < 1, got {c['alpha']}")
 
     # Initial estimate validation
     est = scenario["initialEstimate"]

@@ -110,7 +110,7 @@ def physical_consistency_row(run, mode):
 
 def connection_realization_row(run, connection, scenario, epsilon=1e-3, dwell=.5):
     position, attitude = _pose_errors(run)
-    metric = np.linalg.inv(scenario["controller"]["Lambda"])
+    metric = np.asarray(scenario["controller"].get("Lambda_s", np.linalg.inv(scenario["controller"]["Lambda"])))
     weighted = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
     force = np.linalg.norm(run["wrench"][:, 3:], axis=1)
     torque = np.linalg.norm(run["wrench"][:, :3], axis=1)
@@ -130,11 +130,11 @@ def connection_realization_row(run, connection, scenario, epsilon=1e-3, dwell=.5
 def controller_gain_rows(scenarios):
     """Machine-readable record of actual gains used in the saved runs."""
     euclidean, bregman = scenarios["euclidean"]["controller"], scenarios["bregman"]["controller"]
-    shared = all(np.array_equal(euclidean[k], bregman[k]) for k in ("KR", "Kxi", "Lambda", "kd", "ks", "alpha"))
+    shared = all(np.array_equal(euclidean[k], bregman[k]) for k in ("KR", "Kxi", "Lambda", "Lambda_s", "kd", "ks", "alpha"))
     return [{
         "Tracking gains common between Euclidean and Natural/Bregman?": "yes" if shared else "no",
         "Lambda": np.asarray(euclidean["Lambda"]).tolist(),
-        "Lambda_s": np.linalg.inv(euclidean["Lambda"]).tolist(),
+        "Lambda_s": np.asarray(euclidean["Lambda_s"]).tolist(),
         "K_R": np.asarray(euclidean["KR"]).tolist(),
         "K_xi": np.asarray(euclidean["Kxi"]).tolist(),
         "k_d": float(euclidean["kd"]), "k_s": float(euclidean["ks"]), "alpha": float(euclidean["alpha"]),
@@ -150,7 +150,7 @@ def gain_report():
         "status": "unified tracking gains and isolated adaptation gains verified from staged optimization protocol",
         "common_tracking_gain_source": "unified multi-condition staged PSO optimization (invariant to Coriolis form)",
         "common_tracking_gains": {k: cfg[k] for k in COMMON_KEYS},
-        "Lambda_s": np.linalg.inv(cfg["Lambda"]),
+        "Lambda_s": cfg["Lambda_s"],
         "gamma": optimized_gains("euclidean", "lc")["gammaE"], "gamma_B": cfg["gammaB"],
         "optimization_executed": True,
         "tuning_protocol": {
@@ -164,7 +164,7 @@ def gain_report():
 def reaching_summary(run, scenario, epsilon=1e-3, dwell=.5):
     cfg = scenario["controller"]
     inertia = inertia_from_pi(scenario["plantPi"])
-    metric = np.linalg.inv(cfg["Lambda"])
+    metric = np.asarray(cfg.get("Lambda_s", np.linalg.inv(cfg["Lambda"])))
     s0 = run["s"][0]
     v0 = float(.5 * s0 @ inertia @ s0)
     lo, hi = float(np.linalg.eigvalsh(metric).min()), float(np.linalg.eigvalsh(inertia).max())

@@ -80,7 +80,7 @@ def adaptive_figures(runs, scenarios, output_dir):
     fig, axes = panels([r"$\|p-p_d\|$ [m]", "Geodesic attitude\nerror [deg]", r"$\|s\|_{\Lambda_s}$"])
     for mode, run in runs.items():
         pos, angle = _pose_errors(run)
-        metric = np.linalg.inv(scenarios[mode]["controller"]["Lambda"])
+        metric = np.asarray(scenarios[mode]["controller"].get("Lambda_s", np.linalg.inv(scenarios[mode]["controller"]["Lambda"])))
         r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
         for ax, values in zip(axes, (pos, np.degrees(angle), r)):
             ax.plot(run["t"], values, label=NAMES[mode], **STYLES[mode])
@@ -183,7 +183,7 @@ def connection_realization_figures(runs, scenarios, output_dir):
     for key, run in runs.items():
         visible = run["t"] + time_offset <= display_end
         pos, angle = _pose_errors(run)
-        metric = np.linalg.inv(scenarios[key]["controller"]["Lambda"])
+        metric = np.asarray(scenarios[key]["controller"].get("Lambda_s", np.linalg.inv(scenarios[key]["controller"]["Lambda"])))
         weighted = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
         for ax, values in zip(axes, (pos, np.degrees(angle), weighted)):
             ax.plot(time_offset + run["t"][visible], values[visible], label=rf"$C_{{\mathrm{{{key.upper()}}}}}$", **CONNECTION_STYLES[key])
@@ -198,7 +198,7 @@ def theory_figures(run, scenario, root, summary, connection):
     for name in obsolete:
         for extension in ("pdf", "png"):
             (out/f"{name}.{extension}").unlink(missing_ok=True)
-    metric = np.linalg.inv(scenario["controller"]["Lambda"])
+    metric = np.asarray(scenario["controller"].get("Lambda_s", np.linalg.inv(scenario["controller"]["Lambda"])))
     r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
     horizon = min(run["t"][-1], max(1., 1.6*(summary["T_obs"] or min(summary["T_bound"], 5.))))
     horizon = min(run["t"][-1], scenario.get("focusElapsedEnd", horizon))
