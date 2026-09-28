@@ -34,9 +34,14 @@ from agc.opt.bregman_profile import bregman_gamma_grid
 from agc.opt.pso import ParticleSwarmOptimizer
 from agc.opt.staged_optimizer import promote_gains_to_registry
 from agc.config.manual_gains import manual_gains
+from agc.config.optimized_gains import optimized_gains
 from agc.sim.default_scenario import default_scenario
 from agc.opt.staged_optimizer import default_training_conditions
-from agc.opt.staged_optimizer import _optimization_context
+from agc.opt.staged_optimizer import (
+    _adaptation_training_conditions,
+    _load_stage_checkpoint,
+    _optimization_context,
+)
 
 
 def test_default_convergence_uses_ten_stalled_iterations_at_one_milliunit():
@@ -130,6 +135,8 @@ def test_gain_blocks_cover_and_partition_adaptive_controllers():
     # Test nominal partitions (15 parameters)
     nom_all = gain_block_indices("nominal", "all")
     assert nom_all == list(range(15))
+    assert gain_block_indices("adaptive_base", "all") == nom_all
+    assert gain_optimization_stages("adaptive_base", "hierarchical") == gain_optimization_stages("nominal", "hierarchical")
 
 
 def test_bregman_grid_includes_bounds_and_seed_values():
@@ -151,20 +158,72 @@ def test_incumbent_selection_retains_feasible_lower_cost_candidate():
     assert best_feasible_candidate(incumbent, better) == better
 
 
-def test_training_conditions_default_to_two_replays_two_payloads_two_coriolis():
+def test_training_conditions_default_to_one_replay_two_payloads_two_coriolis():
     conditions = default_training_conditions()
 
-    assert len(conditions) == 8
+    assert len(conditions) == 4
     assert [(c["replayId"], c["payloadProfile"], c["coriolis"]) for c in conditions] == [
         ("lemniscate_02_auto", "flat_light", "lc"),
         ("lemniscate_02_auto", "flat_light", "rb"),
         ("lemniscate_02_auto", "tall_heavy", "lc"),
         ("lemniscate_02_auto", "tall_heavy", "rb"),
-        ("lemniscate_03_auto", "flat_light", "lc"),
-        ("lemniscate_03_auto", "flat_light", "rb"),
-        ("lemniscate_03_auto", "tall_heavy", "lc"),
-        ("lemniscate_03_auto", "tall_heavy", "rb"),
     ]
+
+
+@pytest.mark.parametrize("adapt_type", ["euclidean", "bregman"])
+def test_adaptation_training_conditions_keep_both_coriolis_forms(adapt_type):
+    conditions = default_training_conditions()
+    selected = _adaptation_training_conditions(adapt_type, conditions)
+
+    assert selected == conditions
+    assert {condition["coriolis"] for condition in selected} == {"lc", "rb"}
+
+
+def test_euclidean_and_bregman_gains_share_adaptive_base_for_both_connections():
+    base = optimized_gains("adaptive_base", "lc")
+    nominal = optimized_gains("nominal", "lc")
+    assert not np.array_equal(base["KRdiag"], nominal["KRdiag"])
+    np.testing.assert_array_equal(base["KRdiag"], [0.001117, 0.006384, 0.002431])
+    np.testing.assert_array_equal(base["Kxidiag"], [20.2, 0.4516, 12.84])
+    np.testing.assert_array_equal(
+        base["LambdaDiag"], [7.96, 16.76, 2.417, 0.08501, 0.08359, 0.04791]
+    )
+    for mode in ("euclidean", "bregman"):
+        for coriolis in ("lc", "rb"):
+            gains = optimized_gains(mode, coriolis)
+            for key in ("KRdiag", "Kxidiag", "LambdaDiag", "kd", "ks", "alpha"):
+                np.testing.assert_array_equal(gains[key], base[key])
+
+
+def test_fresh_inplace_run_ignores_stale_stage_checkpoint(monkeypatch):
+    checkpoint = Path("stale-stage.json")
+    monkeypatch.setattr(Path, "is_file", lambda self: True)
+    monkeypatch.setattr(
+        Path, "read_text",
+        lambda self, encoding=None: '{"contextHash":"old-context","mode":"nominal","stage":"all"}',
+    )
+
+    saved = _load_stage_checkpoint(
+        checkpoint, context_hash="new-context", mode="nominal", stage="all",
+        allow_resume=False,
+    )
+
+    assert saved == {}
+
+
+def test_explicit_resume_rejects_mismatched_stage_checkpoint(monkeypatch):
+    checkpoint = Path("stale-stage.json")
+    monkeypatch.setattr(Path, "is_file", lambda self: True)
+    monkeypatch.setattr(
+        Path, "read_text",
+        lambda self, encoding=None: '{"contextHash":"old-context","mode":"nominal","stage":"all"}',
+    )
+
+    with pytest.raises(ValueError, match="Checkpoint context mismatch"):
+        _load_stage_checkpoint(
+            checkpoint, context_hash="new-context", mode="nominal", stage="all",
+            allow_resume=True,
+        )
 
 
 def test_training_conditions_reject_explicitly_empty_overrides():
@@ -291,23 +350,44 @@ def test_promote_gains_loads_python_registry_without_relative_import_error():
     write_text.assert_called_once()
 
 
-def test_promoting_changed_tracking_gains_invalidates_adaptive_costs(monkeypatch):
+def test_promoting_adaptive_base_invalidates_estimator_costs_and_emits_four_modes(monkeypatch):
     gains = manual_gains("nominal", "lc")
     import agc.opt.staged_optimizer as staged_optimizer
     captured = {}
     monkeypatch.setattr(staged_optimizer, "atomic_write_text", lambda path, content: captured.update(content=content))
     promote_gains_to_registry(
-        "nominal", "all", gains,
+        "adaptive_base", "all", gains,
         metadata={"cost": 1.0, "stage": "all", "contextHash": "new-context"},
         target_file="unused_optimized_gains.py",
     )
     generated = captured["content"]
-    assert '"optimizationCost": None' in generated
-    assert '"optimizationMetadata": None' in generated
+    assert "adaptive_base_entry = {" in generated
+    assert '"adaptive_base": adaptive_base_entry' in generated
+    assert '"nominal_rb": nominal_entry' in generated
+    assert '"euclidean_rb": euclidean_entry' in generated
+    assert '"bregman_rb": bregman_entry' in generated
+    assert '"KRdiag": np.array(' in generated
+    assert generated.count('"KRdiag": np.array(') == 2  # independent nominal and adaptive tracking bases
+    assert '"adaptive_lc"' not in generated
+    assert '"adaptive_rb"' not in generated
+    assert generated.count('"optimizationCost": None') >= 2
+    assert generated.count('"optimizationMetadata": None') >= 2
     assert "'contextHash': 'new-context'" in generated
     namespace = {}
     exec(compile(generated, "optimized_gains.py", "exec"), namespace)
-    assert namespace["optimized_gains"]("nominal")["optimizationMetadata"]["contextHash"] == "new-context"
+    assert namespace["optimized_gains"]("adaptive_base")["optimizationMetadata"]["contextHash"] == "new-context"
+    assert namespace["optimized_gains"]("nominal")["optimizationCost"] is None
+    np.testing.assert_array_equal(
+        namespace["optimized_gains"]("adaptive_base")["KRdiag"], gains["KRdiag"]
+    )
+    assert not np.array_equal(
+        namespace["optimized_gains"]("nominal")["KRdiag"],
+        namespace["optimized_gains"]("adaptive_base")["KRdiag"],
+    )
+    np.testing.assert_array_equal(
+        namespace["optimized_gains"]("euclidean")["KRdiag"],
+        namespace["optimized_gains"]("adaptive_base")["KRdiag"],
+    )
     assert namespace["optimized_gains"]("euclidean")["optimizationCost"] is None
 
 
@@ -402,6 +482,46 @@ def test_training_objective_is_arithmetic_mean_and_rejects_any_failed_condition(
     rejected = aggregate_scenario_records(records, failure_cost=999.0)
     assert rejected["cost"] == pytest.approx(999.0)
     assert rejected["failed"] is True
+
+
+def test_adaptive_base_candidate_averages_euclidean_and_bregman_conditions(monkeypatch):
+    from agc.opt import staged_optimizer
+
+    def scenario(mode, cost):
+        return {
+            "conditionCost": cost,
+            "controller": {
+                "mode": mode,
+                "KR": np.diag([1., 1., 1.]), "Kxi": np.diag([1., 1., 1.]),
+                "Lambda": np.diag([1., 1., 1., 1., 1., 1.]),
+                "kd": 1., "ks": 1., "alpha": .5,
+                "gammaE": np.ones(10) * 1e-3, "gammaB": 1e-3,
+            },
+        }
+
+    calls = []
+
+    def score_one(candidate, scenarios, weights, label):
+        calls.append((scenarios[0]["controller"]["mode"], candidate.copy()))
+        records = [{"cost": sc["conditionCost"], "failed": False} for sc in scenarios]
+        return {"cost": np.mean([r["cost"] for r in records]), "failed": False,
+                "candidate": candidate.copy(), "gains": {}, "conditionRecords": records}
+
+    monkeypatch.setattr(staged_optimizer, "evaluate_scenario_set_candidate", score_one)
+    groups = {
+        "euclidean": [scenario("euclidean", 1.), scenario("euclidean", 3.)],
+        "bregman": [scenario("bregman", 5.), scenario("bregman", 7.)],
+    }
+    candidate = np.full(15, .2)
+    result = staged_optimizer.evaluate_adaptive_base_candidate(
+        candidate, groups, {"failure": 1e6},
+    )
+
+    assert [call[0] for call in calls] == ["euclidean", "bregman"]
+    np.testing.assert_array_equal(calls[0][1][:15], candidate)
+    np.testing.assert_array_equal(calls[1][1][:15], candidate)
+    assert result["cost"] == pytest.approx(4.)
+    assert len(result["conditionRecords"]) == 4
 
 
 def test_optimization_context_fingerprint_tracks_training_and_pso_settings():

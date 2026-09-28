@@ -95,12 +95,13 @@ Optimizes the 15 baseline parameters across the full generalization matrix:
   1. `all`: Direct single-stage full-dimensional optimization.
 
 #### 2. Adaptive Mode (`--mode adaptive`)
-Decoupled into two phases to guarantee estimator fairness:
-- **Phase 1 (Base Tracking Gains)**: Executes stages 1–5 on the nominal plant to establish optimal baseline tracking and dissipation parameters.
-- **Phase 2 (Isolated Adaptation Tuning)**: Freezes all 15 base tracking gains and tunes only the adaptation block (`adaptive`):
-  - **Euclidean ($\gamma_E \in \mathbb{R}^{10}$)**: 10 individual adaptation rates in $\log_{10}$ space $[-5, 0]$.
-  - **Bregman ($\gamma_B \in \mathbb{R}$)**: Evaluated via high-resolution 1D log-grid diagnostic profile in $[-5, -1]$ ($10^{-5}$ to $0.1$).
-- **Estimator Fairness**: The final `"all"` stage is strictly omitted for adaptive controllers. Tuning adaptation in isolation on top of frozen nominal tracking gains prevents estimator bias and ensures fair comparison.
+Adaptive optimization creates three independent gain records: `adaptive_base`, `euclidean`, and `bregman`. The `adaptive_base` tracking gains are optimized separately from nominal gains. That 15-coordinate base objective is the arithmetic mean across all selected conditions for both Euclidean and Bregman estimators. With defaults, that is one replay, two payload profiles, and both `lc` and `rb` connections for each estimator (eight scored runs total).
+
+After the adaptive base is optimized, its tracking gains are frozen while the optimizer specializes the estimator parameters:
+- **Euclidean ($\gamma_E \in \mathbb{R}^{10}$)**: 10 individual adaptation rates in $\log_{10}$ space $[-5, 0]$.
+- **Bregman ($\gamma_B \in \mathbb{R}$)**: Evaluated via high-resolution 1D log-grid diagnostic profile in $[-5, -1]$ ($10^{-5}$ to $0.1$).
+
+The Euclidean and Bregman entries share the optimized `adaptive_base` tracking gains, while `nominal` remains an independently optimized record. The estimator-specialization stages use every selected condition, including both `lc` and `rb`; the final `all` stage is omitted for adaptive controllers.
 
 ### Academic Literature / Citations for Hierarchical Optimization & BCD
 - **Block Coordinate Descent Foundations**:
@@ -131,15 +132,17 @@ Decoupled into two phases to guarantee estimator fairness:
 
 ## 4. Multi-Condition Generalization & Coriolis Invariance
 
-### Training Matrix (8 Conditions)
-Candidates are evaluated against the mean cost across an 8-condition Cartesian generalization matrix:
-$$\mathcal{T} = \{\text{lemniscate\_02\_auto}, \text{lemniscate\_03\_auto}\} \times \{\text{flat\_light}, \text{tall\_heavy}\} \times \{\text{lc}, \text{rb}\}$$
+### Training Matrix (4 Conditions per Estimator)
+Candidates are evaluated against the arithmetic mean cost across a Cartesian generalization matrix. The default selects one replay:
+$$\mathcal{T} = \{\text{lemniscate\_02\_auto}\} \times \{\text{flat\_light}, \text{tall\_heavy}\} \times \{\text{lc}, \text{rb}\}$$
+
+For `adaptive_base`, the same four conditions are scored under each of the two estimators and all eight resulting records contribute equally to its objective. Replay selection can be expanded explicitly by the CLI.
 
 A simulation crash, unbounded state, or constraint violation in *any* single condition marks the candidate as failed ($\text{cost} = \infty$). Replay `lemniscate_01_auto` with nominal payload is strictly held out for final paper evaluation.
 
 ### Coriolis Alignment & Adaptation Stability
 1. **Tracking Invariance**: Base tracking gains ($K_R, K_\xi, \Lambda, k_d, k_s, \alpha$) are trained over both Levi-Civita (`lc`) and rigid-body (`rb`) Coriolis connections, guaranteeing Coriolis invariance.
-2. **Bregman Skew-Symmetric Alignment**: Bregman affine-invariant adaptation operates on the Riemannian manifold of symmetric positive-definite pseudo-inertias $\mathcal{S}_{++}^4$. The passivity proof strictly requires skew-symmetry of the Coriolis factorization ($\dot{\mathbf{I}} - 2\mathbf{C}_{\mathrm{LC}} = 0$). Because the rigid-body coadjoint form $\mathbf{C}_{\mathrm{RB}}$ violates skew-symmetry, Bregman adaptation rate $\gamma_B$ is tuned on the skew-symmetric `lc` training conditions to prevent non-skew-symmetric perturbations from forcing $\gamma_B \to 0$. Promoted gains are mirrored across all forms in the registry.
+2. **Connection Coverage**: Both estimator specializations, including Bregman, are scored under `lc` and `rb`. The nominal tracking invariance objective likewise covers both forms.
 
 ---
 

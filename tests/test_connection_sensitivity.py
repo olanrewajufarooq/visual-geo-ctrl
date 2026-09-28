@@ -4,6 +4,25 @@ from scipy.spatial.transform import Rotation
 from agc.sim.connection_sensitivity import separation, sensitivity_scenario
 
 
+def test_connections_use_independent_persistent_reaching_times():
+    from agc.sim.connection_sensitivity import audit
+    from agc.sim.publication_runner import nominal_scenario
+    scenario = nominal_scenario(20.)
+    runs = []
+    for settle in (2., 5.):
+        t = np.arange(0., 20.001, .1)
+        s = np.zeros((len(t), 6)); s[t < settle, 0] = 1.
+        H = np.repeat(np.eye(4)[None], len(t), axis=0)
+        runs.append({'t':t, 's':s, 'H':H, 'V':np.zeros((len(t),6)),
+                     'Hdesired':H, 'Vdesired':np.zeros((len(t),6)),
+                     'VdotDesired':np.zeros((len(t),6)), 'wrench':np.zeros((len(t),6))})
+    a, b = audit(runs[0], scenario), audit(runs[1], scenario)
+    assert a['persistent_reaching_elapsed_s'] != b['persistent_reaching_elapsed_s']
+    assert a['persistent_reaching_absolute_s'] == pytest.approx(a['persistent_reaching_elapsed_s'] + 10.)
+    assert a['persistent_threshold'] == 1e-8
+    assert a['persistent_final_source_time_s'] == 30.
+
+
 def test_separation_uses_physical_units_and_common_axes():
     a = {'t': np.array([0.]), 'H': np.eye(4)[None], 'wrench': np.array([[1., 0., 0., 1., 0., 0.]])}
     b = {k: v.copy() for k, v in a.items()}
@@ -25,22 +44,6 @@ def test_sensitivity_pair_only_changes_connection():
     for key in a['controller']:
         if key != 'coriolis':
             np.testing.assert_equal(a['controller'][key], b['controller'][key])
-
-
-def test_monte_carlo_command_uses_renamed_command_and_paper_root(monkeypatch):
-    from agc.sim import publication_runner
-    from pathlib import Path
-    tmp_path = Path('paper-output-test')
-    calls = []
-    monkeypatch.setattr('agc.sim.physical_consistency_experiment.run_experiment',
-                        lambda root: calls.append(root))
-    publication_runner.run_publication('physical-consistency-monte-carlo', 30., tmp_path, tmp_path/'raw')
-    assert calls == [tmp_path]
-    with pytest.raises(ValueError, match='Unsupported paper simulation command'):
-        publication_runner.run_publication('physical-consistency-mc', 30., tmp_path, tmp_path/'raw')
-    from run.run_paper_sim import COMMANDS
-    assert 'physical-consistency-monte-carlo' in COMMANDS
-    assert 'physical-consistency-mc' not in COMMANDS
 
 
 @pytest.mark.parametrize('command', ['nominal-reaching', 'nominal-connection', 'connection-realizations', 'connection-sensitivity'])

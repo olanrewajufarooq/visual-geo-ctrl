@@ -47,11 +47,11 @@ results/papers/
 ```
 
 Each figure is saved as vector PDF and 400 dpi PNG. Payload histories use
-0--30 s; connection histories use the full source interval 10--30 s. Persistent
-reaching requires weighted s <= 1e-8 at every saved sample through source time
-30 s, with LC and RB assessed independently. The nominal bound includes both
-the linear and fractional dissipation terms. Figures omit titles, use exact
-full-intensity RGB primaries, and place legends above the plotting area.
+0--30 s; connection histories use the full source interval 10--30 s. The
+reaching threshold is 1e-8 and must hold at every saved sample through 30 s;
+LC and RB reaching times are independent. The nominal bound includes both
+the linear and fractional dissipation terms. Figures have no titles, use
+full-intensity RGB primaries, and place legends above the axes.
 
 The adaptive comparison includes the Known-inertia controller, which uses the
 true loaded inertia before release and the true bare-vehicle inertia after

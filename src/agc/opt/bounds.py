@@ -7,7 +7,7 @@ import numpy as np
 def gain_bounds(mode: str) -> Tuple[np.ndarray, np.ndarray]:
     """Default all-gain optimizer bounds in log10 coordinates for positive gains and linear for alpha."""
     mode = mode.lower()
-    if mode not in ("nominal", "euclidean", "bregman"):
+    if mode not in ("nominal", "adaptive_base", "euclidean", "bregman"):
         raise ValueError(f"Unknown controller mode: {mode}")
 
     # 14 positive parameters in log10 space:
@@ -53,7 +53,7 @@ def gain_block_indices(mode: str, block: str) -> List[int]:
     mode = mode.lower()
     block = block.lower()
 
-    if mode == "nominal":
+    if mode in ("nominal", "adaptive_base"):
         total = 15
     elif mode == "bregman":
         total = 16
@@ -90,7 +90,7 @@ def gain_optimization_stages(mode: str, schedule: str = "hierarchical") -> List[
     mode = mode.lower()
     schedule = schedule.lower()
 
-    if mode == "nominal":
+    if mode in ("nominal", "adaptive_base"):
         if schedule == "classic":
             return ["all"]
         return [
@@ -113,7 +113,7 @@ def gain_optimization_stages(mode: str, schedule: str = "hierarchical") -> List[
             "adaptive",
         ]
     else:
-        raise ValueError(f"Unknown controller mode: {mode}. Choose 'nominal' or 'adaptive'.")
+        raise ValueError(f"Unknown controller mode: {mode}. Choose 'nominal', 'adaptive_base', or 'adaptive'.")
 
 
 def expand_scenario_selection(
