@@ -207,11 +207,18 @@ def run_publication(command, duration, root, raw_root, reuse_cache=False):
     root.mkdir(parents=True, exist_ok=True)
     metadata_root = root / "metadata"
     metadata_root.mkdir(parents=True, exist_ok=True)
-    report = {"optimization_run": False, "fair_adaptation_retuned": True,
+    report = {"optimization_run": False, "fair_adaptation_retuned": False,
+              "adaptation_gain_tuning": "saved configuration values; no retuning performed by run_paper_sim",
               "repeatability": "omitted: deterministic identical trials are not repeatability evidence"}
     prior_manifest = metadata_root / "manifest.json"
     if command != "all" and prior_manifest.exists():
         report.update(json.loads(prior_manifest.read_text(encoding="utf-8")).get("report", {}))
+    # Do not let a prior manifest restore obsolete claims from older runs.
+    report.update({
+        "optimization_run": False,
+        "fair_adaptation_retuned": False,
+        "adaptation_gain_tuning": "saved configuration values; no retuning performed by run_paper_sim",
+    })
     if command in ("all", "adaptive-drop"):
         runs, scenarios, rows = {}, {}, []
         for mode in PRIMARY_MODES:
@@ -261,16 +268,16 @@ DIAGNOSTICS = """# Numerical-results diagnostic report
 - Dwell checks formerly excluded the endpoint. Numerical reaching now uses the weighted s norm.
 - Previous reaching experiment started on s=0 and had a vacuous zero bound. Isolated test starts with a nonzero twist and uses true inertia to recompute energy.
 - Logged s and energy previously held stale controller samples; now evaluated at each plant sample. Estimates are logged before the next update. Physical margins are computed for both estimators.
-- Tracking gains were independently tuned; all primary comparisons now share one saved optimized gain set.
-- PyBullet previously recomputed inertia from collision geometry (Ixx approximately 0.0800 instead of 0.0409). URDF inertia loading, principal-inertia/body-frame transforms, body-origin wrench application and payload attachment frames are corrected and regression-tested. Existing optimized gains were obtained on that old plant and are not optimality evidence for the corrected plant.
+- The payload-release comparison uses adaptive-base tracking gains for the Known-inertia, Euclidean, and Natural/Bregman runs. The separate nominal validation has no payload and uses its own scenario gains. The paper runner does not optimize gains; saved estimator rates are used as configured, without a claim of fair retuning.
+- PyBullet previously recomputed inertia from collision geometry (Ixx approximately 0.0800 instead of 0.0409). URDF inertia loading, principal-inertia/body-frame transforms, body-origin wrench application and payload attachment frames are corrected and regression-tested. Gain entries without current optimization metadata are configuration values, not optimality evidence for the corrected plant.
 - The relative connection residual is ill-conditioned near zero differences. Absolute residual is checked at EVERY sample with tolerance 1e-12+1e-10*signal norm; relative diagnostics exclude signal norms <=1e-6.
 
 ## Publication qualifications
 
 - Connection-plot y-axis titles omit [1] for readability, but both norms are dimensionless: torque is divided by 1 N m and force by 1 N before taking the Euclidean norm. This is not mixed-unit wrench effort; see metric_definitions.md. The identity residual is theoretically zero at all times; its computed roundoff-level values remain on a logarithmic scale.
 
-- Staged block-coordinate PSO establishes unified tracking gains across nominal and adaptive controllers, with isolated adaptation gain tuning on frozen tracking baselines.
-- Both Euclidean and Natural/Bregman controllers use identical shared tracking gains; estimator adaptation rates (gamma, gamma_B) are tuned independently on identical trajectories, payloads, and metrics.
+- For the payload-release comparison, the Known-inertia, Euclidean, and Natural/Bregman controllers share the adaptive-base tracking gains. The nominal connection/reaching study is a separate no-payload protocol.
+- `run_paper_sim` loads the gain registry and does not execute PSO. Estimator rates are reported as configured; the saved values do not establish a fair estimator-gain tuning comparison.
 - The Known-inertia controller receives the true loaded inertia before release and the true bare-vehicle inertia after release. It is included as a model-knowledge reference; the adaptive estimators do not receive this parameter switch. The separate nominal reaching test has no payload release.
 - The matched LC/RB closed-loop study is a separate test from the same-state connection identity. Its protocol file records equal plant, initial state, reference samples, and gains; only the Coriolis realization changes. Small off-manifold differences are expected and neither realization is ranked.
 - No rotor allocation or actuator limits exist in this ideal wrench-actuated model. These plots do not establish hardware feasibility.

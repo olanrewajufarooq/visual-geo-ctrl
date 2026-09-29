@@ -29,7 +29,8 @@ def test_recovery_includes_dwell_endpoint():
 
 
 def test_primary_controllers_share_gains_and_initial_parameters():
-    from agc.sim.publication import paper_scenario, COMMON_KEYS, ADAPTIVE_MODES, PRIMARY_MODES
+    from agc.sim.publication import (paper_scenario, controller_gain_rows, COMMON_KEYS,
+                                     ADAPTIVE_MODES, PRIMARY_MODES)
     from agc.sim.run_scenario import estimate_to_pi
     assert ADAPTIVE_MODES == ("euclidean", "bregman")
     assert PRIMARY_MODES == ("nominal", "euclidean", "bregman")
@@ -39,6 +40,31 @@ def test_primary_controllers_share_gains_and_initial_parameters():
             np.testing.assert_array_equal(scenario["controller"][key], scenarios[0]["controller"][key])
         np.testing.assert_allclose(estimate_to_pi(scenario["controller"]["mode"], scenario["initialEstimate"]),
                                    scenarios[0]["initialEstimate"])
+    saved_scenarios = dict(zip(PRIMARY_MODES, scenarios))
+    assert controller_gain_rows(saved_scenarios)[0][
+        "Tracking gains common across payload-release comparison?"
+    ] == "yes"
+
+
+def test_adaptive_payload_baseline_and_nominal_validation_are_distinct():
+    from agc.sim.publication import paper_scenario
+    from agc.sim.publication_runner import nominal_scenario
+
+    payload_baseline = paper_scenario("nominal", .02)
+    nominal_validation = nominal_scenario(.02)
+    assert payload_baseline["payloadDrop"]["releaseTime"] == 10.0
+    assert nominal_validation["payloadDrop"] is None
+    assert not np.array_equal(payload_baseline["controller"]["KR"],
+                              nominal_validation["controller"]["KR"])
+
+
+def test_gain_report_does_not_claim_optimization_during_paper_run():
+    from agc.sim.publication import gain_report
+
+    report = gain_report()
+    assert report["optimization_executed"] is False
+    assert "adaptive_base" in report["adaptive_comparison_tracking_gain_source"]
+    assert "separate" in report["nominal_study_tracking_gain_source"].lower()
 
 
 def test_known_inertia_schedule_uses_active_plant_parameters():

@@ -23,7 +23,21 @@ COMMON_KEYS = ("KR", "Kxi", "Lambda", "kd", "ks", "alpha", "gravity")
 
 def paper_scenario(mode, duration=30.):
     scenario = default_scenario(mode=mode, duration=duration, coriolis="lc", enable_pacing=False)
-    if mode == "nominal":
+    if mode.lower() == "nominal":
+        # In the payload-release comparison the known-inertia controller is
+        # the baseline for the adaptive controllers, so it shares their
+        # adaptive-base tracking gains. The separate nominal validation
+        # experiment uses nominal_scenario() and its own no-payload setup.
+        gains = optimized_gains("adaptive_base", "lc")
+        scenario["controller"].update(
+            KR=np.diag(gains["KRdiag"]),
+            Kxi=np.diag(gains["Kxidiag"]),
+            Lambda=np.diag(gains["LambdaDiag"]),
+            Lambda_s=np.diag(1.0 / np.asarray(gains["LambdaDiag"], dtype=float)),
+            kd=float(gains["kd"]),
+            ks=float(gains["ks"]),
+            alpha=float(gains["alpha"]),
+        )
         scenario["controller"]["knownInertiaSchedule"] = "active-plant"
     return scenario
 
@@ -132,34 +146,40 @@ def connection_realization_row(run, connection, scenario, epsilon=1e-8, final_ti
 
 def controller_gain_rows(scenarios):
     """Machine-readable record of actual gains used in the saved runs."""
+    nominal = scenarios["nominal"]["controller"]
     euclidean, bregman = scenarios["euclidean"]["controller"], scenarios["bregman"]["controller"]
-    shared = all(np.array_equal(euclidean[k], bregman[k]) for k in ("KR", "Kxi", "Lambda", "Lambda_s", "kd", "ks", "alpha"))
+    shared = all(
+        np.array_equal(nominal[k], controller[k])
+        for controller in (euclidean, bregman)
+        for k in ("KR", "Kxi", "Lambda", "Lambda_s", "kd", "ks", "alpha")
+    )
     return [{
-        "Tracking gains common between Euclidean and Natural/Bregman?": "yes" if shared else "no",
+        "Tracking gains common across payload-release comparison?": "yes" if shared else "no",
         "Lambda": np.asarray(euclidean["Lambda"]).tolist(),
         "Lambda_s": np.asarray(euclidean["Lambda_s"]).tolist(),
         "K_R": np.asarray(euclidean["KR"]).tolist(),
         "K_xi": np.asarray(euclidean["Kxi"]).tolist(),
         "k_d": float(euclidean["kd"]), "k_s": float(euclidean["ks"]), "alpha": float(euclidean["alpha"]),
         "gamma": np.asarray(euclidean["gammaE"]).tolist(), "gamma_B": float(bregman["gammaB"]),
-        "Estimator-gain tuning provenance": "two-phase staged block-coordinate PSO optimization (invariant to Coriolis form)",
+        "Estimator-gain tuning provenance": "loaded from saved configuration; not tuned by run_paper_sim",
     }]
 
 
 def gain_report():
-    scenario = paper_scenario("bregman")
-    cfg = scenario["controller"]
+    adaptive_scenario = paper_scenario("bregman")
+    cfg = adaptive_scenario["controller"]
     return {
-        "status": "unified tracking gains and isolated adaptation gains verified from staged optimization protocol",
-        "common_tracking_gain_source": "unified multi-condition staged PSO optimization (invariant to Coriolis form)",
-        "common_tracking_gains": {k: cfg[k] for k in COMMON_KEYS},
+        "status": "saved gains reported; run_paper_sim performs no optimization",
+        "adaptive_comparison_tracking_gain_source": "adaptive_base entry in optimized_gains.py; shared by known-inertia, Euclidean, and Natural/Bregman payload-release runs",
+        "adaptive_comparison_common_tracking_gains": {k: cfg[k] for k in COMMON_KEYS},
+        "nominal_study_tracking_gain_source": "separate payload-disabled nominal_scenario setup in publication_runner.py",
         "Lambda_s": cfg["Lambda_s"],
         "gamma": optimized_gains("euclidean", "lc")["gammaE"], "gamma_B": cfg["gammaB"],
-        "optimization_executed": True,
+        "optimization_executed": False,
         "tuning_protocol": {
-            "protocol": "two-phase staged block-coordinate PSO",
-            "phase_1": "Shared tracking gains optimized across trajectories, payloads, and Coriolis forms",
-            "phase_2": "Adaptation rates tuned with shared tracking gains frozen",
+            "paper_simulation": "loads configured gains; does not run PSO",
+            "tracking_gains": "adaptive_base gains are common within the payload-release comparison; nominal validation is separate",
+            "adaptation_rates": "loaded from saved configuration; this report does not establish estimator-gain tuning fairness",
         },
     }
 

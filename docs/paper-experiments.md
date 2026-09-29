@@ -19,14 +19,18 @@ threshold, a 5 degree geodesic attitude threshold, and a 1 s recovery
 dwell. The commanded wrench is reported; the current plant does not expose
 rotor allocation or actuator saturation.
 
-Both adaptive controllers use the saved optimized Bregman/LC tracking
-gains, held identical. Existing adaptation gains are reused provisionally.
-No re-optimization is run; `agc.opt.paper_adaptation.adaptation_objective`
-provides a future adaptation-only objective with the same initial state,
-estimate, trajectory, release, duration, constraints and weights for both modes.
-The gain summary explicitly records the tuning qualification. The old gains
-were optimized before the PyBullet inertia/frame correction and should not be
-described as optimal for the revised plant.
+The Known-inertia, Euclidean, and Natural/Bregman controllers in the
+payload-release comparison use the same adaptive-base tracking gains. The
+Known-inertia controller receives the active plant inertia across payload
+release; it is not the separate nominal-validation controller. Nominal
+connection and reaching studies use a payload-disabled scenario with their
+own gains.
+
+The runner reads configured gains and does not run PSO. Estimator adaptation
+rates are used as saved; the run metadata does not claim they were fairly
+retuned between methods. Gain provenance is recorded in
+`metadata/gain_summary.json`, which distinguishes the payload-release and
+nominal-validation protocols.
 
 Outputs are grouped without an extra paper-name directory:
 
@@ -55,12 +59,11 @@ full-intensity RGB primaries, and place legends above the axes.
 
 The adaptive comparison includes the Known-inertia controller, which uses the
 true loaded inertia before release and the true bare-vehicle inertia after
-release, plus Euclidean and Natural/Bregman adaptation. The shared tracking gains are verified from the saved runs. The
-saved records cannot establish that `gamma` and `gamma_B` were tuned under an
-identical protocol, so the comparison does not claim a fair estimator-gain
-optimization.
-Velocity
-reference curves are transported into each actual body frame using the full
+release, plus Euclidean and Natural/Bregman adaptation. The saved-run gain
+summary verifies common adaptive-base tracking gains across these three
+controllers. It does not establish that `gamma` and `gamma_B` were tuned under
+an identical protocol, so the comparison makes no fair estimator-gain tuning
+claim. Velocity reference curves are transported into each actual body frame using the full
 adjoint; these references need not coincide between controllers. Angle errors
 in the CSV are intrinsic and in degrees; RPY figures are only visualization.
 
