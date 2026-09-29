@@ -2,13 +2,12 @@
   "experiment": "4x imposed initial twist error; no physical payload release",
   "multiplier": 4,
   "time_offset_s": 10.0,
-  "focus_absolute_s": [
+  "source_interval_s": [
     10.0,
-    13.0
+    30.0
   ],
-  "epsilon_s": 0.001,
-  "dwell_s": 0.5,
-  "display_margin_s": 0.25,
+  "persistent_threshold": 1e-08,
+  "persistent_final_source_time_s": 30.0,
   "protocol": {
     "exact_known_inertia": true,
     "payload_release": false,
@@ -110,6 +109,56 @@
         0.27427317608337903
       ]
     ],
+    "Lambda_s": [
+      [
+        0.04092,
+        5.656e-05,
+        1.313e-05,
+        0.0,
+        0.00834934,
+        0.0
+      ],
+      [
+        5.656e-05,
+        0.04017,
+        -6.494e-05,
+        -0.00834934,
+        0.0,
+        -0.0
+      ],
+      [
+        1.313e-05,
+        -6.494e-05,
+        0.06921,
+        -0.0,
+        0.0,
+        0.0
+      ],
+      [
+        -0.0,
+        -0.00834934,
+        -0.0,
+        3.646,
+        0.0,
+        0.0
+      ],
+      [
+        0.00834934,
+        -0.0,
+        0.0,
+        0.0,
+        3.646,
+        0.0
+      ],
+      [
+        0.0,
+        -0.0,
+        -0.0,
+        0.0,
+        0.0,
+        3.646
+      ]
+    ],
     "kd": 1.0,
     "ks": 1.0,
     "alpha": 0.5,
@@ -148,8 +197,11 @@
   "fine_dt_s": 0.001,
   "coarse": {
     "lc": {
-      "elapsed_reaching_s": 2.15,
-      "absolute_reaching_s": 12.15,
+      "T_obs_elapsed_s": null,
+      "T_obs_source_s": null,
+      "persistent_threshold": 1e-08,
+      "persistent_final_source_time_s": 30.0,
+      "persistent_invariance_passed": false,
       "initial_s": [
         1.2,
         -0.7999999999999999,
@@ -158,19 +210,20 @@
         -0.8,
         1.2
       ],
-      "initial_weighted_s": 4.125340755477056,
-      "later_threshold_departure": true,
-      "first_later_departure_s": 13.534,
-      "identity_max_residual": 3.528697999707463e-14,
-      "identity_rms_residual": 6.804174429860206e-15,
-      "identity_max_relative_residual": 8.267960340840283e-09,
+      "initial_weighted_s": 4.125340755477055,
+      "identity_max_residual": 3.873740852519421e-14,
+      "identity_rms_residual": 6.787557543436354e-15,
+      "identity_max_relative_residual": 8.221774259949764e-09,
       "identity_passed": true,
       "maximum_command_replay_error": 0.0,
       "command_replay_passed": true
     },
     "rb": {
-      "elapsed_reaching_s": 2.15,
-      "absolute_reaching_s": 12.15,
+      "T_obs_elapsed_s": null,
+      "T_obs_source_s": null,
+      "persistent_threshold": 1e-08,
+      "persistent_final_source_time_s": 30.0,
+      "persistent_invariance_passed": false,
       "initial_s": [
         1.2,
         -0.7999999999999999,
@@ -179,12 +232,10 @@
         -0.8,
         1.2
       ],
-      "initial_weighted_s": 4.125340755477056,
-      "later_threshold_departure": true,
-      "first_later_departure_s": 13.546,
-      "identity_max_residual": 3.4322769733662464e-14,
-      "identity_rms_residual": 6.72664580274904e-15,
-      "identity_max_relative_residual": 9.870375341102018e-09,
+      "initial_weighted_s": 4.125340755477055,
+      "identity_max_residual": 3.648247535036918e-14,
+      "identity_rms_residual": 6.739704046929729e-15,
+      "identity_max_relative_residual": 9.877326923013124e-09,
       "identity_passed": true,
       "maximum_command_replay_error": 0.0,
       "command_replay_passed": true
@@ -192,8 +243,11 @@
   },
   "fine": {
     "lc": {
-      "elapsed_reaching_s": 2.152,
-      "absolute_reaching_s": 12.152000000000001,
+      "T_obs_elapsed_s": null,
+      "T_obs_source_s": null,
+      "persistent_threshold": 1e-08,
+      "persistent_final_source_time_s": 30.0,
+      "persistent_invariance_passed": false,
       "initial_s": [
         1.2,
         -0.7999999999999999,
@@ -202,19 +256,20 @@
         -0.8,
         1.2
       ],
-      "initial_weighted_s": 4.125340755477056,
-      "later_threshold_departure": false,
-      "first_later_departure_s": null,
-      "identity_max_residual": 1.482689009203517e-14,
-      "identity_rms_residual": 4.206508096318875e-15,
-      "identity_max_relative_residual": 4.338247652350135e-11,
+      "initial_weighted_s": 4.125340755477055,
+      "identity_max_residual": 4.523667921191923e-14,
+      "identity_rms_residual": 6.789045063886915e-15,
+      "identity_max_relative_residual": 1.1544805605703352e-08,
       "identity_passed": true,
       "maximum_command_replay_error": 0.0,
       "command_replay_passed": true
     },
     "rb": {
-      "elapsed_reaching_s": 2.152,
-      "absolute_reaching_s": 12.152000000000001,
+      "T_obs_elapsed_s": null,
+      "T_obs_source_s": null,
+      "persistent_threshold": 1e-08,
+      "persistent_final_source_time_s": 30.0,
+      "persistent_invariance_passed": false,
       "initial_s": [
         1.2,
         -0.7999999999999999,
@@ -223,12 +278,10 @@
         -0.8,
         1.2
       ],
-      "initial_weighted_s": 4.125340755477056,
-      "later_threshold_departure": false,
-      "first_later_departure_s": null,
-      "identity_max_residual": 1.3658642584987245e-14,
-      "identity_rms_residual": 4.2024372793045775e-15,
-      "identity_max_relative_residual": 4.1676012886997684e-11,
+      "initial_weighted_s": 4.125340755477055,
+      "identity_max_residual": 4.182834953651153e-14,
+      "identity_rms_residual": 6.744953624351149e-15,
+      "identity_max_relative_residual": 9.112918570284351e-09,
       "identity_passed": true,
       "maximum_command_replay_error": 0.0,
       "command_replay_passed": true
@@ -248,40 +301,40 @@
       "absolute_time_s": 10.034
     },
     "Torque difference [N m]": {
-      "maximum": 0.034793180350073886,
+      "maximum": 0.03479318035007419,
       "absolute_time_s": 10.0
     }
   },
   "refinement": {
     "Position separation [m]": {
-      "coarse_peak_in_focus": 0.06264972717647578,
-      "fine_peak_in_focus": 0.07295540066205101,
-      "max_trace_difference": 0.010464694502552926,
-      "relative_to_coarse_peak": 0.16703495728042522
+      "coarse_peak_full_horizon": 0.06264972717647578,
+      "fine_peak_full_horizon": 0.07295540066205104,
+      "max_trace_difference": 0.010464694502553051,
+      "relative_to_coarse_peak": 0.1670349572804272
     },
     "Attitude separation [deg]": {
-      "coarse_peak_in_focus": 1.4052818573858674,
-      "fine_peak_in_focus": 1.4650888488700589,
+      "coarse_peak_full_horizon": 1.4052818573858674,
+      "fine_peak_full_horizon": 1.4650888488700589,
       "max_trace_difference": 0.05980812023762416,
       "relative_to_coarse_peak": 0.042559519233301986
     },
     "Force difference [N]": {
-      "coarse_peak_in_focus": 3.071426862836696,
-      "fine_peak_in_focus": 3.295070281548019,
-      "max_trace_difference": 0.24355825459992397,
-      "relative_to_coarse_peak": 0.07929808049376094
+      "coarse_peak_full_horizon": 3.071426862836696,
+      "fine_peak_full_horizon": 3.2950702815480204,
+      "max_trace_difference": 0.35369770766416264,
+      "relative_to_coarse_peak": 0.115157457253433
     },
     "Torque difference [N m]": {
-      "coarse_peak_in_focus": 0.034793180350073886,
-      "fine_peak_in_focus": 0.034793180350073886,
-      "max_trace_difference": 0.001214248294713241,
-      "relative_to_coarse_peak": 0.03489903143363157
+      "coarse_peak_full_horizon": 0.03479318035007419,
+      "fine_peak_full_horizon": 0.03479318035007419,
+      "max_trace_difference": 0.006153650965264697,
+      "relative_to_coarse_peak": 0.17686371016817884
     }
   },
   "qualifications": [
-    "Observed reaching certifies a finite sampled dwell only; later threshold departures are reported.",
+    "Persistent reaching is the first saved sample after which the weighted norm remains <=1e-8 through source time 30 s.",
     "Two integration steps measure sensitivity, not established numerical convergence.",
-    "Fine-run later-departure checks cover only the focused interval, not the full 10\u201330 s run.",
+    "LC and RB reaching times are assessed independently and may differ.",
     "Different configurations at reaching may retain position separation while following the same reduced vector field."
   ]
 }

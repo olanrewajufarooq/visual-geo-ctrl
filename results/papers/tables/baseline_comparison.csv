@@ -1,4 +1,4 @@
 Controller,Status,Pre-release position RMSE [m],Post-release position RMSE [m],Post-release maximum position error [m],Pre-release geodesic-attitude RMSE [deg],Post-release geodesic-attitude RMSE [deg],Post-release maximum attitude error [deg],Recovery duration [s],RMS force norm [N],Peak force norm [N],RMS torque norm [N m],Peak torque norm [N m],Minimum lambda_min(Jhat)
-Known-inertia controller,completed,0.00031211,0.0159748,0.0666745,0.0180798,0.127972,0.454133,0,48.2592,126.618,0.894321,1.69399,
-Euclidean adaptive controller,completed,0.000315588,0.0382509,0.128966,0.0161349,1.97022,9.5563,0.438,48.346,127.504,0.893307,1.69389,0.00577353
-Natural/Bregman adaptive controller,completed,0.000326692,0.0191937,0.0835677,0.0171654,3.54226,16.7418,1.03,48.307,126.737,0.894286,1.69405,0.0104745
+Known-inertia controller,completed,0.000183277,0.00374214,0.0115776,0.0552485,0.146528,0.358373,0,55.4044,141.479,0.900483,1.71524,
+Euclidean adaptive controller,completed,0.000183278,0.023637,0.0438316,0.0550869,115.946,141.112,,52.3998,125.731,0.91727,1.71524,-0.0345516
+Natural/Bregman adaptive controller,completed,0.000180567,0.00494925,0.0118212,0.0316749,70.3535,84.2474,,55.6916,141.02,0.904331,1.71519,0.0104339

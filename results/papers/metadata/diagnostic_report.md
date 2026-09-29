@@ -25,14 +25,14 @@
 - Bregman stepping uses an SPD-preserving exponential update with numerical eigenvalue/exponent safeguards; it is not exact continuous-time integration.
 - Identical repeated trials and all old flat figures/tables are superseded and must not be cited.
 - FAILED reaching figures are diagnostics only; numerical threshold crossing is not exact finite-time convergence.
-- All payload time histories use 0--30 s. Every figure in 04-nominal-validation uses the 4x connection sensitivity experiment on source time 10--30 s. Reaching, identity, and sensitivity-detail figures use the shared observed-reaching window; summaries retain elapsed reaching durations. The connection residual remains logarithmic. See connection_sensitivity_diagnostics.md for the experiment and numerical limitations.
+- Payload time histories use 0--30 s. Every figure in 04-nominal-validation uses the 4x connection sensitivity experiment on source time 10--30 s. `T_obs` is the first saved sample from which weighted s stays <=1e-8 through source time 30 s; LC and RB are assessed independently. The connection residual remains logarithmic. See connection_sensitivity_diagnostics.md for the experiment and numerical limitations.
 - The nominal transverse-energy integral's relative numerical residual is retained in the reaching summary. Report the threshold-and-dwell bound check as numerical evidence, not as a pointwise reproduction of the continuous-time energy identity.
 
 ## Nominal figures: connection sensitivity experiment
 
-All figures in figures/04-nominal-validation use the same 4x sensitivity pair. The previous 1x experiment is superseded in this folder. Initial pose equals the desired lemniscate pose at source time 10 s; initial twist error is [1.2,-0.8,0.4] rad/s and [1.6,-0.8,1.2] m/s. The plant has exact bare-vehicle inertia, no adaptation, and no physical payload release. LC/RB gains are identical. Full tracking and error figures cover source time 10–30 s. Reaching, same-state identity, and sensitivity detail figures share the observed-reaching window in connection_sensitivity_protocol.json. T_obs in summaries is elapsed time from source time 10 s; its plotted location is 10+T_obs. The conservative bound is also an elapsed duration.
+All figures in figures/04-nominal-validation use the same 4x sensitivity pair. The previous 1x experiment is superseded in this folder. Initial pose equals the desired lemniscate pose at source time 10 s; initial twist error is [1.2,-0.8,0.4] rad/s and [1.6,-0.8,1.2] m/s. The plant has exact bare-vehicle inertia, no adaptation, and no physical payload release. LC/RB gains are identical. Full tracking and error figures cover source time 10-30 s. All time-history figures cover source time 10-30 s. Persistent reaching requires weighted s <= 1e-8 through source time 30 s. Each connection has its own reaching time. The conservative bound is also an elapsed duration.
 
-See connection_sensitivity_diagnostics.md for physical separation definitions, refinement sensitivity and later threshold departures. Finite sampled dwell does not establish permanent sliding, and the two-step comparison does not establish numerical convergence.
+See connection_sensitivity_diagnostics.md for physical separation definitions, refinement sensitivity and persistent-invariance checks. The two-step comparison does not establish numerical convergence.
 
 ## Current checks
 
@@ -46,10 +46,11 @@ See connection_sensitivity_diagnostics.md for physical separation definitions, r
 - connection_realization_lc_failure: None
 - connection_realization_rb_failure: None
 - connection_realization_protocol_passed: True
-- nominal_reaching_passed: True
+- nominal_reaching_passed: False
 - nominal_replay_duration_s: 20.0
 - nominal_energy_residual_relative_to_initial: 0.003035680224515749
 - connection_identity_passed: True
-- nominal_refinement_passed: True
+- nominal_refinement_passed: False
 - nominal_experiment: connection-sensitivity
 - nominal_later_threshold_departure: True
+- nominal_persistent_invariance_passed: False

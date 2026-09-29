@@ -2,9 +2,9 @@
   "command": "adaptive-drop",
   "duration_s": 30.0,
   "reuse_cache": false,
-  "base_commit": "7a6fee92099a1c8c3b5964509c571768ad3f1f98",
+  "base_commit": "4e8e1d06c7418e00407f8475a52d873fcda57d0c",
   "worktree_dirty_at_generation": true,
-  "source_sha256": "db04ff46fd694dbd859c67b616c1f0fbe3ef28c9e2c87aeedd729e2260694ae5",
+  "source_sha256": "68fdff7fa77ab04e0d32b3511bd734227a5e7d4a670dd392ba2a82cfea965ceb",
   "environment": "agc",
   "report": {
     "optimization_run": false,
@@ -26,16 +26,17 @@
     "connection_realization_lc_failure": null,
     "connection_realization_rb_failure": null,
     "connection_realization_protocol_passed": true,
-    "nominal_reaching_passed": true,
+    "nominal_reaching_passed": false,
     "nominal_replay_duration_s": 20.0,
     "nominal_energy_residual_relative_to_initial": 0.003035680224515749,
     "connection_identity_passed": true,
-    "nominal_refinement_passed": true,
+    "nominal_refinement_passed": false,
     "nominal_experiment": "connection-sensitivity",
-    "nominal_later_threshold_departure": true
+    "nominal_later_threshold_departure": true,
+    "nominal_persistent_invariance_passed": false
   },
   "connection_sensitivity": {
     "protocol_passed": true,
-    "source_sha256": "db04ff46fd694dbd859c67b616c1f0fbe3ef28c9e2c87aeedd729e2260694ae5"
+    "source_sha256": "68fdff7fa77ab04e0d32b3511bd734227a5e7d4a670dd392ba2a82cfea965ceb"
   }
 }

@@ -40,6 +40,12 @@
       -0.05785902234114904
     ]
   },
+  "reference_sampling": {
+    "sample_interval_s": 0.0019999999999997797,
+    "source_start_s": 0.0,
+    "source_end_s": 25.664,
+    "beyond_endpoint": "ReplayTrajectory.sample clips to the last recorded sample"
+  },
   "timesteps_s": {
     "plant": 0.002,
     "control": 0.02,
@@ -75,41 +81,41 @@
     "coriolis": "lc",
     "KR": [
       [
-        0.1784,
+        0.001344,
         0.0,
         0.0
       ],
       [
         0.0,
-        6.418,
+        0.005777,
         0.0
       ],
       [
         0.0,
         0.0,
-        0.4457
+        0.003359
       ]
     ],
     "Kxi": [
       [
-        9.833,
+        21.5,
         0.0,
         0.0
       ],
       [
         0.0,
-        1.762,
+        0.2435,
         0.0
       ],
       [
         0.0,
         0.0,
-        33.96
+        13.39
       ]
     ],
     "Lambda": [
       [
-        4.392,
+        17.84,
         0.0,
         0.0,
         0.0,
@@ -118,7 +124,7 @@
       ],
       [
         0.0,
-        19.97,
+        12.91,
         0.0,
         0.0,
         0.0,
@@ -127,7 +133,7 @@
       [
         0.0,
         0.0,
-        15.26,
+        5.019,
         0.0,
         0.0,
         0.0
@@ -136,7 +142,7 @@
         0.0,
         0.0,
         0.0,
-        0.7227,
+        0.0661,
         0.0,
         0.0
       ],
@@ -145,7 +151,7 @@
         0.0,
         0.0,
         0.0,
-        0.967,
+        0.07663,
         0.0
       ],
       [
@@ -154,72 +160,125 @@
         0.0,
         0.0,
         0.0,
-        0.1144
+        0.06205
       ]
     ],
-    "kd": 7.934,
-    "ks": 0.4086,
-    "alpha": 0.5731,
+    "Lambda_s": [
+      [
+        0.05605381165919283,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.07745933384972889,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.19924287706714486,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        15.1285930408472,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        13.049719431032232,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        16.116035455278002
+      ]
+    ],
+    "kd": 13.23,
+    "ks": 7.568,
+    "alpha": 0.8089,
     "gravity": [
       0.0,
       0.0,
       9.81
     ],
     "gammaE": [
-      0.06224,
-      0.04911,
-      0.003038,
-      0.01321,
-      0.08969,
-      0.004635,
-      0.009389,
-      0.000774,
-      5.955e-05,
-      0.0001565
+      1e-05,
+      1e-05,
+      1.5e-05,
+      5.1e-05,
+      0.000316,
+      0.006431,
+      0.005665,
+      0.008354,
+      0.00222,
+      0.008161
     ],
-    "gammaB": 0.09054
+    "gammaB": 0.001
   },
   "experiment_gammaE": [
-    0.06224,
-    0.04911,
-    0.003038,
-    0.01321,
-    0.08969,
-    0.004635,
-    0.009389,
-    0.000774,
-    5.955e-05,
-    0.0001565
+    1e-05,
+    1e-05,
+    1.5e-05,
+    5.1e-05,
+    0.000316,
+    0.006431,
+    0.005665,
+    0.008354,
+    0.00222,
+    0.008161
   ],
-  "experiment_gammaB": 0.09054,
+  "experiment_gammaB": 0.1,
   "adaptation_gain_source": "Current manuscript configuration in optimized_gains.py; no separate retuning",
   "primary_payload_switch": "disabled; attached payload held through end (release at 31 s)",
   "independent_trial_processes": 4,
   "source_files": {
-    "src/agc/config/optimized_gains.py": "975f71407f6b9343b742617d6e9cc211f4230a2d797e254b30042edc2868e239",
-    "src/agc/sim/default_scenario.py": "d84c73d045385520551893bd90da1a492433c1cea6cad593ab68fb0aa61377a6",
-    "src/agc/sim/physical_consistency_experiment.py": "90d810ef300e22b96968589646b2a5810b32b92da687a9223822d74f545e8e66",
-    "src/agc/sim/publication_runner.py": "fcf6573bad88b5642d49cad83506ae22e1357ba17d869b645d542c0017b3e881",
+    "src/agc/config/optimized_gains.py": "c31c72c1e5f6fb41e51d1616fedf42ce634162424aab0a1cd264a723737b696e",
+    "src/agc/sim/default_scenario.py": "f9f14766b6f60483f9799072b4c417a3ac4d18245deadbe6a75b4723dcdab0c8",
+    "src/agc/sim/physical_consistency_experiment.py": "25ff30590c9e895765ce9b4a9a98e77edecc87f09960f7b2e72f0d5ffaffbb2c",
+    "src/agc/sim/publication_runner.py": "64596d62abdbdadcaa581a4702a88a9707c111948d5f042a47cdacf41ae88f71",
     "src/agc/sim/run_scenario.py": "32f1aeb06dbbb2b852390b11332f28f090a8bedd62f9b52c965a57114910a7a1",
     "src/agc/sim/replay_trajectory.py": "9286aec2be4ae8ef09294fbd6d9df9d00de9167008c80851b18515f638d25b15",
-    "src/agc/paper/controller.py": "b0f53db8661c70c3fe9b37f24f4065a4790c18be63fa1aa26b0eec7f346cc792",
+    "src/agc/paper/controller.py": "1b7d6869f8cd60f3507782531ca413291f1f32e9b02e929f18e1a31e4ef68725",
     "src/agc/paper/adaptation.py": "c9f07804f1e29cd4b753a8041ee0b1977627f7d2ad93e66e4d3039e8dd2352d7",
     "src/agc/math/inertia.py": "6deb50a47890ad21d16c885f1316f2f35feff45d66f953ddf42bf2c6e6c78899",
     "src/agc/plant/pybullet_plant.py": "042831ecdd3e3c104ff2d07a11261b0bd1df7716e96123c41fa8b450a74a1348",
     "src/agc/plant/compound_pi.py": "850a80945c37022d0805a6bf12348f92f9ea1bb993173ef99fa03d82c4fd25ba",
-    "run/run_paper_sim.py": "2be42cc32120ee3c975665b68053c123d043c8c539ce45ef3dfc3e6d7175a0ed"
+    "run/run_paper_sim.py": "d5ac7e29932fa467f2b2502b09bb402ab149e63cb0d80f3af87734d0d05d9084"
   },
   "finite_time_certificate": {
     "V_s(0)": 8.509218174399999,
-    "c_Lambda": 0.022021977030018187,
+    "c_Lambda": 0.022021977030018194,
     "q": 0.75,
-    "a": 0.022021977030018187,
-    "b": 0.05716658233391994,
-    "old_bound_s": 119.50612844501089,
-    "new_bound_s": 91.83118309217951,
-    "observed_s": 2.15,
-    "old_over_observed": 55.58424578837716,
-    "new_over_observed": 42.712178182409076,
+    "a": 0.022021977030018194,
+    "b": 0.057166582333919955,
+    "old_bound_s": 119.50612844501086,
+    "new_bound_s": 91.83118309217949,
+    "T_obs_elapsed_s": null,
+    "T_obs_source_s": null,
+    "persistent_threshold": 1e-08,
+    "persistent_final_source_time_s": 30.0,
+    "old_over_observed": null,
+    "new_over_observed": null,
     "initial_s": [
       1.2,
       -0.7999999999999999,
@@ -315,60 +374,52 @@
     "Lambda_s": [
       [
         0.04092,
-        5.6559999999999994e-05,
-        1.3130000000000001e-05,
-        8.14452795635467e-22,
+        5.656e-05,
+        1.313e-05,
+        0.0,
         0.00834934,
         0.0
       ],
       [
-        5.6559999999999994e-05,
-        0.04016999999999999,
-        -6.493999999999998e-05,
+        5.656e-05,
+        0.04017,
+        -6.494e-05,
         -0.00834934,
-        -4.011060824845106e-25,
-        0.0
+        0.0,
+        -0.0
       ],
       [
         1.313e-05,
-        -6.493999999999997e-05,
-        0.06920999999999998,
-        -1.709920047351584e-21,
-        4.274800118378961e-22,
+        -6.494e-05,
+        0.06921,
+        -0.0,
+        0.0,
         0.0
       ],
       [
-        -5.048303606335004e-22,
-        -0.008349339999999998,
-        1.709920047351584e-21,
-        3.6459999999999995,
+        -0.0,
+        -0.00834934,
+        -0.0,
+        3.646,
         0.0,
         0.0
       ],
       [
         0.00834934,
-        3.967103608322526e-21,
-        8.549600236757922e-22,
+        -0.0,
         0.0,
-        3.6460000000000004,
+        0.0,
+        3.646,
         0.0
       ],
       [
         0.0,
+        -0.0,
+        -0.0,
         0.0,
         0.0,
-        0.0,
-        0.0,
-        3.6460000000000004
+        3.646
       ]
     ]
-  },
-  "reference_sampling": {
-    "sample_interval_s": 0.002,
-    "source_start_s": 0.0,
-    "source_end_s": 25.664,
-    "simulation_end_s": 30.0,
-    "beyond_endpoint": "ReplayTrajectory.sample clips requests to the final recorded sample"
-  },
-  "postprocessing_note": "After the simulations, structured parameter JSON, explicit reference-grid metadata, LaTeX labels, and RMSE IQR/report fields were synchronized from the recorded run. Controller, estimator, plant, trajectory samples, integration, trial data, and figures were unchanged."
+  }
 }
