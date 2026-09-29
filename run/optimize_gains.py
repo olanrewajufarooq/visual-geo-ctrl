@@ -56,7 +56,7 @@ def main():
         "--training-payload-profiles",
         type=str,
         default="flat_light,tall_heavy",
-        help="Comma-separated named payload profiles used for training",
+        help="Comma-separated named payload profiles for adaptive payload-drop training",
     )
     parser.add_argument(
         "--swarm-size",

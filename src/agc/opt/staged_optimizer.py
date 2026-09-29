@@ -100,8 +100,8 @@ def default_training_conditions(
     replay_ids: Optional[List[str]] = None,
     payload_profiles: Optional[List[str]] = None,
     coriolis_forms: Optional[List[str]] = None,
-) -> List[Dict[str, str]]:
-    """Return the Cartesian product of replay, payload, and Coriolis conditions for gain tuning."""
+) -> List[Dict[str, Any]]:
+    """Return payload-release training conditions used by adaptive controllers."""
     selected_replays = list(DEFAULT_TRAINING_REPLAY_IDS) if replay_ids is None else replay_ids
     selected_profiles = list(DEFAULT_TRAINING_PAYLOAD_PROFILES) if payload_profiles is None else payload_profiles
     selected_coriolis = list(DEFAULT_TRAINING_CORIOLIS_FORMS) if coriolis_forms is None else coriolis_forms
@@ -110,16 +110,51 @@ def default_training_conditions(
         raise ValueError("Training requires at least one replay ID, payload profile, and coriolis form.")
 
     return [
-        {"replayId": str(replay_id), "payloadProfile": str(profile), "coriolis": str(coriolis)}
+        {
+            "replayId": str(replay_id), "payloadProfile": str(profile),
+            "coriolis": str(coriolis), "payloadDropEnabled": True,
+        }
         for replay_id in selected_replays
         for profile in selected_profiles
         for coriolis in selected_coriolis
     ]
 
 
+def default_nominal_training_conditions(
+    replay_ids: Optional[List[str]] = None,
+    coriolis_forms: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """Return nominal training conditions with payload dynamics disabled."""
+    selected_replays = list(DEFAULT_TRAINING_REPLAY_IDS) if replay_ids is None else replay_ids
+    selected_coriolis = list(DEFAULT_TRAINING_CORIOLIS_FORMS) if coriolis_forms is None else coriolis_forms
+    if not selected_replays or not selected_coriolis:
+        raise ValueError("Nominal training requires at least one replay ID and Coriolis form.")
+    return [
+        {
+            "replayId": str(replay_id), "payloadProfile": "evaluation",
+            "coriolis": str(coriolis), "payloadDropEnabled": False,
+        }
+        for replay_id in selected_replays
+        for coriolis in selected_coriolis
+    ]
+
+
+def _training_scenario(
+    condition: Dict[str, Any], mode: str, duration: float, gain_source: str,
+) -> Dict[str, Any]:
+    """Build a scoring scenario with the payload behavior encoded by its condition."""
+    return default_scenario(
+        replay_id=condition["replayId"], mode=mode,
+        coriolis=condition["coriolis"], duration=duration,
+        gain_source=gain_source, gui=False, enable_pacing=False,
+        payload_profile=condition["payloadProfile"],
+        payload_enabled=bool(condition["payloadDropEnabled"]),
+    )
+
+
 def _adaptation_training_conditions(
-    adapt_type: str, training_conditions: List[Dict[str, str]],
-) -> List[Dict[str, str]]:
+    adapt_type: str, training_conditions: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     """Use the full requested training set for either adaptive estimator."""
     if adapt_type not in ("euclidean", "bregman"):
         raise ValueError(f"Unsupported adaptive estimator: {adapt_type}")
@@ -156,12 +191,7 @@ def _capture_registry_seed_candidates(
     """Freeze the runtime gain candidates used to seed this optimization run."""
     seeds = {}
     for mode in ("nominal", "euclidean", "bregman"):
-        coriolis = condition["coriolis"]
-        scenario = default_scenario(
-            replay_id=condition["replayId"], mode=mode, coriolis=coriolis,
-            duration=duration, gain_source="optimized", gui=False,
-            enable_pacing=False, payload_profile=condition["payloadProfile"],
-        )
+        scenario = _training_scenario(condition, mode, duration, "optimized")
         seeds[mode] = encode_scenario_gains(scenario).tolist()
     from ..config.optimized_gains import optimized_gains
     adaptive_base = optimized_gains("adaptive_base", condition["coriolis"])
@@ -729,14 +759,21 @@ def run_staged_optimization(
         else [str(coriolis).lower()]
     )
 
-    training_conditions = default_training_conditions(
+    adaptive_training_conditions = default_training_conditions(
         training_replay_ids, training_payload_profiles, coriolis_forms
     )
+    nominal_training_conditions = default_nominal_training_conditions(
+        training_replay_ids, coriolis_forms
+    )
+    training_conditions = {
+        "nominal_no_payload_drop": nominal_training_conditions,
+        "adaptive_with_payload_drop": adaptive_training_conditions,
+    }
     sample = default_scenario(
-        replay_id=training_conditions[0]["replayId"], mode="nominal",
-        coriolis=training_conditions[0]["coriolis"], duration=duration,
+        replay_id=adaptive_training_conditions[0]["replayId"], mode="nominal",
+        coriolis=adaptive_training_conditions[0]["coriolis"], duration=duration,
         gain_source="manual", gui=False, enable_pacing=False,
-        payload_profile=training_conditions[0]["payloadProfile"],
+        payload_profile=adaptive_training_conditions[0]["payloadProfile"],
     )
     simulation_settings = {
         key: sample.get(key) for key in (
@@ -766,7 +803,7 @@ def run_staged_optimization(
     else:
         result_root = None
         manifest_path = None
-        registry_seeds = _capture_registry_seed_candidates(training_conditions[0], duration)
+        registry_seeds = _capture_registry_seed_candidates(adaptive_training_conditions[0], duration)
 
     context = _optimization_context(
         mode=str(mode).lower(), coriolisForms=coriolis_forms,
@@ -777,7 +814,9 @@ def run_staged_optimization(
         parallel=bool(parallel), promote=bool(promote),
         simulationSettings=simulation_settings,
         runtimeVersions=runtime_versions,
-        trainingReplayArtifacts=_training_replay_artifacts(training_conditions),
+        trainingReplayArtifacts=_training_replay_artifacts(
+            nominal_training_conditions + adaptive_training_conditions
+        ),
         registrySeedCandidates=registry_seeds,
     )
     if resume_from is not None:
@@ -807,7 +846,12 @@ def run_staged_optimization(
         print("=" * 70)
         print(f"Optimizing Mode: {sel_mode.upper()} ({var_idx} of {len(modes_to_run)})")
         print(f"Schedule: {schedule} | Method: PSO | Parallel: {parallel}")
-        print(f"Training conditions: {len(training_conditions)} (Coriolis: {coriolis_forms})")
+        print(
+            "Training conditions: "
+            f"nominal={len(nominal_training_conditions)} (no payload drop), "
+            f"adaptive={len(adaptive_training_conditions)} (payload drop; "
+            f"Coriolis: {coriolis_forms})"
+        )
         print("=" * 70)
 
         res_dir = (
@@ -816,22 +860,14 @@ def run_staged_optimization(
         os.makedirs(res_dir, exist_ok=True)
 
         if sel_mode == "nominal":
-            # 1. Nominal controller optimization across all 8 conditions
+            # Nominal gains are trained on the bare vehicle without a payload drop.
             manual_scenarios = [
-                default_scenario(
-                    replay_id=c["replayId"], mode="nominal", coriolis=c["coriolis"],
-                    duration=duration, gain_source="manual", gui=False, enable_pacing=False,
-                    payload_profile=c["payloadProfile"],
-                )
-                for c in training_conditions
+                _training_scenario(c, "nominal", duration, "manual")
+                for c in nominal_training_conditions
             ]
             reg_scenarios = [
-                default_scenario(
-                    replay_id=c["replayId"], mode="nominal", coriolis=c["coriolis"],
-                    duration=duration, gain_source="optimized", gui=False, enable_pacing=False,
-                    payload_profile=c["payloadProfile"],
-                )
-                for c in training_conditions
+                _training_scenario(c, "nominal", duration, "optimized")
+                for c in nominal_training_conditions
             ]
 
             manual_cand = encode_scenario_gains(manual_scenarios[0])
@@ -879,7 +915,7 @@ def run_staged_optimization(
                 res_dir=res_dir,
                 promote=promote,
                 best_gain_path=best_gain_path,
-                training_conditions=training_conditions,
+                training_conditions=nominal_training_conditions,
                 schedule=schedule,
                 extra_seeds=[hist_rec["candidate"]],
                 resume_dir=res_dir,
@@ -893,8 +929,8 @@ def run_staged_optimization(
             }
 
         elif sel_mode == "adaptive":
-            # 2. Adaptive optimization:
-            # First: Stages 1-5 tune/refine common tracking gains on nominal baseline
+            # Adaptive gains are trained through the payload-release maneuver.
+            # First: stages 1-5 tune common tracking gains for both estimators.
             # Then: Stage 'adaptive' for Euclidean (gammaE) and Bregman (gammaB)
             # Final 'all' is omitted to avoid bias.
             print("  --- Phase 1: Adaptive Base Tracking Gains (Euclidean + Bregman) ---")
@@ -906,20 +942,17 @@ def run_staged_optimization(
                             replay_id=c["replayId"], mode=adapt_type, coriolis=c["coriolis"],
                             duration=duration, gain_source="optimized", gui=False, enable_pacing=False,
                             payload_profile=c["payloadProfile"],
+                            payload_enabled=bool(c["payloadDropEnabled"]),
                         ),
                     )
-                    for c in training_conditions
+                    for c in adaptive_training_conditions
                 ]
                 for adapt_type in ("euclidean", "bregman")
             }
             manual_adaptive_scenarios = {
                 adapt_type: [
-                    default_scenario(
-                        replay_id=c["replayId"], mode=adapt_type, coriolis=c["coriolis"],
-                        duration=duration, gain_source="manual", gui=False, enable_pacing=False,
-                        payload_profile=c["payloadProfile"],
-                    )
-                    for c in training_conditions
+                    _training_scenario(c, adapt_type, duration, "manual")
+                    for c in adaptive_training_conditions
                 ]
                 for adapt_type in ("euclidean", "bregman")
             }
@@ -963,7 +996,7 @@ def run_staged_optimization(
                 stage_names=base_stages,
                 sel_mode="adaptive_base",
                 incumbent=incumbent_base,
-                manual_rec=man_rec,
+                manual_rec=manual_rec,
                 reg_rec=registry_rec,
                 manual_scenarios=adaptive_scenarios,
                 weights=weights,
@@ -976,7 +1009,7 @@ def run_staged_optimization(
                 res_dir=base_res_dir,
                 promote=promote,
                 best_gain_path=best_base_path,
-                training_conditions=training_conditions,
+                training_conditions=adaptive_training_conditions,
                 schedule=schedule,
                 extra_seeds=[hist_rec["candidate"]],
                 resume_dir=base_res_dir,
@@ -995,13 +1028,9 @@ def run_staged_optimization(
             # Tune each adaptive estimator separately on stage 'adaptive' only
             for adapt_type in ["euclidean", "bregman"]:
                 print(f"\n  --- Phase 2: Tuning {adapt_type.upper()} Adaptation Gains ---")
-                conds = _adaptation_training_conditions(adapt_type, training_conditions)
+                conds = _adaptation_training_conditions(adapt_type, adaptive_training_conditions)
                 adapt_scenarios = [
-                    default_scenario(
-                        replay_id=c["replayId"], mode=adapt_type, coriolis=c["coriolis"],
-                        duration=duration, gain_source="optimized", gui=False, enable_pacing=False,
-                        payload_profile=c["payloadProfile"],
-                    )
+                    _training_scenario(c, adapt_type, duration, "optimized")
                     for c in conds
                 ]
 

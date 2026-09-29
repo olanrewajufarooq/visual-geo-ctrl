@@ -83,7 +83,7 @@ $$\mathbf{x}_{\mathcal{B}_m}^{(k+1)} = \arg\min_{\mathbf{z} \in \Omega_{\mathcal
 Defined in [`bounds.py`](file:///C:/Users/g202404900/Desktop/adaptive-geo-ctrl-pybullet/src/agc/opt/bounds.py):
 
 #### 1. Nominal Mode (`--mode nominal`)
-Optimizes the 15 baseline parameters across the full generalization matrix:
+Optimizes the 15 nominal controller parameters for the bare vehicle, with payload-release dynamics disabled:
 - **Hierarchical Schedule (6 stages)**:
   1. `all`: Global exploration across all 15 parameters to identify promising attractors.
   2. `tracking`: Attitudes ($K_R \in \mathbb{R}^3$) and positions ($K_\xi \in \mathbb{R}^3$), establishing SE(3) stiffness.
@@ -132,11 +132,14 @@ The Euclidean and Bregman entries share the optimized `adaptive_base` tracking g
 
 ## 4. Multi-Condition Generalization & Coriolis Invariance
 
-### Training Matrix (4 Conditions per Estimator)
-Candidates are evaluated against the arithmetic mean cost across a Cartesian generalization matrix. The default selects one replay:
-$$\mathcal{T} = \{\text{lemniscate\_02\_auto}\} \times \{\text{flat\_light}, \text{tall\_heavy}\} \times \{\text{lc}, \text{rb}\}$$
+### Training Conditions
+The default selects one replay and both Coriolis forms. Nominal training disables payload dynamics, giving two conditions:
+$$\mathcal{T}_{\mathrm{nominal}} = \{\text{lemniscate\_02\_auto}\} \times \{\text{lc}, \text{rb}\}$$
 
-For `adaptive_base`, the same four conditions are scored under each of the two estimators and all eight resulting records contribute equally to its objective. Replay selection can be expanded explicitly by the CLI.
+Adaptive training includes the payload-release event and both payload profiles, giving four conditions per estimator:
+$$\mathcal{T}_{\mathrm{adaptive}} = \{\text{lemniscate\_02\_auto}\} \times \{\text{flat\_light}, \text{tall\_heavy}\} \times \{\text{lc}, \text{rb}\}$$
+
+For `adaptive_base`, those four conditions are evaluated with each estimator; all eight resulting records contribute equally to its arithmetic-mean objective. Replay selection can be expanded explicitly by the CLI.
 
 A simulation crash, unbounded state, or constraint violation in *any* single condition marks the candidate as failed ($\text{cost} = \infty$). Replay `lemniscate_01_auto` with nominal payload is strictly held out for final paper evaluation.
 

@@ -4,13 +4,13 @@
 
 ## Two-Mode Optimization Architecture
 
-Optimization is decoupled into two principal modes to prevent estimator bias:
+Optimization is decoupled into nominal tracking and adaptive tuning:
 
-1. **`--mode nominal`**: Optimizes the 15 base tracking, sliding metric, and dissipation parameters across the selected training conditions. The CLI defaults to one replay, two payloads, and two Coriolis forms (4 conditions); the Python API defaults to 2 replays, 2 payloads, and 2 Coriolis forms (8 conditions). Tracking gains are synchronized across all controller modes (`nominal`, `euclidean`, `bregman`) and Coriolis forms (`lc`, `rb`).
+1. **`--mode nominal`**: Optimizes the 15 tracking, sliding metric, and dissipation parameters for the bare vehicle with payload-drop dynamics disabled. Defaults cover one replay and both Coriolis forms (`lc`, `rb`), for two conditions. Nominal gains are stored separately from adaptive tracking gains.
    - Hierarchical schedule (6 stages): `["all", "tracking", "sliding_dissipation", "sliding_metric", "dissipation", "all"]`
    - Classic schedule (1 stage): `["all"]`
 
-2. **`--mode adaptive`**: First runs stages 1–5 on the nominal plant to establish optimal base tracking gains, freezes them, and then tunes the adaptation parameters in stage 6 (`adaptive`): $\gamma_E$ for Euclidean and $\gamma_B$ for Bregman.
+2. **`--mode adaptive`**: First optimizes the shared `adaptive_base` tracking gains over the payload-release cases for both estimators, then freezes them and tunes Euclidean $\gamma_E$ and Bregman $\gamma_B$ separately. The default adaptive matrix includes one replay, two payload profiles, and both Coriolis forms (four conditions per estimator).
    - Hierarchical schedule (6 stages): `["all", "tracking", "sliding_dissipation", "sliding_metric", "dissipation", "adaptive"]`
    - Classic schedule (3 stages): `["all", "nonadaptive", "adaptive"]`
    - **Estimator Fairness**: The final `"all"` stage is strictly omitted for adaptive controllers to prevent estimator bias and maintain pure, isolated tuning of adaptation dynamics.
@@ -31,14 +31,9 @@ The controller and adaptation gain vector includes:
 
 Gains are shared across Coriolis forms (`lc` and `rb`). Each candidate's objective is the arithmetic mean of its condition costs. A candidate is rejected if any selected condition fails. The exact training conditions are recorded in the run manifest and per-condition evaluation records.
 
-## Generalization Training Matrix (8 Conditions)
+## Training Conditions
 
-The Python API defaults to eight training conditions:
-- **2 Replays**: `lemniscate_02_auto` and `lemniscate_03_auto`
-- **2 Payloads**: `flat_light` (0.60 kg, $0.16 \times 0.10 \times 0.06$ m) and `tall_heavy` (0.90 kg, $0.10 \times 0.10 \times 0.16$ m)
-- **2 Coriolis Factorizations**: `lc` (Levi-Civita connection) and `rb` (rigid body coadjoint connection)
-
-A failure in any condition rejects the candidate. Evaluation replay `lemniscate_01_auto` with the 0.75 kg payload is strictly held out.
+The default uses one replay (`lemniscate_02_auto`) and both Coriolis factorizations (`lc` and `rb`). Nominal gains are trained on the bare vehicle with payload-drop dynamics disabled, so they have two conditions. Adaptive gains are trained across two payload profiles—`flat_light` (0.60 kg, $0.16 \times 0.10 \times 0.06$ m) and `tall_heavy` (0.90 kg, $0.10 \times 0.10 \times 0.16$ m)—with the payload released, giving four conditions per estimator. The shared adaptive base is scored with both Euclidean and Bregman estimators, averaging all eight records equally. A failure in any scored condition rejects the candidate. Evaluation replay `lemniscate_01_auto` with the 0.75 kg payload is held out.
 
 ## Objective Function
 

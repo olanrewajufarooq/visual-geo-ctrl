@@ -36,11 +36,15 @@ from agc.opt.staged_optimizer import promote_gains_to_registry
 from agc.config.manual_gains import manual_gains
 from agc.config.optimized_gains import optimized_gains
 from agc.sim.default_scenario import default_scenario
-from agc.opt.staged_optimizer import default_training_conditions
+from agc.opt.staged_optimizer import (
+    default_nominal_training_conditions,
+    default_training_conditions,
+)
 from agc.opt.staged_optimizer import (
     _adaptation_training_conditions,
     _load_stage_checkpoint,
     _optimization_context,
+    _training_scenario,
 )
 
 
@@ -168,6 +172,35 @@ def test_training_conditions_default_to_one_replay_two_payloads_two_coriolis():
         ("lemniscate_02_auto", "tall_heavy", "lc"),
         ("lemniscate_02_auto", "tall_heavy", "rb"),
     ]
+    assert all(c["payloadDropEnabled"] for c in conditions)
+
+
+def test_nominal_training_conditions_use_no_payload_drop():
+    conditions = default_nominal_training_conditions()
+
+    assert len(conditions) == 2
+    assert {(c["replayId"], c["payloadProfile"], c["coriolis"], c["payloadDropEnabled"])
+            for c in conditions} == {
+        ("lemniscate_02_auto", "evaluation", "lc", False),
+        ("lemniscate_02_auto", "evaluation", "rb", False),
+    }
+
+
+def test_training_scenario_passes_payload_drop_setting(monkeypatch):
+    from agc.opt import staged_optimizer
+
+    captured = {}
+    monkeypatch.setattr(
+        staged_optimizer, "default_scenario",
+        lambda **kwargs: captured.update(kwargs) or kwargs,
+    )
+    nominal = default_nominal_training_conditions()[0]
+    adaptive = default_training_conditions()[0]
+
+    _training_scenario(nominal, "nominal", 30.0, "manual")
+    assert captured["payload_enabled"] is False
+    _training_scenario(adaptive, "euclidean", 30.0, "manual")
+    assert captured["payload_enabled"] is True
 
 
 @pytest.mark.parametrize("adapt_type", ["euclidean", "bregman"])
@@ -352,6 +385,9 @@ def test_promote_gains_loads_python_registry_without_relative_import_error():
 
 def test_promoting_adaptive_base_invalidates_estimator_costs_and_emits_four_modes(monkeypatch):
     gains = manual_gains("nominal", "lc")
+    nominal_before = optimized_gains("nominal", "lc")
+    nominal_kr_before = nominal_before["KRdiag"].copy()
+    nominal_cost_before = nominal_before["optimizationCost"]
     import agc.opt.staged_optimizer as staged_optimizer
     captured = {}
     monkeypatch.setattr(staged_optimizer, "atomic_write_text", lambda path, content: captured.update(content=content))
@@ -376,7 +412,10 @@ def test_promoting_adaptive_base_invalidates_estimator_costs_and_emits_four_mode
     namespace = {}
     exec(compile(generated, "optimized_gains.py", "exec"), namespace)
     assert namespace["optimized_gains"]("adaptive_base")["optimizationMetadata"]["contextHash"] == "new-context"
-    assert namespace["optimized_gains"]("nominal")["optimizationCost"] is None
+    assert namespace["optimized_gains"]("nominal")["optimizationCost"] == nominal_cost_before
+    np.testing.assert_array_equal(
+        namespace["optimized_gains"]("nominal")["KRdiag"], nominal_kr_before
+    )
     np.testing.assert_array_equal(
         namespace["optimized_gains"]("adaptive_base")["KRdiag"], gains["KRdiag"]
     )
