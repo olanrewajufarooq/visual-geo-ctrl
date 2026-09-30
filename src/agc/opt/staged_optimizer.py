@@ -19,6 +19,7 @@ from .bounds import (
 )
 from .encoding import (
     encode_scenario_gains,
+    encode_adaptive_base_gains,
     apply_scenario_gains,
     apply_gain_block,
     round_gains,
@@ -28,7 +29,7 @@ from .objective import (
     objective_scales,
     aggregate_scenario_records,
     evaluate_scenario_set_candidate,
-    best_feasible_candidate,
+    best_search_candidate,
 )
 from .pso import ParticleSwarmOptimizer
 from .bregman_profile import profile_bregman_gain
@@ -42,7 +43,7 @@ from ..io.persistence import (
 DEFAULT_TRAINING_REPLAY_IDS = ("lemniscate_02_auto",)
 DEFAULT_TRAINING_PAYLOAD_PROFILES = ("flat_light", "tall_heavy")
 DEFAULT_TRAINING_CORIOLIS_FORMS = ("lc", "rb")
-OBJECTIVE_VERSION = "force-torque-separated-mean-v1"
+OBJECTIVE_VERSION = "force-torque-separated-joint-adaptive-base-26-completed-gates-100x-search-candidate-v1"
 SCORING_SOURCE_FILES = (
     "src/agc/opt/objective.py", "src/agc/opt/staged_optimizer.py",
     "src/agc/opt/pso.py", "src/agc/opt/bregman_profile.py",
@@ -56,6 +57,13 @@ SCORING_SOURCE_FILES = (
     "src/agc/plant/compound_pi.py", "src/agc/plant/drone_urdf.py",
     "src/agc/config/manual_gains.py",
 )
+
+
+def _shared_registry_promotion_allowed(coriolis_forms: List[str]) -> bool:
+    """Shared gain entries may be promoted only after evaluating LC and RB."""
+    return set(DEFAULT_TRAINING_CORIOLIS_FORMS).issubset(
+        {str(form).lower() for form in coriolis_forms}
+    )
 
 
 def _optimization_context(**kwargs: Any) -> Dict[str, Any]:
@@ -208,7 +216,11 @@ def _capture_registry_seed_candidates(
     base_controller["kd"] = float(adaptive_base["kd"])
     base_controller["ks"] = float(adaptive_base["ks"])
     base_controller["alpha"] = float(adaptive_base["alpha"])
-    seeds["adaptive_base"] = encode_scenario_gains(base_scenario).tolist()
+    seeds["adaptive_base"] = encode_adaptive_base_gains(
+        encode_scenario_gains(base_scenario),
+        adaptive_base["gammaE"],
+        adaptive_base["gammaB"],
+    ).tolist()
     return seeds
 
 
@@ -244,9 +256,9 @@ class BlockCostEvaluator:
 
 
 def _adaptive_base_gains(candidate: np.ndarray, scenario: Dict[str, Any]) -> Dict[str, Any]:
-    """Return the common 15-coordinate tracking gains from an adaptive scenario."""
-    full_candidate = encode_scenario_gains(scenario)
-    full_candidate[:15] = np.asarray(candidate, dtype=float).ravel()
+    """Decode shared tracking and estimator gains from a 26-coordinate candidate."""
+    candidate = np.asarray(candidate, dtype=float).ravel()
+    full_candidate = adaptive_base_candidate_for_mode(candidate, "euclidean", scenario)
     controller = apply_scenario_gains(full_candidate, scenario)["controller"]
     return {
         "KRdiag": np.diag(controller["KR"]).copy(),
@@ -255,7 +267,28 @@ def _adaptive_base_gains(candidate: np.ndarray, scenario: Dict[str, Any]) -> Dic
         "kd": float(controller["kd"]),
         "ks": float(controller["ks"]),
         "alpha": float(controller["alpha"]),
+        "gammaE": 10.0 ** candidate[15:25],
+        "gammaB": float(10.0 ** candidate[25]),
     }
+
+
+def adaptive_base_candidate_for_mode(
+    candidate: np.ndarray, mode: str, scenario: Dict[str, Any],
+) -> np.ndarray:
+    """Map a 26-coordinate adaptive-base candidate into one estimator's vector."""
+    joint = np.asarray(candidate, dtype=float).ravel()
+    if joint.size != 26:
+        raise ValueError("Adaptive-base candidates must contain 26 coordinates.")
+    mode = str(mode).lower()
+    if mode not in ("euclidean", "bregman"):
+        raise ValueError(f"Unsupported adaptive estimator: {mode}")
+    estimator = encode_scenario_gains(scenario)
+    estimator[:15] = joint[:15]
+    if mode == "euclidean":
+        estimator[15:25] = joint[15:25]
+    else:
+        estimator[15] = joint[25]
+    return estimator
 
 
 def evaluate_adaptive_base_candidate(
@@ -264,15 +297,14 @@ def evaluate_adaptive_base_candidate(
     weights: Dict[str, float],
     label: str = "adaptive-base",
 ) -> Dict[str, Any]:
-    """Score shared tracking gains over every condition for both estimators."""
+    """Score shared tracking gains and both rate sets over all adaptive conditions."""
     base_candidate = np.asarray(candidate, dtype=float).ravel()
-    if base_candidate.size != 15:
-        raise ValueError("Adaptive-base candidates must contain the 15 tracking coordinates.")
+    if base_candidate.size != 26:
+        raise ValueError("Adaptive-base candidates must contain 26 coordinates.")
     records = []
     for mode in ("euclidean", "bregman"):
         scenarios = scenario_groups[mode]
-        full_candidate = encode_scenario_gains(scenarios[0])
-        full_candidate[:15] = base_candidate
+        full_candidate = adaptive_base_candidate_for_mode(base_candidate, mode, scenarios[0])
         result = evaluate_scenario_set_candidate(
             full_candidate, scenarios, weights, label=f"{label}-{mode}",
         )
@@ -355,14 +387,26 @@ def promote_gains_to_registry(
             entry["optimizationCost"] = updated.get("optimizationCost")
             entry["optimizationMetadata"] = metadata
     elif target_mode == "adaptive_base":
-        base_changed = any(
+        adaptive_base_changed = any(
             tk in updated and updated[tk] is not None
             and not np.allclose(np.asarray(registry["adaptive_base_lc"][tk]), np.asarray(updated[tk]))
             for tk in tracking_keys
         )
+        adaptive_base_changed = adaptive_base_changed or (
+            "gammaE" in updated and not np.allclose(
+                np.asarray(registry["adaptive_base_lc"]["gammaE"]), np.asarray(updated["gammaE"]),
+            )
+        ) or (
+            "gammaB" in updated and not np.isclose(
+                float(registry["adaptive_base_lc"]["gammaB"]), float(updated["gammaB"]),
+            )
+        )
         for f in forms:
             base_entry = registry[f"adaptive_base_{f}"]
             for key in tracking_keys:
+                if updated.get(key) is not None:
+                    base_entry[key] = updated[key]
+            for key in ("gammaE", "gammaB"):
                 if updated.get(key) is not None:
                     base_entry[key] = updated[key]
             base_entry["optimizationCost"] = updated.get("optimizationCost")
@@ -371,7 +415,11 @@ def promote_gains_to_registry(
                 estimator_entry = registry[f"{mode_name}_{f}"]
                 for key in tracking_keys:
                     estimator_entry[key] = base_entry[key]
-                if base_changed:
+                if mode_name == "euclidean" and updated.get("gammaE") is not None:
+                    estimator_entry["gammaE"] = updated["gammaE"]
+                if mode_name == "bregman" and updated.get("gammaB") is not None:
+                    estimator_entry["gammaB"] = updated["gammaB"]
+                if adaptive_base_changed:
                     estimator_entry["optimizationCost"] = None
                     estimator_entry["optimizationMetadata"] = None
     elif target_mode in ("euclidean", "adaptive"):
@@ -655,7 +703,7 @@ def _run_optimization_stage_loop(
             }
 
         prev_incumbent_cost = incumbent["cost"]
-        incumbent = best_feasible_candidate(incumbent, contender)
+        incumbent = best_search_candidate(incumbent, contender)
         print(f"    Contender cost:  {contender['cost']:.6g} (failed={contender['failed']})")
         print(f"    Incumbent cost:  {incumbent['cost']:.6g} ({incumbent['label']})")
 
@@ -758,6 +806,12 @@ def run_staged_optimization(
         if (coriolis is None or str(coriolis).lower() == "all")
         else [str(coriolis).lower()]
     )
+    if promote and not _shared_registry_promotion_allowed(coriolis_forms):
+        print(
+            "Registry promotion disabled: shared gains must be evaluated "
+            "on both LC and RB. This single-factorization run is diagnostic only."
+        )
+        promote = False
 
     adaptive_training_conditions = default_training_conditions(
         training_replay_ids, training_payload_profiles, coriolis_forms
@@ -874,7 +928,7 @@ def run_staged_optimization(
             reg_cand = np.asarray(registry_seeds["nominal"], dtype=float)
             manual_rec = evaluate_scenario_set_candidate(manual_cand, manual_scenarios, weights, label="manual")
             reg_rec = evaluate_scenario_set_candidate(reg_cand, manual_scenarios, weights, label="registered")
-            incumbent = best_feasible_candidate(manual_rec, reg_rec)
+            incumbent = best_search_candidate(manual_rec, reg_rec)
 
             # Score the historical seed through both adaptive estimators.
             hist_gains = {
@@ -888,14 +942,14 @@ def run_staged_optimization(
             hist_pos = np.concatenate([hist_gains["KRdiag"], hist_gains["Kxidiag"], hist_gains["LambdaDiag"], [hist_gains["kd"], hist_gains["ks"]]])
             hist_cand = np.array(list(np.log10(hist_pos)) + [hist_gains["alpha"]], dtype=float)
             hist_rec = evaluate_scenario_set_candidate(hist_cand, manual_scenarios, weights, label="historical-robust")
-            incumbent = best_feasible_candidate(incumbent, hist_rec)
+            incumbent = best_search_candidate(incumbent, hist_rec)
 
             best_gain_path = default_results_root(str(root), inplace_save=True) / "nominal.json"
             saved_best = load_best_gain(best_gain_path)
             if saved_best is not None and "candidate" in saved_best:
                 saved_cand = np.asarray(saved_best["candidate"], dtype=float)
                 saved_rec = evaluate_scenario_set_candidate(saved_cand, manual_scenarios, weights, label="persisted-best")
-                incumbent = best_feasible_candidate(incumbent, saved_rec)
+                incumbent = best_search_candidate(incumbent, saved_rec)
 
             stage_names = gain_optimization_stages("nominal", schedule=schedule)
             best_cand, stages_log = _run_optimization_stage_loop(
@@ -933,7 +987,7 @@ def run_staged_optimization(
             # First: stages 1-5 tune common tracking gains for both estimators.
             # Then: Stage 'adaptive' for Euclidean (gammaE) and Bregman (gammaB)
             # Final 'all' is omitted to avoid bias.
-            print("  --- Phase 1: Adaptive Base Tracking Gains (Euclidean + Bregman) ---")
+            print("  --- Phase 1: Joint Adaptive Base + gammaE/gammaB (Euclidean + Bregman) ---")
             adaptive_scenarios = {
                 adapt_type: [
                     apply_scenario_gains(
@@ -956,16 +1010,20 @@ def run_staged_optimization(
                 ]
                 for adapt_type in ("euclidean", "bregman")
             }
-            manual_base_candidate = encode_scenario_gains(
-                manual_adaptive_scenarios["euclidean"][0]
-            )[:15]
+            manual_euclidean = encode_scenario_gains(manual_adaptive_scenarios["euclidean"][0])
+            manual_bregman = encode_scenario_gains(manual_adaptive_scenarios["bregman"][0])
+            manual_base_candidate = encode_adaptive_base_gains(
+                manual_euclidean[:15],
+                10.0 ** manual_euclidean[15:25],
+                10.0 ** manual_bregman[15],
+            )
             adaptive_base_candidate = np.asarray(registry_seeds["adaptive_base"], dtype=float)
             scorer = lambda candidate, label: evaluate_adaptive_base_candidate(
                 candidate, adaptive_scenarios, weights, label=label,
             )
             manual_rec = scorer(manual_base_candidate, "manual-adaptive-base")
             registry_rec = scorer(adaptive_base_candidate, "registered-adaptive-base")
-            incumbent_base = best_feasible_candidate(manual_rec, registry_rec)
+            incumbent_base = best_search_candidate(manual_rec, registry_rec)
 
             # Known robust historical baseline candidate as an additional high-quality seed
             hist_gains = {
@@ -977,16 +1035,23 @@ def run_staged_optimization(
                 "alpha": 0.8929,
             }
             hist_pos = np.concatenate([hist_gains["KRdiag"], hist_gains["Kxidiag"], hist_gains["LambdaDiag"], [hist_gains["kd"], hist_gains["ks"]]])
-            hist_cand = np.array(list(np.log10(hist_pos)) + [hist_gains["alpha"]], dtype=float)
+            hist_tracking = np.array(list(np.log10(hist_pos)) + [hist_gains["alpha"]], dtype=float)
+            hist_cand = np.concatenate([hist_tracking, adaptive_base_candidate[15:]])
             hist_rec = scorer(hist_cand, "historical-adaptive-base")
-            incumbent_base = best_feasible_candidate(incumbent_base, hist_rec)
+            incumbent_base = best_search_candidate(incumbent_base, hist_rec)
 
             best_base_path = default_results_root(str(root), inplace_save=True) / "adaptive_base.json"
             saved_best = load_best_gain(best_base_path)
             if saved_best is not None and "candidate" in saved_best:
                 saved_cand = np.asarray(saved_best["candidate"], dtype=float)
-                saved_rec = scorer(saved_cand, "persisted-adaptive-base")
-                incumbent_base = best_feasible_candidate(incumbent_base, saved_rec)
+                if saved_cand.size == 26:
+                    saved_rec = scorer(saved_cand, "persisted-adaptive-base")
+                    incumbent_base = best_search_candidate(incumbent_base, saved_rec)
+                else:
+                    print(
+                        "    Ignoring persisted adaptive-base candidate with "
+                        f"{saved_cand.size} coordinates; joint tuning requires 26."
+                    )
 
             base_stages = gain_optimization_stages("adaptive_base", schedule=schedule)
             base_res_dir = res_dir / "adaptive_base"
@@ -1034,10 +1099,11 @@ def run_staged_optimization(
                     for c in conds
                 ]
 
-                # Assemble candidate with locked base tracking gains + current adaptive seed
-                reg_adapt_cand = np.asarray(registry_seeds[adapt_type], dtype=float)
-                locked_cand = np.copy(reg_adapt_cand)
-                locked_cand[0:15] = common_base_candidate[0:15]
+                # Start from the jointly optimized estimator rate while holding
+                # all shared tracking gains fixed.
+                locked_cand = adaptive_base_candidate_for_mode(
+                    common_base_candidate, adapt_type, adapt_scenarios[0],
+                )
 
                 adapt_rec = evaluate_scenario_set_candidate(locked_cand, adapt_scenarios, weights, label=f"seed-{adapt_type}")
                 adapt_best_path = default_results_root(str(root), inplace_save=True) / f"{adapt_type}.json"
@@ -1046,7 +1112,7 @@ def run_staged_optimization(
                     cand_saved = np.asarray(adapt_saved["candidate"], dtype=float)
                     cand_saved[0:15] = common_base_candidate[0:15]
                     saved_rec = evaluate_scenario_set_candidate(cand_saved, adapt_scenarios, weights, label="persisted-adapt")
-                    adapt_rec = best_feasible_candidate(adapt_rec, saved_rec)
+                    adapt_rec = best_search_candidate(adapt_rec, saved_rec)
 
                 adapt_res_dir = res_dir / adapt_type
                 os.makedirs(adapt_res_dir, exist_ok=True)
@@ -1073,6 +1139,7 @@ def run_staged_optimization(
                     resume_dir=adapt_res_dir,
                     context_hash=context["contextHash"],
                     allow_checkpoint_resume=resume_from is not None,
+                    extra_seeds=[locked_cand],
                 )
                 adaptive_results[adapt_type] = {
                     "incumbent": best_adapt,

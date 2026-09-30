@@ -36,11 +36,11 @@ def gain_bounds(mode: str) -> Tuple[np.ndarray, np.ndarray]:
     lb = pos_lb + [0.30]
     ub = pos_ub + [0.95]
 
-    if mode in ("euclidean", "adaptive"):
+    if mode in ("euclidean", "adaptive", "adaptive_base"):
         # 10 adaptation gains in log10 space [-5, 0]
         lb.extend([np.log10(1e-5)] * 10)
         ub.extend([0.0] * 10)
-    elif mode == "bregman":
+    if mode in ("bregman", "adaptive_base"):
         # 1 scalar adaptation gain gammaB in log10 space [-5, -1] (1e-5 to 1e-1)
         lb.append(np.log10(1e-5))
         ub.append(np.log10(1e-1))
@@ -53,8 +53,10 @@ def gain_block_indices(mode: str, block: str) -> List[int]:
     mode = mode.lower()
     block = block.lower()
 
-    if mode in ("nominal", "adaptive_base"):
+    if mode == "nominal":
         total = 15
+    elif mode == "adaptive_base":
+        total = 26
     elif mode == "bregman":
         total = 16
     elif mode in ("euclidean", "adaptive"):
@@ -79,7 +81,7 @@ def gain_block_indices(mode: str, block: str) -> List[int]:
         # kd (12), ks (13), alpha (14)
         return list(range(12, 15))
     elif block == "adaptive":
-        # gammaB (15) or gammaE (15..24)
+        # gammaB (15), gammaE (15..24), or adaptive_base's gammaE (15..24) + gammaB (25)
         return list(range(15, total))
     else:
         raise ValueError(f"Unknown gain block: {block}")
@@ -93,14 +95,17 @@ def gain_optimization_stages(mode: str, schedule: str = "hierarchical") -> List[
     if mode in ("nominal", "adaptive_base"):
         if schedule == "classic":
             return ["all"]
-        return [
+        stages = [
             "all",
             "tracking",
             "sliding_dissipation",
             "sliding_metric",
             "dissipation",
-            "all",
         ]
+        if mode == "adaptive_base":
+            stages.append("adaptive")
+        stages.append("all")
+        return stages
     elif mode in ("adaptive", "euclidean", "bregman"):
         if schedule == "classic":
             return ["all", "nonadaptive", "adaptive"]

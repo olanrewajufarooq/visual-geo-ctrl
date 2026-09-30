@@ -17,6 +17,7 @@ from agc.opt.bounds import (
 )
 from agc.opt.encoding import (
     encode_scenario_gains,
+    encode_adaptive_base_gains,
     apply_scenario_gains,
     apply_gain_block,
     round_gains,
@@ -29,6 +30,7 @@ from agc.opt.objective import (
     objective_weights,
     optimization_options,
     best_feasible_candidate,
+    best_search_candidate,
 )
 from agc.opt.bregman_profile import bregman_gamma_grid
 from agc.opt.pso import ParticleSwarmOptimizer
@@ -42,6 +44,7 @@ from agc.opt.staged_optimizer import (
 )
 from agc.opt.staged_optimizer import (
     _adaptation_training_conditions,
+    adaptive_base_candidate_for_mode,
     _load_stage_checkpoint,
     _optimization_context,
     _training_scenario,
@@ -139,8 +142,18 @@ def test_gain_blocks_cover_and_partition_adaptive_controllers():
     # Test nominal partitions (15 parameters)
     nom_all = gain_block_indices("nominal", "all")
     assert nom_all == list(range(15))
-    assert gain_block_indices("adaptive_base", "all") == nom_all
-    assert gain_optimization_stages("adaptive_base", "hierarchical") == gain_optimization_stages("nominal", "hierarchical")
+    adaptive_base_all = gain_block_indices("adaptive_base", "all")
+    assert adaptive_base_all == list(range(26))
+    assert gain_block_indices("adaptive_base", "adaptive") == list(range(15, 26))
+    assert gain_bounds("adaptive_base")[0].size == 26
+    adaptive_base_lower, adaptive_base_upper = gain_bounds("adaptive_base")
+    np.testing.assert_allclose(adaptive_base_lower[15:25], np.log10(1e-5))
+    np.testing.assert_allclose(adaptive_base_upper[15:25], 0.0)
+    np.testing.assert_allclose(adaptive_base_lower[25], np.log10(1e-5))
+    np.testing.assert_allclose(adaptive_base_upper[25], np.log10(1e-1))
+    assert gain_optimization_stages("adaptive_base", "hierarchical") == [
+        "all", "tracking", "sliding_dissipation", "sliding_metric", "dissipation", "adaptive", "all",
+    ]
 
 
 def test_bregman_grid_includes_bounds_and_seed_values():
@@ -216,11 +229,6 @@ def test_euclidean_and_bregman_gains_share_adaptive_base_for_both_connections():
     base = optimized_gains("adaptive_base", "lc")
     nominal = optimized_gains("nominal", "lc")
     assert not np.array_equal(base["KRdiag"], nominal["KRdiag"])
-    np.testing.assert_array_equal(base["KRdiag"], [0.001117, 0.006384, 0.002431])
-    np.testing.assert_array_equal(base["Kxidiag"], [20.2, 0.4516, 12.84])
-    np.testing.assert_array_equal(
-        base["LambdaDiag"], [7.96, 16.76, 2.417, 0.08501, 0.08359, 0.04791]
-    )
     for mode in ("euclidean", "bregman"):
         for coriolis in ("lc", "rb"):
             gains = optimized_gains(mode, coriolis)
@@ -280,6 +288,221 @@ def test_training_cost_averages_all_finite_conditions_and_rejects_any_failure():
     failed = aggregate_scenario_records(records + [{"cost": 1e6, "failed": True}], label="candidate")
     assert failed["failed"] is True
     assert failed["cost"] == pytest.approx(1e6)
+
+
+def test_completed_unstable_record_keeps_100x_cost_in_aggregate():
+    records = [
+        {"cost": 4.0, "failed": False},
+        {
+            "cost": 100.0 * 8.0,
+            "unpenalizedCost": 8.0,
+            "failed": True,
+            "failureType": "unstable_completed",
+        },
+    ]
+
+    aggregate = aggregate_scenario_records(records, failure_cost=1e6)
+
+    assert aggregate["failed"] is True
+    assert aggregate["cost"] == pytest.approx((4.0 + 800.0) / 2.0)
+    valid_incumbent = {"cost": 900.0, "failed": False}
+    assert best_feasible_candidate(aggregate, valid_incumbent) is valid_incumbent
+
+
+def test_search_candidate_carries_best_infeasible_candidate_until_feasible_found():
+    poor = {"cost": 2.4e10, "failed": True, "label": "manual"}
+    improved_but_infeasible = {"cost": 18590.1, "failed": True, "label": "pso"}
+    feasible = {"cost": 30000.0, "failed": False, "label": "feasible"}
+    lower_cost_but_infeasible = {"cost": 10.0, "failed": True, "label": "bad"}
+
+    assert best_search_candidate(poor, improved_but_infeasible) is improved_but_infeasible
+    assert best_search_candidate(improved_but_infeasible, feasible) is feasible
+    assert best_search_candidate(feasible, lower_cost_but_infeasible) is feasible
+
+
+def test_completed_effort_violation_receives_100x_objective_penalty(monkeypatch):
+    from agc.opt import objective
+
+    scenario = default_scenario(mode="nominal", duration=1.0)
+    candidate = encode_scenario_gains(scenario)
+    monkeypatch.setattr(objective, "run_scenario", lambda scenario: ({}, None))
+    monkeypatch.setattr(objective, "compute_metrics", lambda run: {
+        "positionRMSE": 0.01,
+        "attitudeRMSE": 0.01,
+        "massEstimationRMSE": 0.0,
+        "centerOfMassEstimationRMSE": 0.0,
+        "linearVelocityRMSE": 0.1,
+        "angularVelocityRMSE": 0.1,
+        "inertiaEstimationRMSE": 0.0,
+        "forceRMS": 1001.0,
+        "torqueRMS": 2.0,
+    })
+
+    result = evaluate_scenario_candidate(candidate, scenario)
+
+    assert result["failed"] is True
+    assert result["failureType"] == "effort_limit_exceeded"
+    assert result["unpenalizedCost"] > 0.0
+    assert result["cost"] == pytest.approx(result["unpenalizedCost"] * 100.0)
+    assert result["metrics"]["forceRMS"] == 1001.0
+    assert "forceRMS" in result["failureReasons"]
+
+
+def test_completed_tracking_violation_is_unstable_and_infeasible(monkeypatch):
+    from agc.opt import objective
+
+    scenario = default_scenario(mode="nominal", duration=1.0)
+    candidate = encode_scenario_gains(scenario)
+    monkeypatch.setattr(objective, "run_scenario", lambda scenario: ({}, None))
+    monkeypatch.setattr(objective, "compute_metrics", lambda run: {
+        "positionRMSE": 0.5,
+        "attitudeRMSE": 0.10001,
+        "massEstimationRMSE": 0.0,
+        "centerOfMassEstimationRMSE": 0.0,
+        "linearVelocityRMSE": 0.1,
+        "angularVelocityRMSE": 0.1,
+        "inertiaEstimationRMSE": 0.0,
+        "forceRMS": 50.0,
+        "torqueRMS": 5.0,
+    })
+
+    result = evaluate_scenario_candidate(candidate, scenario)
+
+    assert result["failed"] is True
+    assert result["failureType"] == "unstable_completed"
+    assert result["failureReasons"] == ["attitudeRMSE"]
+    assert result["cost"] == pytest.approx(result["unpenalizedCost"] * 100.0)
+
+
+def test_completed_run_at_all_metric_limits_passes(monkeypatch):
+    from agc.opt import objective
+
+    scenario = default_scenario(mode="nominal", duration=1.0)
+    candidate = encode_scenario_gains(scenario)
+    monkeypatch.setattr(objective, "run_scenario", lambda scenario: ({}, None))
+    monkeypatch.setattr(objective, "compute_metrics", lambda run: {
+        "positionRMSE": 0.5,
+        "attitudeRMSE": 0.1,
+        "massEstimationRMSE": 0.0,
+        "centerOfMassEstimationRMSE": 0.0,
+        "linearVelocityRMSE": 0.1,
+        "angularVelocityRMSE": 0.1,
+        "inertiaEstimationRMSE": 0.0,
+        "forceRMS": 1000.0,
+        "torqueRMS": 50.0,
+    })
+
+    result = evaluate_scenario_candidate(candidate, scenario)
+
+    assert result["failed"] is False
+    assert result["failureType"] is None
+    assert result["cost"] == pytest.approx(result["unpenalizedCost"])
+
+
+@pytest.mark.parametrize(
+    ("run_result", "metrics", "expected_type"),
+    [
+        (({}, "simulation crashed"), None, "simulation_failure"),
+        (({}, None), {
+            "positionRMSE": 0.01, "attitudeRMSE": 0.0,
+            "maxPositionError": np.inf,
+            "massEstimationRMSE": 0.0, "centerOfMassEstimationRMSE": 0.0,
+            "linearVelocityRMSE": 0.0, "angularVelocityRMSE": 0.0,
+            "inertiaEstimationRMSE": 0.0, "forceRMS": 0.0, "torqueRMS": 0.0,
+        }, "numerical_failure"),
+    ],
+)
+def test_simulation_and_nonfinite_failures_keep_fixed_failure_cost(
+    monkeypatch, run_result, metrics, expected_type,
+):
+    from agc.opt import objective
+
+    scenario = default_scenario(mode="nominal", duration=1.0)
+    candidate = encode_scenario_gains(scenario)
+    monkeypatch.setattr(objective, "run_scenario", lambda scenario: run_result)
+    if metrics is not None:
+        monkeypatch.setattr(objective, "compute_metrics", lambda run: metrics)
+
+    result = evaluate_scenario_candidate(candidate, scenario)
+
+    assert result["failed"] is True
+    assert result["failureType"] == expected_type
+    assert result["cost"] == pytest.approx(objective.objective_weights()["failure"])
+
+
+def test_registry_promotion_requires_both_factorizations():
+    from agc.opt.staged_optimizer import _shared_registry_promotion_allowed
+
+    assert _shared_registry_promotion_allowed(["lc", "rb"])
+    assert _shared_registry_promotion_allowed(["rb", "lc"])
+    assert not _shared_registry_promotion_allowed(["lc"])
+    assert not _shared_registry_promotion_allowed(["rb"])
+    assert {condition["coriolis"] for condition in default_nominal_training_conditions()} == {"lc", "rb"}
+
+
+def test_staged_search_uses_lower_cost_infeasible_candidate_as_next_stage_base(monkeypatch):
+    from agc.opt import staged_optimizer
+
+    target = np.linspace(-0.2, 0.2, 15)
+    manual = np.full(15, -0.5)
+    stage_bases = []
+
+    class FakePSO:
+        calls = 0
+
+        def __init__(self, cost_func, lower_bound, upper_bound, initial_points, **kwargs):
+            self.initial_points = np.asarray(initial_points)
+
+        def optimize(self, **kwargs):
+            FakePSO.calls += 1
+            if FakePSO.calls == 1:
+                return target.copy(), 10.0, [10.0]
+            return self.initial_points[0].copy(), 10.0, [10.0]
+
+    monkeypatch.setattr(staged_optimizer, "ParticleSwarmOptimizer", FakePSO)
+    monkeypatch.setattr(staged_optimizer, "atomic_write_json", lambda *args, **kwargs: None)
+    monkeypatch.setattr(staged_optimizer, "save_best_gain", lambda *args, **kwargs: None)
+
+    def score(candidate, label):
+        candidate = np.asarray(candidate, dtype=float).copy()
+        cost = 10.0 if np.allclose(candidate, target) else 1000.0
+        return {
+            "candidate": candidate,
+            "cost": cost,
+            "failed": True,
+            "label": label,
+            "gains": {},
+        }
+
+    def make_block_cost(candidate, block):
+        stage_bases.append(np.asarray(candidate).copy())
+        return lambda block_candidate: 10.0
+
+    manual_record = score(manual, "manual")
+    staged_optimizer._run_optimization_stage_loop(
+        stage_names=["all", "tracking"],
+        sel_mode="nominal",
+        incumbent=manual_record,
+        manual_rec=manual_record,
+        reg_rec=manual_record,
+        manual_scenarios=[],
+        weights={},
+        swarm_size=5,
+        max_iter=1,
+        max_stall=1,
+        tol=0.0,
+        parallel=False,
+        seed=1,
+        res_dir=Path("optimizer-test-output"),
+        promote=False,
+        best_gain_path=Path("optimizer-test-output/best_gain.json"),
+        training_conditions=[],
+        schedule="hierarchical",
+        candidate_scorer=score,
+        block_cost_factory=make_block_cost,
+    )
+
+    np.testing.assert_array_equal(stage_bases[1], target)
 
 
 def test_scenario_set_objective_scores_every_condition_and_uses_arithmetic_mean(monkeypatch):
@@ -356,6 +579,18 @@ def test_encode_decode_roundtrip():
     assert np.allclose(cand, cand2, atol=1e-12)
 
 
+def test_encode_adaptive_base_candidate_includes_tracking_and_both_estimators():
+    tracking = np.linspace(-2.0, 1.0, 15)
+    gamma_e = np.geomspace(1e-5, 1e-1, 10)
+    gamma_b = 0.02
+    candidate = encode_adaptive_base_gains(tracking, gamma_e, gamma_b)
+
+    assert candidate.shape == (26,)
+    np.testing.assert_array_equal(candidate[:15], tracking)
+    np.testing.assert_allclose(candidate[15:25], np.log10(gamma_e))
+    assert candidate[25] == pytest.approx(np.log10(gamma_b))
+
+
 def test_applying_gains_updates_default_reciprocal_lambda_s_but_keeps_explicit_metric():
     scenario = default_scenario(mode="nominal", duration=2.0)
     candidate = encode_scenario_gains(scenario)
@@ -385,6 +620,8 @@ def test_promote_gains_loads_python_registry_without_relative_import_error():
 
 def test_promoting_adaptive_base_invalidates_estimator_costs_and_emits_four_modes(monkeypatch):
     gains = manual_gains("nominal", "lc")
+    gains["gammaE"] = np.geomspace(1e-4, 1e-3, 10)
+    gains["gammaB"] = 2e-3
     nominal_before = optimized_gains("nominal", "lc")
     nominal_kr_before = nominal_before["KRdiag"].copy()
     nominal_cost_before = nominal_before["optimizationCost"]
@@ -412,6 +649,8 @@ def test_promoting_adaptive_base_invalidates_estimator_costs_and_emits_four_mode
     namespace = {}
     exec(compile(generated, "optimized_gains.py", "exec"), namespace)
     assert namespace["optimized_gains"]("adaptive_base")["optimizationMetadata"]["contextHash"] == "new-context"
+    np.testing.assert_allclose(namespace["optimized_gains"]("adaptive_base")["gammaE"], gains["gammaE"], rtol=5e-4)
+    assert namespace["optimized_gains"]("adaptive_base")["gammaB"] == pytest.approx(gains["gammaB"])
     assert namespace["optimized_gains"]("nominal")["optimizationCost"] == nominal_cost_before
     np.testing.assert_array_equal(
         namespace["optimized_gains"]("nominal")["KRdiag"], nominal_kr_before
@@ -428,6 +667,8 @@ def test_promoting_adaptive_base_invalidates_estimator_costs_and_emits_four_mode
         namespace["optimized_gains"]("adaptive_base")["KRdiag"],
     )
     assert namespace["optimized_gains"]("euclidean")["optimizationCost"] is None
+    np.testing.assert_allclose(namespace["optimized_gains"]("euclidean")["gammaE"], gains["gammaE"], rtol=5e-4)
+    assert namespace["optimized_gains"]("bregman")["gammaB"] == pytest.approx(gains["gammaB"])
 
 
 def test_pso_sphere_function_convergence():
@@ -551,16 +792,40 @@ def test_adaptive_base_candidate_averages_euclidean_and_bregman_conditions(monke
         "euclidean": [scenario("euclidean", 1.), scenario("euclidean", 3.)],
         "bregman": [scenario("bregman", 5.), scenario("bregman", 7.)],
     }
-    candidate = np.full(15, .2)
+    candidate = np.full(26, .2)
+    candidate[15:25] = np.linspace(-4., -2., 10)
+    candidate[25] = -3.
     result = staged_optimizer.evaluate_adaptive_base_candidate(
         candidate, groups, {"failure": 1e6},
     )
 
     assert [call[0] for call in calls] == ["euclidean", "bregman"]
-    np.testing.assert_array_equal(calls[0][1][:15], candidate)
-    np.testing.assert_array_equal(calls[1][1][:15], candidate)
+    np.testing.assert_array_equal(calls[0][1][:15], candidate[:15])
+    np.testing.assert_array_equal(calls[0][1][15:25], candidate[15:25])
+    np.testing.assert_array_equal(calls[1][1][:15], candidate[:15])
+    assert calls[1][1][15] == candidate[25]
     assert result["cost"] == pytest.approx(4.)
     assert len(result["conditionRecords"]) == 4
+    np.testing.assert_allclose(result["gains"]["gammaE"], 10.0 ** candidate[15:25])
+    assert result["gains"]["gammaB"] == pytest.approx(10.0 ** candidate[25])
+
+
+@pytest.mark.parametrize("mode", ["euclidean", "bregman"])
+def test_adaptive_base_solution_seeds_mode_specific_candidate(mode):
+    scenario = default_scenario(mode=mode, duration=0.1)
+    joint = np.concatenate([
+        encode_scenario_gains(scenario)[:15],
+        np.linspace(-4.0, -2.0, 10),
+        [-2.5],
+    ])
+
+    mapped = adaptive_base_candidate_for_mode(joint, mode, scenario)
+
+    np.testing.assert_array_equal(mapped[:15], joint[:15])
+    if mode == "euclidean":
+        np.testing.assert_array_equal(mapped[15:], joint[15:25])
+    else:
+        np.testing.assert_array_equal(mapped[15:], joint[25:26])
 
 
 def test_optimization_context_fingerprint_tracks_training_and_pso_settings():

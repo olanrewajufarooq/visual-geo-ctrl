@@ -12,12 +12,20 @@ conda activate agc
 
 ### 1. `run_sim.py`
 Simulates a single UAV tracking experiment in PyBullet.
-- Releases the 0.75 kg payload at 10.0 s (when duration $\ge 10$ s).
-- Saves results to `results/timestamped/<timestamp>/<mode>_<coriolis>/` or `results/inplace/<mode>_<coriolis>/` with `run.npz` and `metadata.json`.
+- Nominal mode runs bare by default; Euclidean and Bregman modes enable the 0.75 kg payload-release scenario by default (release at 10.0 s when duration $\ge 10$ s).
+- Use `--payload` to enable payload release for nominal mode or `--no-payload` to disable it for an adaptive mode.
+- Explicit payload overrides that differ from the mode default use a `_payload` or `_bare` output-directory suffix to keep the results separate. Default runs retain `<mode>_<coriolis>`.
+- Saves results under `results/timestamped/<timestamp>/` or `results/inplace/` with `run.npz` and `metadata.json`.
 
 ```powershell
 # Headless run (fast)
 python run/run_sim.py --mode bregman --coriolis lc --duration 30
+
+# Nominal, bare vehicle by default; optionally run nominal with payload release
+python run/run_sim.py --mode nominal --coriolis lc --duration 30 --payload
+
+# Adaptive estimator without payload release
+python run/run_sim.py --mode bregman --coriolis lc --duration 30 --no-payload
 
 # Interactive 3D PyBullet GUI with trajectory trail and camera tracking
 python run/run_sim.py --mode bregman --coriolis lc --gui --speed 1.0
@@ -31,6 +39,7 @@ python run/run_sim.py --mode bregman --coriolis lc --save-figures
 - `--mode`: Controller mode: `nominal`, `euclidean`, or `bregman`.
 - `--coriolis`: Coriolis factorization: `lc` (Levi-Civita) or `rb` (coadjoint).
 - `--duration`: Flight duration in seconds (default: 30.0 s).
+- `--payload` / `--no-payload`: Override the mode-based payload default.
 - `--gui`: Launch 3D PyBullet GUI.
 - `--speed`: GUI playback speed multiplier (default: 1.0).
 - `--no-pacing`: Run as fast as possible without real-time wall-clock sleep.
@@ -102,7 +111,9 @@ python run/optimize_gains.py --mode adaptive --swarm-size 20 --max-iter 30
 
 **Options:**
 - `--mode`: `nominal`, `adaptive`, or `all` (default: `all`).
-- `--coriolis`: `lc`, `rb`, or `all` (default: `all`; evaluated over both forms to ensure invariance).
+- `--coriolis`: `lc`, `rb`, or `all` (default: `all`). Only `all` evaluates both forms and may promote shared gains; a single form is diagnostic only.
+- Completed candidates are rejected above 0.5 m position RMSE, 0.1 rad attitude RMSE, 1000 N force RMS, or 50 N m torque RMS. These completed-run violations retain their metric-based objective multiplied by 100; simulation and numerical failures retain the fixed failure cost.
+- Single-factorization optimization is diagnostic only and cannot promote shared gains to the registry.
 - `--schedule`: `hierarchical` (6 stages) or `classic`.
 - `--duration`: Evaluation flight duration in seconds (default: 30.0 s).
 - `--train-replay-ids`: Comma-separated replay IDs (default: `lemniscate_02_auto,lemniscate_03_auto`).

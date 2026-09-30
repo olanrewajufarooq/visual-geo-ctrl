@@ -74,6 +74,22 @@ def encode_scenario_gains(scenario: Dict[str, Any]) -> np.ndarray:
     return np.array(candidate, dtype=float)
 
 
+def encode_adaptive_base_gains(
+    tracking_candidate: np.ndarray, gamma_e: np.ndarray, gamma_b: float,
+) -> np.ndarray:
+    """Encode shared tracking gains with Euclidean and Bregman rates."""
+    tracking = np.asarray(tracking_candidate, dtype=float).ravel()
+    euclidean = np.asarray(gamma_e, dtype=float).ravel()
+    bregman = float(gamma_b)
+    if tracking.size != 15 or not np.all(np.isfinite(tracking)):
+        raise ValueError("Adaptive-base tracking candidate must contain 15 finite coordinates.")
+    if euclidean.size != 10 or not np.all(np.isfinite(euclidean)) or np.any(euclidean <= 0.0):
+        raise ValueError("gammaE must contain 10 finite, strictly positive values.")
+    if not np.isfinite(bregman) or bregman <= 0.0:
+        raise ValueError("gammaB must be finite and strictly positive.")
+    return np.concatenate([tracking, np.log10(euclidean), [np.log10(bregman)]])
+
+
 def apply_scenario_gains(candidate: np.ndarray, scenario: Dict[str, Any]) -> Dict[str, Any]:
     """Decode candidate vector and apply to a deep copy of scenario."""
     sc = copy.deepcopy(scenario)

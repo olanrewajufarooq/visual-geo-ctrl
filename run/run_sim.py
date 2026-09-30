@@ -17,12 +17,22 @@ from agc.io.persistence import save_run, default_simulation_results_root
 from agc.viz.paper_figures import export_run_figures
 
 
-def main():
+def build_parser():
     parser = argparse.ArgumentParser(description="Run single AGC UAV tracking simulation in PyBullet.")
     parser.add_argument("--replay-id", type=str, default="lemniscate_01_auto", help="Trajectory artifact ID")
     parser.add_argument("--mode", type=str, default="bregman", choices=["nominal", "euclidean", "bregman"], help="Controller mode")
     parser.add_argument("--coriolis", type=str.lower, default="lc", choices=["lc", "rb"], help="Coriolis factorization (lc or rb)")
     parser.add_argument("--duration", type=float, default=30.0, help="Simulation duration (seconds)")
+    payload_group = parser.add_mutually_exclusive_group()
+    payload_group.add_argument(
+        "--payload", dest="payload_enabled", action="store_true",
+        help="Enable the payload-release scenario (default for adaptive controllers).",
+    )
+    payload_group.add_argument(
+        "--no-payload", dest="payload_enabled", action="store_false",
+        help="Disable the payload scenario (default for nominal control).",
+    )
+    parser.set_defaults(payload_enabled=None)
     parser.add_argument("--gui", action="store_true", help="Launch interactive 3D PyBullet GUI")
     parser.add_argument("--speed", type=float, default=1.0, help="GUI playback speed multiplier (e.g. 1.0 for real-time, 2.0 for 2x)")
     parser.add_argument("--no-pacing", action="store_true", help="Disable wall-clock real-time pacing")
@@ -48,7 +58,19 @@ def main():
         action="store_false",
         help="Save under results/timestamped/<timestamp>",
     )
-    args = parser.parse_args()
+    return parser
+
+
+def resolve_payload_enabled(mode, override=None):
+    """Default payload release on for adaptive modes and off for nominal."""
+    if override is not None:
+        return bool(override)
+    return str(mode).lower() != "nominal"
+
+
+def main():
+    args = build_parser().parse_args()
+    payload_enabled = resolve_payload_enabled(args.mode, args.payload_enabled)
 
     # Determine ground_z (default to 0.0 for arena floor alignment)
     ground_z = float(args.ground_z)
@@ -57,6 +79,7 @@ def main():
     print("=" * 60)
     print(f"Running AGC Simulation: Mode = {args.mode}, Coriolis = {args.coriolis}")
     print(f"Trajectory = {args.replay_id}, Duration = {args.duration} s, GUI = {args.gui}, Speed = {args.speed}x")
+    print(f"Payload release scenario enabled = {payload_enabled}")
     if args.gui:
         print(f"Visuals: Ground = {args.ground}, Gates = {args.gates or 'auto'}, Cam = {args.cam_mode}, OSD = {enable_osd}")
     print("=" * 60)
@@ -76,6 +99,7 @@ def main():
         cam_mode=args.cam_mode,
         enable_osd=enable_osd,
         drone_type=args.drone_type,
+        payload_enabled=payload_enabled,
     )
 
     run, failure = run_scenario(scenario)
@@ -83,9 +107,13 @@ def main():
     if args.output_dir is not None:
         results_dir = Path(args.output_dir)
     else:
+        variant_name = f"{args.mode}_{args.coriolis}"
+        mode_default_payload = resolve_payload_enabled(args.mode)
+        if args.payload_enabled is not None and payload_enabled != mode_default_payload:
+            variant_name += "_payload" if payload_enabled else "_bare"
         results_dir = default_simulation_results_root(
             str(REPO_ROOT), inplace_save=args.inplace_save
-        ) / f"{args.mode}_{args.coriolis}"
+        ) / variant_name
     os.makedirs(results_dir, exist_ok=True)
 
     if failure is None:
