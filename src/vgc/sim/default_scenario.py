@@ -27,6 +27,7 @@ def default_scenario(
     enable_osd: bool = False,
     drone_type: str = "pybullet_drones",
     initial_offset: Optional[np.ndarray] = None,
+    gain_override: Optional[dict] = None,
 ) -> dict:
     """Build a bare-vehicle nominal tracking scenario."""
     root = get_repository_root()
@@ -46,7 +47,10 @@ def default_scenario(
         initial_H[0:3, 3] += np.asarray(initial_offset, dtype=float)
 
     coriolis_lower = str(coriolis).lower()
-    if gain_source.lower() == "manual":
+    if gain_override is not None:
+        gains = {key: np.array(value, dtype=float, copy=True) if isinstance(value, (list, np.ndarray)) else float(value)
+                 for key, value in gain_override.items()}
+    elif gain_source.lower() == "manual":
         from ..config.manual_gains import manual_gains
         gains = manual_gains("nominal", coriolis_lower)
     elif gain_source.lower() == "optimized":

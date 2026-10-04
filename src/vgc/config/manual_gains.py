@@ -1,15 +1,36 @@
-"""Manual nominal gain registry."""
+"""Nominal gains promoted from the adaptive-geo-ctrl-pybullet tuning run."""
+
 import numpy as np
 
 
+_REGISTRY = {
+    "lc": {
+        "KRdiag": np.array([0.03352, 0.0217, 0.003367]),
+        "Kxidiag": np.array([31.96, 25.52, 8.649]),
+        "LambdaDiag": np.array([46.79, 29.15, 21.13, 0.09285, 0.1236, 0.06351]),
+        "kd": 14.14,
+        "ks": 10.31,
+        "alpha": 0.8453,
+    },
+    "rb": {
+        "KRdiag": np.array([3.718, 3.355, 2.812]),
+        "Kxidiag": np.array([51.77, 22.57, 12.15]),
+        "LambdaDiag": np.array([1.078, 1.088, 1.424, 0.2863, 0.5781, 0.2203]),
+        "kd": 5.111,
+        "ks": 3.23,
+        "alpha": 0.95,
+    },
+}
+
+
 def manual_gains(mode: str, coriolis: str) -> dict:
-    if str(mode).lower() != "nominal" or str(coriolis).lower() not in {"lc", "rb"}:
-        raise KeyError(f"Unknown nominal scenario: {mode}/{coriolis}")
-    gains = {"KRdiag": [0.01, 0.01, 2.0], "Kxidiag": [0.4, 0.4, 0.4],
-             "LambdaDiag": [0.1, 0.1, 0.1, 0.1638, 0.2499, 0.1605],
-             "kd": 1.5, "ks": 1.0, "alpha": 0.5}
-    if str(coriolis).lower() == "rb":
-        gains.update(KRdiag=[100.0, 100.0, 200.0], Kxidiag=[5.0, 5.0, 5.0],
-                     LambdaDiag=[100.0, 100.0, 100.0, 10.0, 10.0, 10.0])
-    return {key: np.array(value, dtype=float, copy=True) if isinstance(value, list) else value
-            for key, value in gains.items()}
+    """Return the promoted nominal gain set for LC or RB."""
+    if str(mode).lower() != "nominal":
+        raise KeyError(f"Unknown nominal mode: {mode!r}")
+    key = str(coriolis).lower()
+    if key not in _REGISTRY:
+        raise KeyError(f"Unknown Coriolis form: {coriolis!r}")
+    return {
+        name: np.array(value, dtype=float, copy=True) if isinstance(value, np.ndarray) else value
+        for name, value in _REGISTRY[key].items()
+    }
