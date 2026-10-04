@@ -309,6 +309,7 @@ def figures(rows):
     ax.bar(x + width / 2, fractions[1], width=width, color="#FF0000", label="Lost positive definiteness")
     ax.set(xlabel="Estimator", ylabel="Fraction of trials", xticks=x, xticklabels=labels, ylim=(0, 1.0))
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda value, _: f"{value:.0%}"))
+    ax.grid(axis="y", alpha=.25)
     handles, labels = ax.get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.99), ncol=2, frameon=False)
     fig.subplots_adjust(top=0.86, left=0.14, right=0.98, bottom=0.16)
