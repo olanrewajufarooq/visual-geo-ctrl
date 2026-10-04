@@ -143,7 +143,7 @@ def test_comparison_series_use_stable_distinct_colors_and_styles():
         (0.0, 1.0),
     )
 
-    assert [line.get_color() for line in lines] == ["#E69F00", "#0072B2"]
+    assert [line.get_color() for line in lines] == ["#FF0000", "#0000FF"]
     assert [line.get_linestyle() for line in lines] == ["-", "--"]
     plt.close(figure)
 

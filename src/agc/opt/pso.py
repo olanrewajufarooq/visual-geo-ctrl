@@ -2,6 +2,7 @@
 
 from typing import Callable, Optional, Tuple, List
 from concurrent.futures import ProcessPoolExecutor
+import os
 import numpy as np
 
 
@@ -51,7 +52,14 @@ class ParticleSwarmOptimizer:
     def optimize(self) -> Tuple[np.ndarray, float, List[float]]:
         """Run PSO search, returning (best_candidate, best_cost, cost_history)."""
         if self.parallel:
-            self._executor = ProcessPoolExecutor(max_workers=self.max_workers)
+            # PyBullet evaluations are heavyweight processes.  Letting
+            # ProcessPoolExecutor use every logical CPU can start hundreds of
+            # workers on workstation/CI hosts and stall before the first PSO
+            # report.  Keep an explicit override, otherwise use a small cap.
+            workers = self.max_workers
+            if workers is None:
+                workers = min(4, os.cpu_count() or 1)
+            self._executor = ProcessPoolExecutor(max_workers=workers)
         try:
             return self._optimize()
         finally:

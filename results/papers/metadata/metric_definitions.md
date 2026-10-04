@@ -12,10 +12,12 @@ at every sample through the first sample at or after t+1 s (inclusive).
 Report absolute time and duration t-10. Blank means not observed with a complete dwell.
 This is sampled dwell evidence, not a guarantee between samples or for all future time.
 
-Observed reaching: first sample with sqrt(s.T Lambda_s s)<=0.001 throughout a
-0.5 s sampled dwell, including the endpoint. No incomplete terminal dwell qualifies.
-Lambda_s=inverse(Lambda). Bound uses true I and actual s(0), never estimated energy.
-The nominal controller is continuous in theory but evaluated at finite sample rate.
+T_obs: first saved sample with sqrt(s.T Lambda_s s)<=1e-4 at every sample
+through source time 30 s. The complete horizon is required; incomplete logs
+do not qualify. LC and RB times are assessed independently.
+Lambda_s is the configured transverse metric. The bound uses true I and
+actual s(0), never estimated energy. The nominal controller is continuous
+in theory but evaluated at finite sample rate.
 
 Physical margin: smallest eigenvalue of Jhat directly (Bregman) or pseudo_from_pi
 (Euclidean), with full-run and post-release minima and nonpositive flag.
@@ -52,8 +54,9 @@ Theory predicts r_K = W_RB - W_LC + K_RB(V)s = 0 at every time, including off
 the sliding manifold. The wrench difference itself need only vanish when s=0.
 The computed small residual is consistent with floating-point roundoff; the
 logarithmic panel retains these values rather than setting them to zero.
-T_obs marks numerical threshold-and-dwell reaching, not the onset of validity
-of the algebraic identity.
+T_obs uses the 1e-4 persistence threshold through source time 30 s. It does
+not determine when the algebraic identity becomes valid; that identity holds
+at every sample.
 
 Relative residual uses max(norm(left),norm(right)) only above 1e-6.
 Separate maximum force and torque residuals are also saved.
@@ -76,9 +79,3 @@ The existing pseudo-inertia certificate remains the physical-consistency test.
 Exports: estimated_center_of_mass.pdf/png and estimated_principal_inertia.pdf/png
 in figures/02-physical-consistency. Both show 0–30 s with a 10 s release marker,
 Euclidean blue dash-dot, Natural/Bregman solid green, and true values black dashed.
-
-## Nominal figures: connection sensitivity experiment
-
-All figures in figures/04-nominal-validation use the same 4x sensitivity pair. The previous 1x experiment is superseded in this folder. Initial pose equals the desired lemniscate pose at source time 10 s; initial twist error is [1.2,-0.8,0.4] rad/s and [1.6,-0.8,1.2] m/s. The plant has exact bare-vehicle inertia, no adaptation, and no physical payload release. LC/RB gains are identical. Full tracking and error figures cover source time 10–30 s. Reaching, same-state identity, and sensitivity detail figures share the observed-reaching window in connection_sensitivity_protocol.json. T_obs in summaries is elapsed time from source time 10 s; its plotted location is 10+T_obs. The conservative bound is also an elapsed duration.
-
-See connection_sensitivity_diagnostics.md for physical separation definitions, refinement sensitivity and later threshold departures. Finite sampled dwell does not establish permanent sliding, and the two-step comparison does not establish numerical convergence.

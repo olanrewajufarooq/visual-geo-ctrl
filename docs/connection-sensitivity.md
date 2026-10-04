@@ -20,10 +20,11 @@ Their common initial velocity perturbation is [1.2, -0.8, 0.4] rad/s and
 Only the Coriolis realization differs. This initialization is not a physical
 payload-drop impulse. No optimization is run.
 
-The shared figure endpoint uses the later sampled reaching time, a 0.5 s dwell,
-a 0.25 s margin, and upward quarter-second rounding. Missing reaching uses the
-full available interval. The finer 1 ms pair covers this focused interval;
-the primary 2 ms pair covers the full run.
+All figures use the full source-time interval 10--30 s. `T_obs` is reported
+independently for LC and RB and denotes the first saved sample from which
+`||s||_{Lambda_s} <= 1e-4` holds at every saved sample through source time
+30 s. The complete interval is required; incomplete logs have no qualifying
+`T_obs`. The finer 1 ms pair also covers the full run.
 
 Outputs in `results/papers`:
 
@@ -35,7 +36,7 @@ Outputs in `results/papers`:
 
 Raw trajectories and scenario/source fingerprints are saved separately under
 `results/paper-runs/connection-sensitivity`. The protocol JSON records all gains,
-initial transverse errors, reaching times, later threshold departures, identity
+initial transverse errors, per-connection `T_obs` and persistence status, identity
 residuals, command-replay checks, pair separations, and step-refinement measures.
 The diagnostics file defines the metrics and their limitations. Never describe
 the independent-trajectory wrench difference as the same-state identity.

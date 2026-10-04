@@ -65,11 +65,8 @@ def profile_bregman_gain(
         best_idx = valid_indices[int(np.argmin(costs[valid_indices]))]
         best_record = records[best_idx]
     else:
-        from .encoding import apply_scenario_gains, round_gains
-        incumbent_gains = apply_scenario_gains(incumbent_candidate, scenarios[0])["controller"]
         best_record = {
             "candidate": incumbent_candidate,
-            "gains": round_gains(incumbent_gains),
             "cost": float("inf"),
             "failed": True,
             "label": "adaptive",

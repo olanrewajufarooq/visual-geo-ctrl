@@ -12,12 +12,20 @@ conda activate agc
 
 ### 1. `run_sim.py`
 Simulates a single UAV tracking experiment in PyBullet.
-- Releases the 0.75 kg payload at 10.0 s (when duration $\ge 10$ s).
-- Saves results to `results/timestamped/<timestamp>/<mode>_<coriolis>/` or `results/inplace/<mode>_<coriolis>/` with `run.npz` and `metadata.json`.
+- Nominal mode runs bare by default; Euclidean and Bregman modes enable the 0.75 kg payload-release scenario by default (release at 10.0 s when duration $\ge 10$ s).
+- Use `--payload` to enable payload release for nominal mode or `--no-payload` to disable it for an adaptive mode.
+- Explicit payload overrides that differ from the mode default use a `_payload` or `_bare` output-directory suffix to keep the results separate. Default runs retain `<mode>_<coriolis>`.
+- Saves results under `results/timestamped/<timestamp>/` or `results/inplace/` with `run.npz` and `metadata.json`.
 
 ```powershell
 # Headless run (fast)
 python run/run_sim.py --mode bregman --coriolis lc --duration 30
+
+# Nominal, bare vehicle by default; optionally run nominal with payload release
+python run/run_sim.py --mode nominal --coriolis lc --duration 30 --payload
+
+# Adaptive estimator without payload release
+python run/run_sim.py --mode bregman --coriolis lc --duration 30 --no-payload
 
 # Interactive 3D PyBullet GUI with trajectory trail and camera tracking
 python run/run_sim.py --mode bregman --coriolis lc --gui --speed 1.0
@@ -31,6 +39,7 @@ python run/run_sim.py --mode bregman --coriolis lc --save-figures
 - `--mode`: Controller mode: `nominal`, `euclidean`, or `bregman`.
 - `--coriolis`: Coriolis factorization: `lc` (Levi-Civita) or `rb` (coadjoint).
 - `--duration`: Flight duration in seconds (default: 30.0 s).
+- `--payload` / `--no-payload`: Override the mode-based payload default.
 - `--gui`: Launch 3D PyBullet GUI.
 - `--speed`: GUI playback speed multiplier (default: 1.0).
 - `--no-pacing`: Run as fast as possible without real-time wall-clock sleep.
@@ -87,27 +96,28 @@ python run/run_paper_sim.py connection-sensitivity
 ---
 
 ### 4. `optimize_gains.py`
-Performs staged block-coordinate gain optimization (Particle Swarm Optimization) over tracking gains ($K_R, K_\xi$), damping/metric gains ($\Lambda, k_s, k_d$), and adaptation gains ($\gamma_E, \gamma_B$).
+Performs staged block-coordinate gain optimization with Particle Swarm Optimization or Differential Evolution over tracking gains ($K_R, K_\xi$), damping/metric gains ($\Lambda, k_s, k_d$), and adaptation gains ($\gamma_E, \gamma_B$).
 
 ```powershell
-# Optimize all modes (nominal tracking baseline followed by isolated adaptation tuning)
-python run/optimize_gains.py --mode all --schedule hierarchical
+# Optimize all three modes independently for both LC and RB
+python run/optimize_gains.py --mode all --coriolis all --schedule hierarchical
 
 # Optimize nominal tracking gains only
 python run/optimize_gains.py --mode nominal --swarm-size 30 --max-iter 40
 
-# Optimize adaptive gains with frozen tracking gains
-python run/optimize_gains.py --mode adaptive --swarm-size 20 --max-iter 30
+# Optimize Bregman gains for the RB factorization with DE and optional polish
+python run/optimize_gains.py --mode bregman --coriolis rb --method de --polish
 ```
 
 **Options:**
-- `--mode`: `nominal`, `adaptive`, or `all` (default: `all`).
-- `--coriolis`: `lc`, `rb`, or `all` (default: `all`; evaluated over both forms to ensure invariance).
-- `--schedule`: `hierarchical` (6 stages) or `classic`.
+- `--mode`: `nominal`, `euclidean`, `bregman`, or `all` (default: `all`).
+- `--coriolis`: `lc`, `rb`, or `all` (default: `all`). Each mode/factorization pair is optimized and promoted independently.
+- `--schedule`: `hierarchical` or `classic`. Hierarchical uses six stages for nominal and seven for adaptive modes; classic uses one nominal stage and four adaptive stages.
+- `--method`: `pso` (default) or `de`; `--polish` optionally applies Nelder–Mead on the final all-gains stage.
 - `--duration`: Evaluation flight duration in seconds (default: 30.0 s).
-- `--train-replay-ids`: Comma-separated replay IDs (default: `lemniscate_02_auto,lemniscate_03_auto`).
-- `--training-payload-profiles`: Comma-separated named payload profiles (default: `flat_light,tall_heavy`).
-- `--swarm-size`: Swarm size for PSO (default: 20).
+- `--train-replay-ids`: Comma-separated replay IDs (default: `lemniscate_02_auto,lemniscate_03_auto,lemniscate_04_auto`).
+- `--training-payload-profiles`: Comma-separated named payload profiles (default: `flat_light,tall_heavy`). All training conditions include payload release.
+- `--swarm-size`: Swarm size for PSO / population multiplier for DE (default: 20).
 - `--max-iter`: Maximum iterations per stage (default: 50).
 - `--max-stall`: Maximum iterations without improvement (default: 10).
 - `--seed`: Random seed for reproducible search.

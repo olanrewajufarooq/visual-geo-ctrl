@@ -224,7 +224,7 @@ def export_suite_comparison_figures(suite_dir: str, visible: bool = False, expor
                     plot_time_series(ax, run["t"], [values], [label], family, comparison_horizon)
                 ax.set(title=f"Euclidean vs Bregman {name} ({form}, Post-Payload-Drop)", xlabel="time (s)", ylabel=name); ax.grid(True, linestyle=":"); ax.legend(); out.append(_save(fig, root / "euclidean_v_bregman" / f"{name}_{form}.png", visible))
     successful = {k: v for k, v in runs.items() if v.get("metrics")}
-    for metric, title, ylabel in (("positionRMSE", "Position RMSE", "RMSE (m)"), ("attitudeRMSE", "Attitude RMSE", "RMSE (rad)"), ("wrenchRMS", "Control-wrench RMS", "RMS wrench")):
+    for metric, title, ylabel in (("positionRMSE", "Position RMSE", "RMSE (m)"), ("attitudeRMSE", "Attitude RMSE", "RMSE (rad)"), ("forceRMS", "Force RMS", "RMS force (N)"), ("torqueRMS", "Torque RMS", "RMS torque (N m)")):
         if not successful: continue
         fig, ax = plt.subplots(figsize=(10, 5)); labels = list(successful); values = [float(successful[k]["metrics"][metric]) for k in labels]; ax.bar(labels, values, color=COMPONENT_COLORS[0]); ax.set(title=title, ylabel=ylabel); ax.tick_params(axis="x", rotation=35); ax.grid(True, axis="y", linestyle=":"); out.append(_save(fig, suite / "comparisons" / "performance" / f"performance_{metric}.png", visible))
     return out

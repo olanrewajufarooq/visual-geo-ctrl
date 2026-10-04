@@ -120,6 +120,7 @@ def default_scenario(
         "KR": np.diag(gains["KRdiag"]),
         "Kxi": np.diag(gains["Kxidiag"]),
         "Lambda": np.diag(gains["LambdaDiag"]),
+        "Lambda_s": np.diag(1.0 / np.asarray(gains["LambdaDiag"], dtype=float)),
         "kd": float(gains["kd"]),
         "ks": float(gains["ks"]),
         "alpha": float(gains["alpha"]),

@@ -4,17 +4,18 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 from scipy.spatial.transform import Rotation
 from ..math.se3 import inv_se3, adjoint_se3
 from ..math.inertia import center_and_principal_moments
 from ..sim.publication import NAMES, PRIMARY_MODES
 from ..sim.paper_metrics import _pose_errors
 
-STYLES = {"nominal": {"color": "#E69F00", "linestyle": "--"},
-          "euclidean": {"color": "#0072B2", "linestyle": "-."},
-          "bregman": {"color": "#009E73", "linestyle": "-"}}
-CONNECTION_STYLES = {"lc": {"color": "#0072B2", "linestyle": "-"},
-                     "rb": {"color": "#E69F00", "linestyle": "--"}}
+STYLES = {"nominal": {"color": "#FF0000", "linestyle": "--"},
+          "euclidean": {"color": "#00FF00", "linestyle": "-."},
+          "bregman": {"color": "#0000FF", "linestyle": "-"}}
+CONNECTION_STYLES = {"lc": {"color": "#0000FF", "linestyle": "-"},
+                     "rb": {"color": "#FF0000", "linestyle": "--"}}
 plt.rcParams.update({"font.size": 8, "axes.labelsize": 9, "legend.fontsize": 7,
                      "lines.linewidth": 1.1, "pdf.fonttype": 42, "savefig.dpi": 400})
 
@@ -31,7 +32,7 @@ def panels(labels, release=True, xlim=(0, 30)):
     fig, axes = plt.subplots(len(labels), 1, figsize=(7.16, 1.45*len(labels)+.55), sharex=True, layout="constrained")
     axes = np.atleast_1d(axes)
     for ax, label in zip(axes, labels):
-        ax.set_ylabel(label); ax.set_xlim(*xlim); ax.grid(True, alpha=.22, linewidth=.5)
+        ax.set_ylabel(label); ax.set_xlim(*xlim); ax.margins(x=0); ax.grid(True, alpha=.22, linewidth=.5)
         if release: ax.axvline(10, color="black", ls=":", lw=.8)
     axes[-1].set_xlabel("Time [s]")
     return fig, axes
@@ -42,15 +43,65 @@ def legend(fig, ax):
     fig.legend(handles, labels, loc="outside upper center", ncol=2, frameon=False)
 
 
+def _publication_samples(t, values):
+    """Return controller-rate block averages for publication rendering."""
+    t = np.asarray(t)
+    values = np.asarray(values)
+    stride = max(1, int(np.ceil(t.size / 300)))
+    if stride == 1:
+        return t, values
+    starts = np.arange(0, t.size, stride)
+    t_plot = np.array([t[start:min(start + stride, t.size)].mean() for start in starts])
+    values_plot = np.stack(
+        [values[start:min(start + stride, t.size)].mean(axis=0) for start in starts],
+        axis=0,
+    )
+    return t_plot, values_plot
+
+
+def _plot_publication_trace(ax, t, values, **kwargs):
+    """Plot dense plant-rate logs at the controller-rate visual resolution.
+
+    The raw paper runs contain 500 Hz samples while the wrench is updated at
+    50 Hz. Drawing every sample makes held inputs and high-frequency numerical
+    chatter render as opaque bands. Samples are block-averaged at the
+    controller-rate visual resolution; all metrics and saved raw runs retain
+    the original samples.
+    """
+    t_plot, values_plot = _publication_samples(t, values)
+    ax.plot(t_plot, values_plot, **kwargs)
+
+
 def transported_reference(run):
     return np.array([adjoint_se3(inv_se3(inv_se3(hd) @ h)) @ v
                      for h, hd, v in zip(run["H"], run["Hdesired"], run["Vdesired"])])
 
 
+def _variant(key):
+    if key in PRIMARY_MODES:
+        return key, "lc"
+    mode, connection = key.rsplit("_", 1)
+    return mode, connection
+
+
+def _variant_label(key):
+    mode, connection = _variant(key)
+    return f"{NAMES[mode]} ({connection.upper()})"
+
+
+def _variant_style(key):
+    mode, connection = _variant(key)
+    return {**STYLES[mode], "linestyle": CONNECTION_STYLES[connection]["linestyle"]}
+
+
 def adaptive_figures(runs, scenarios, output_dir):
-    runs = {mode: runs[mode] for mode in PRIMARY_MODES if mode in runs}
+    runs = {key: runs[key] for key in runs}
+    # Section 01 is an adaptive-controller comparison.  The known-inertia
+    # trajectory remains available for tables and benchmark metadata, but its
+    # traces do not add information to these adaptive plots.
+    plot_runs = {key: run for key, run in runs.items() if _variant(key)[0] != "nominal"}
     out = Path(output_dir) / "01-adaptive-tracking"
-    first = next(iter(runs.values()))
+    first = next(iter(plot_runs.values()))
     for kind, labels, indices in (
         ("position", [f"${c}$ [m]" for c in "xyz"], [0, 1, 2]),
         ("attitude", ["Roll [deg]", "Pitch [deg]", "Yaw [deg]"], [0, 1, 2]),
@@ -58,7 +109,8 @@ def adaptive_figures(runs, scenarios, output_dir):
         ("angular_velocity", [rf"$\omega_{c}$ [rad/s]" for c in "xyz"], [0, 1, 2]),
     ):
         fig, axes = panels(labels)
-        for mode, run in runs.items():
+        for mode, run in plot_runs.items():
+            style, label = _variant_style(mode), _variant_label(mode)
             if kind == "position": actual = run["H"][:, :3, 3]
             elif kind == "attitude":
                 actual = np.unwrap(Rotation.from_matrix(run["H"][:, :3, :3]).as_euler("xyz"), axis=0)
@@ -66,72 +118,107 @@ def adaptive_figures(runs, scenarios, output_dir):
                 actual += 2*np.pi*np.round((reference[0]-actual[0])/(2*np.pi))
                 actual = np.degrees(actual)
             else: actual = run["V"]
-            for ax, j in zip(axes, indices): ax.plot(run["t"], actual[:, j], label=NAMES[mode], **STYLES[mode])
+            for ax, j in zip(axes, indices): _plot_publication_trace(ax, run["t"], actual[:, j], label=label, **style)
             if "velocity" in kind:
                 reference = transported_reference(run)
                 for ax, j in zip(axes, indices):
-                    ax.plot(run["t"], reference[:, j], "k--", lw=.7, alpha=.65,
-                            label="Transported reference" if mode == next(iter(runs)) else "_nolegend_")
+                    _plot_publication_trace(ax, run["t"], reference[:, j], color="black", linestyle="--", lw=.7, alpha=.65,
+                                            label="Transported reference" if mode == next(iter(plot_runs)) else "_nolegend_")
         if kind in ("position", "attitude"):
             reference = first["Hdesired"][:, :3, 3] if kind == "position" else np.degrees(np.unwrap(Rotation.from_matrix(first["Hdesired"][:, :3, :3]).as_euler("xyz"), axis=0))
-            for ax, j in zip(axes, indices): ax.plot(first["t"], reference[:, j], "k--", label="Desired reference")
+            for ax, j in zip(axes, indices): _plot_publication_trace(ax, first["t"], reference[:, j], color="black", linestyle="--", label="Desired reference")
         legend(fig, axes[0]); save(fig, out, "tracking_"+kind)
 
     fig, axes = panels([r"$\|p-p_d\|$ [m]", "Geodesic attitude\nerror [deg]", r"$\|s\|_{\Lambda_s}$"])
-    for mode, run in runs.items():
+    for mode, run in plot_runs.items():
+        style, label = _variant_style(mode), _variant_label(mode)
         pos, angle = _pose_errors(run)
-        metric = np.linalg.inv(scenarios[mode]["controller"]["Lambda"])
+        metric = np.asarray(scenarios[mode]["controller"].get("Lambda_s", np.linalg.inv(scenarios[mode]["controller"]["Lambda"])))
         r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
         for ax, values in zip(axes, (pos, np.degrees(angle), r)):
-            ax.plot(run["t"], values, label=NAMES[mode], **STYLES[mode])
+            _plot_publication_trace(ax, run["t"], values, label=label, **style)
     legend(fig, axes[0]); save(fig, out, "adaptive_tracking_errors")
 
     fig, axes = panels([r"$\|f_c\|$ [N]", r"$\|\tau_c\|$ [N m]"])
-    for mode, run in runs.items():
+    for mode, run in plot_runs.items():
+        style, label = _variant_style(mode), _variant_label(mode)
         for ax, sl in zip(axes, (slice(3, 6), slice(0, 3))):
-            ax.plot(run["t"], np.linalg.norm(run["wrench"][:, sl], axis=1), label=NAMES[mode], **STYLES[mode])
+            _plot_publication_trace(ax, run["t"], np.linalg.norm(run["wrench"][:, sl], axis=1), label=label, **style)
     legend(fig, axes[0]); save(fig, out, "control_wrench_demand")
 
     fig, axes = panels([r"$\hat m$ [kg]", r"$\lambda_{\min}(\hat{\mathcal{J}})$"])
-    for mode, run in runs.items():
+    for key, run in plot_runs.items():
+        mode, _ = _variant(key)
         if mode == "nominal": continue
-        axes[0].plot(run["t"], run["estimatePi"][:, 0], label=NAMES[mode], **STYLES[mode])
-        axes[1].plot(run["t"], run["minPseudoEigenvalue"], **STYLES[mode])
+        style, label = _variant_style(key), _variant_label(key)
+        axes[0].plot(run["t"], run["estimatePi"][:, 0], label=label, **style)
+        axes[1].plot(run["t"], run["minPseudoEigenvalue"], **style)
     axes[0].step(first["t"], first["activePlantPi"][:, 0], where="post", color="black", ls="--", label="True mass")
     axes[1].axhline(0, color="black", lw=.6)
     legend(fig, axes[0]); save(fig, Path(output_dir)/"02-physical-consistency", "physical_consistency")
     inertial_estimate_figures(runs, output_dir)
 
-    if "bregman" in runs:
-        run = runs["bregman"]
-        fig = plt.figure(figsize=(3.5, 3.3), layout="constrained")
+    adaptive_keys = [key for key in plot_runs if _variant(key)[0] in ("euclidean", "bregman")]
+    if adaptive_keys:
+        fig = plt.figure(figsize=(7.2, 5.0))
         ax = fig.add_subplot(projection="3d")
-        ax.plot(*run["Hdesired"][:, :3, 3].T, "k--", label="Desired reference")
-        ax.plot(*run["H"][:, :3, 3].T, **STYLES["bregman"], label=NAMES["bregman"])
-        i = np.searchsorted(run["t"], 10)
-        if i < len(run["t"]): ax.scatter(*run["H"][i, :3, 3], marker="x", color="black", label="Release (10 s)")
-        ax.set(xlabel="x [m]", ylabel="y [m]", zlabel="z [m]")
-        ax.legend(loc="upper center", bbox_to_anchor=(.5, 1.15), fontsize=6)
-        save(fig, out, "tracking_3d_bregman")
+        reference = runs[adaptive_keys[0]]
+        _, desired = _publication_samples(reference["t"], reference["Hdesired"][:, :3, 3])
+        ax.plot(*desired.T, color="black", linestyle="--", linewidth=.9, label="Desired reference")
+        all_positions = [desired]
+        for key in adaptive_keys:
+            run = runs[key]
+            _, position = _publication_samples(run["t"], run["H"][:, :3, 3])
+            ax.plot(*position.T, **_variant_style(key), linewidth=1.2, label=_variant_label(key))
+            all_positions.append(position)
+        i = np.searchsorted(reference["t"], 10)
+        if i < len(reference["t"]):
+            ax.scatter(*reference["H"][i, :3, 3], marker="x", s=42, color="black", label="Release (10 s)")
+        stacked = np.vstack(all_positions)
+        lower = stacked.min(axis=0)
+        upper = stacked.max(axis=0)
+        margin = .06 * np.maximum(upper - lower, 1e-3)
+        ax.set_xlim(lower[0] - margin[0], upper[0] + margin[0])
+        ax.set_ylim(lower[1] - margin[1], upper[1] + margin[1])
+        ax.set_zlim(lower[2] - margin[2], upper[2] + margin[2])
+        ax.set_box_aspect((1.35, 1.0, .72))
+        ax.view_init(elev=28, azim=-58)
+        ax.set_proj_type("ortho")
+        ax.xaxis.set_major_locator(MaxNLocator(5))
+        ax.yaxis.set_major_locator(MaxNLocator(5))
+        ax.zaxis.set_major_locator(MaxNLocator(5))
+        for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+            axis._axinfo["grid"].update({"color": (0.55, 0.55, 0.55, 0.20), "linewidth": .3})
+            axis.pane.set_facecolor((1.0, 1.0, 1.0, 0.0))
+            axis.pane.set_edgecolor((0.70, 0.70, 0.70, 0.35))
+        ax.tick_params(labelsize=7, pad=0)
+        ax.set_xlabel("x [m]", labelpad=8)
+        ax.set_ylabel("y [m]", labelpad=8)
+        ax.set_zlabel("z [m]", labelpad=8)
+        handles, labels = ax.get_legend_handles_labels()
+        fig.legend(handles, labels, loc="outside upper center", ncol=2, frameon=False, fontsize=7)
+        fig.subplots_adjust(left=.02, right=.96, bottom=.02, top=.88)
+        save(fig, out, "tracking_3d_adaptive")
 
 
 def inertial_estimate_figures(runs, output_dir):
     """Export additional estimator diagnostics without rerunning the plant."""
-    adaptive = {mode: runs[mode] for mode in ("euclidean", "bregman") if mode in runs}
+    adaptive = {key: run for key, run in runs.items() if _variant(key)[0] in ("euclidean", "bregman")}
     if not adaptive:
         return
     first = next(iter(adaptive.values()))
     truth = center_and_principal_moments(first["activePlantPi"])
-    estimates = {mode: center_and_principal_moments(run["estimatePi"])
-                 for mode, run in adaptive.items()}
+    estimates = {key: center_and_principal_moments(run["estimatePi"])
+                 for key, run in adaptive.items()}
     for index, name, labels in (
         (0, "estimated_center_of_mass", [rf"$\hat c_{{{axis}}}$ [m]" for axis in "xyz"]),
         (1, "estimated_principal_inertia", [rf"$\hat J_{{c,{i}}}$ [kg m$^2$]" for i in (1, 2, 3)]),
     ):
         fig, axes = panels(labels)
         for mode, run in adaptive.items():
+            style, label = _variant_style(mode), _variant_label(mode)
             for j, ax in enumerate(axes):
-                ax.plot(run["t"], estimates[mode][index][:, j], label=NAMES[mode], **STYLES[mode])
+                ax.plot(run["t"], estimates[mode][index][:, j], label=label, **style)
         for j, ax in enumerate(axes):
             ax.step(first["t"], truth[index][:, j], where="post", color="black",
                     ls="--", label="True value")
@@ -183,14 +270,14 @@ def connection_realization_figures(runs, scenarios, output_dir):
     for key, run in runs.items():
         visible = run["t"] + time_offset <= display_end
         pos, angle = _pose_errors(run)
-        metric = np.linalg.inv(scenarios[key]["controller"]["Lambda"])
+        metric = np.asarray(scenarios[key]["controller"].get("Lambda_s", np.linalg.inv(scenarios[key]["controller"]["Lambda"])))
         weighted = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
         for ax, values in zip(axes, (pos, np.degrees(angle), weighted)):
             ax.plot(time_offset + run["t"][visible], values[visible], label=rf"$C_{{\mathrm{{{key.upper()}}}}}$", **CONNECTION_STYLES[key])
     legend(fig, axes[0]); save(fig, out, "connection_realization_comparison")
 
 
-def theory_figures(run, scenario, root, summary, connection):
+def theory_figures(runs, scenarios, root, summary, connection):
     out = Path(root)/"04-nominal-validation"
     # Do not leave a stale successful figure beside a newly failed check.
     obsolete = ["nominal_reaching_FAILED" if summary["passed"] else "nominal_reaching"]
@@ -198,35 +285,42 @@ def theory_figures(run, scenario, root, summary, connection):
     for name in obsolete:
         for extension in ("pdf", "png"):
             (out/f"{name}.{extension}").unlink(missing_ok=True)
-    metric = np.linalg.inv(scenario["controller"]["Lambda"])
-    r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
-    horizon = min(run["t"][-1], max(1., 1.6*(summary["T_obs"] or min(summary["T_bound"], 5.))))
-    horizon = min(run["t"][-1], scenario.get("focusElapsedEnd", horizon))
-    time_offset = float(scenario.get("timeOffset", 0.0))
-    visible_run = np.asarray(run["t"]) <= horizon
-    run_time = time_offset + np.asarray(run["t"])[visible_run]
-    fig, axes = panels([r"$\|s\|_{\Lambda_s}$", "$V_s$ [J]"], False, (time_offset, time_offset + horizon))
-    axes[0].plot(run_time, r[visible_run], color="#0072B2", label="Known-inertia controller")
-    axes[1].plot(run_time, np.asarray(run["Vs"])[visible_run], color="#0072B2")
-    axes[0].axhline(summary["epsilon_s"], color="gray", ls=":", label=r"$\epsilon_s$")
+    time_offset = float(next(iter(scenarios.values())).get("timeOffset", 0.0))
+    horizon = float(summary.get("final_source_time_s", next(iter(scenarios.values())).get("displayEnd", 30.0)))
+    fig, axes = panels([r"$\|s\|_{\Lambda_s}$", "$V_s$ [J]"], False, (time_offset, horizon))
+    for form, run in runs.items():
+        scenario = scenarios[form]
+        metric = np.asarray(scenario["controller"].get("Lambda_s", np.linalg.inv(scenario["controller"]["Lambda"])))
+        r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
+        visible_run = time_offset + np.asarray(run["t"]) <= horizon
+        run_time = time_offset + np.asarray(run["t"])[visible_run]
+        style = CONNECTION_STYLES[form]
+        axes[0].plot(run_time, r[visible_run], label=rf"$C_{{\mathrm{{{form.upper()}}}}}$", **style)
+        axes[1].plot(run_time, np.asarray(run["Vs"])[visible_run], **style)
+    axes[0].set_yscale("symlog", linthresh=summary["epsilon_s"])
+    axes[0].axhline(summary["epsilon_s"], color="black", ls=":", label=r"$\epsilon_s$")
+    observed_by_connection = summary.get("T_obs_source_by_connection", {})
     for index, ax in enumerate(axes):
-        if summary["T_bound"] <= horizon:
-            ax.axvline(time_offset + summary["T_bound"], color="#D55E00", ls="--", label=r"$T_{\rm bound}$")
-        elif index == 0:
-            ax.annotate(f"$T_{{bound}}$ = {summary['T_bound']:.3g} s (outside view)",
-                        xy=(.995, .75), xytext=(.48, .75), xycoords="axes fraction",
-                        textcoords="axes fraction", color="#D55E00", fontsize=7,
-                        arrowprops={"arrowstyle": "->", "color": "#D55E00"})
-        if summary["T_obs"] is not None: ax.axvline(time_offset + summary["T_obs"], color="black", ls=":", label=r"$T_{\rm obs}$")
+        if time_offset + summary["T_bound"] <= horizon:
+            ax.axvline(time_offset + summary["T_bound"], color="#FF0000", ls="--", label=r"$T_{\rm bound}$")
+        for form, observed in observed_by_connection.items():
+            if observed is not None:
+                ax.axvline(observed, color=CONNECTION_STYLES[form]["color"], ls=":",
+                           label=rf"$T_{{\mathrm{{obs}},{form.upper()}}}$")
+    if time_offset + summary["T_bound"] > horizon:
+        axes[0].text(.99, .96,
+                     rf"$T_{{\mathrm{{bound}}}}={summary['T_bound']:.2f}\,\mathrm{{s}}$ elapsed (outside view)",
+                     transform=axes[0].transAxes, ha="right", va="top", color="#FF0000", fontsize=7)
     axes[-1].set_xlabel("Lemniscate time [s]" if time_offset else "Time [s]")
     legend(fig, axes[0]); save(fig, out, "nominal_reaching" if summary["passed"] else "nominal_reaching_FAILED")
     if connection["passed"]:
         fig, axes = panels(["Scaled wrench\nnorm", "Scaled residual\nnorm"], False,
-                           (time_offset, time_offset + horizon))
-        visible = np.asarray(connection["t"]) <= horizon
+                            (time_offset, horizon))
+        visible = time_offset + np.asarray(connection["t"]) <= horizon
         time = time_offset + np.asarray(connection["t"])[visible]
-        axes[0].plot(time, np.asarray(connection["difference"])[visible], label=r"$\|\mathcal{W}_c^{RB}-\mathcal{W}_c^{LC}\|_*$")
-        axes[1].semilogy(time, np.maximum(np.asarray(connection["residual"])[visible], 1e-18))
+        axes[0].plot(time, np.asarray(connection["difference"])[visible], color="black",
+                     label=r"$\|\mathcal{W}_c^{RB}-\mathcal{W}_c^{LC}\|_*$")
+        axes[1].semilogy(time, np.maximum(np.asarray(connection["residual"])[visible], 1e-18), color="black")
         axes[1].set_xlabel("Lemniscate time [s]" if time_offset else r"Time since initialization, $t$ [s]")
         if summary["T_obs"] is not None:
             for ax in axes:

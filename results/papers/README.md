@@ -11,25 +11,35 @@ python run/run_paper_sim.py adaptive-drop
 python run/run_paper_sim.py nominal-connection
 python run/run_paper_sim.py nominal-reaching
 python run/run_paper_sim.py connection-realizations
-python run/run_paper_sim.py physical-consistency-mc
+python run/run_paper_sim.py physical-consistency-monte-carlo
 ```
 
 Raw simulation arrays are written under the ignored `results/paper-runs/`
 directory. PDF/PNG figures are grouped by subsection under `figures/`:
 `01-adaptive-tracking`, `02-physical-consistency`, and `04-nominal-validation`.
 The summary CSVs are under `tables/`. JSON and Markdown records are grouped
-under `metadata/`; the paired physical-consistency experiment is grouped under
-`physical_consistency/` and its outputs are replaced on rerun.
+under `metadata/`; the paired physical-consistency Monte Carlo has prefixed
+records under `metadata/` and `tables/`, with figures under
+`figures/03-monte-carlo-verification/`. Existing artifacts were moved there;
+reruns update those same files.
 
 Adaptive analysis compares the Known-inertia controller, which receives the
 true loaded inertia before release and true bare-vehicle inertia after release,
 with Euclidean and Natural/Bregman adaptation. Known-inertia nominal theory
 tests remain separate.
 
-Important: tracking gains are shared, but saved adaptation gains have not been
-retuned on that shared controller or on the corrected PyBullet inertial model.
-No optimization was run. The gain summary marks this comparison provisional.
-Do not infer estimator superiority or complete parameter convergence.
+The payload-release comparison uses distinct `nominal_lc`, `euclidean_lc`,
+and `bregman_lc` gain sets for its Known-inertia, Euclidean, and
+Natural/Bregman controllers. The paper runner loads these configured values
+and does not run optimization. The gain summary records each controller's
+gains separately; it makes no claim that one estimator is superior or that
+the full inertial parameter vector converges.
+
+The gain summary and controller-gain CSV have been refreshed from the
+restored registry. Existing trajectory figures, performance tables, and the
+generation manifest still describe the previous saved runs; rerun
+`adaptive-drop` after the final gain optimization before using them as results
+for these gain sets.
 
 Payload-release experiments validate adaptive recovery after the inertial
 change; they do not establish finite-time adaptive reaching. Finite-time
@@ -38,14 +48,15 @@ reaching is evaluated separately with exact inertial parameters.
 ## Figure catalog
 
 Each PDF has a same-name 400 dpi PNG alongside it. All adaptive time histories
-span 0--30 s and mark the release at 10 s. Nominal reaching and connection
-equivalence share a focused transient view. The connection residual remains
-logarithmic, with plots using source time starting at 10 s. The conservative reaching
-bound outside the view is explicitly annotated.
+span 0--30 s and mark the release at 10 s. Connection time histories use the
+full 10-30 s source interval. Persistent reaching is assessed independently
+for LC and RB: the weighted transverse norm must remain at or below 1e-4 at
+every saved sample through source time 30 s. Plots use full-intensity RGB
+primaries, omit titles, and place legends above the plotting area.
 
 Every figure in `04-nominal-validation` now uses the 4x connection sensitivity
 experiment, superseding the original 1x nominal figures. Full tracking views span
-10–30 s; detail views use the observed-reaching window. See
+10-30 s. See
 [experiment description and diagnostics](metadata/connection_sensitivity_diagnostics.md),
 [protocol](metadata/connection_sensitivity_protocol.json), and
 [nominal artifact provenance](metadata/connection_sensitivity_manifest.json).
@@ -56,7 +67,7 @@ experiment, superseding the original 1x nominal figures. Full tracking views spa
 | Attitude tracking | [PDF](figures/01-adaptive-tracking/tracking_attitude.pdf) | [PNG](figures/01-adaptive-tracking/tracking_attitude.png) |
 | Body linear velocity | [PDF](figures/01-adaptive-tracking/tracking_linear_velocity.pdf) | [PNG](figures/01-adaptive-tracking/tracking_linear_velocity.png) |
 | Body angular velocity | [PDF](figures/01-adaptive-tracking/tracking_angular_velocity.pdf) | [PNG](figures/01-adaptive-tracking/tracking_angular_velocity.png) |
-| Natural/Bregman 3-D trajectory | [PDF](figures/01-adaptive-tracking/tracking_3d_bregman.pdf) | [PNG](figures/01-adaptive-tracking/tracking_3d_bregman.png) |
+| Adaptive 3-D trajectory comparison | [PDF](figures/01-adaptive-tracking/tracking_3d_adaptive.pdf) | [PNG](figures/01-adaptive-tracking/tracking_3d_adaptive.png) |
 | Adaptive errors | [PDF](figures/01-adaptive-tracking/adaptive_tracking_errors.pdf) | [PNG](figures/01-adaptive-tracking/adaptive_tracking_errors.png) |
 | Wrench demand | [PDF](figures/01-adaptive-tracking/control_wrench_demand.pdf) | [PNG](figures/01-adaptive-tracking/control_wrench_demand.png) |
 | Physical consistency | [PDF](figures/02-physical-consistency/physical_consistency.pdf) | [PNG](figures/02-physical-consistency/physical_consistency.png) |
@@ -75,18 +86,18 @@ experiment, superseding the original 1x nominal figures. Full tracking views spa
 - [Physical-consistency summary](tables/physical_consistency_summary.csv)
 - [LC/RB realization summary](tables/connection_realization_summary.csv)
 - [Nominal reaching summary](tables/nominal_reaching_summary.csv)
-- [Common gains and tuning qualification](metadata/gain_summary.json)
+- [Mode-specific gains and tuning qualification](metadata/gain_summary.json)
 - [Reaching bound and step-refinement results](metadata/finite_time_reaching_summary.json)
 - [Connection residual summary](metadata/connection_equivalence_summary.json)
 - [Connection sensitivity protocol](metadata/connection_sensitivity_protocol.json)
 - [Metric definitions](metadata/metric_definitions.md)
 - [Diagnostic report](metadata/diagnostic_report.md)
 - [Generation provenance and validation status](metadata/manifest.json)
-- [Physical-consistency parameters (JSON)](physical_consistency/metadata/implemented_parameters.json)
-- [Physical-consistency parameters (LaTeX)](physical_consistency/tables/implemented_parameters.tex)
-- Physical-consistency Monte Carlo: [report](physical_consistency/metadata/report.md),
-  [trial CSV](physical_consistency/tables/monte_carlo_trials.csv),
-  [margin distribution PDF](physical_consistency/figures/figure1_margin_ecdf.pdf),
-  [paired history PDF](physical_consistency/figures/figure2_trial.pdf)
+- [Physical-consistency parameters (JSON)](metadata/physical_consistency_monte_carlo_implemented_parameters.json)
+- [Physical-consistency parameters (LaTeX)](tables/physical_consistency_monte_carlo_implemented_parameters.tex)
+- Physical-consistency Monte Carlo: [report](metadata/physical_consistency_monte_carlo_report.md),
+  [trial CSV](tables/physical_consistency_monte_carlo_trials.csv),
+  [physical-consistency outcome rates PDF](figures/03-monte-carlo-verification/physical_consistency_outcome_rates.pdf),
+  [paired pseudo-inertia margin trial PDF](figures/03-monte-carlo-verification/pseudo_inertia_margin_trial.pdf)
 
 Simulation-setup artwork is intentionally excluded: another agent owns it.

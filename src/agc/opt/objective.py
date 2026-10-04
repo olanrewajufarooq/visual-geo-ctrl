@@ -19,7 +19,8 @@ def objective_scales() -> Dict[str, float]:
         "linVel": 0.20,
         "angVel": 0.50,
         "inertia": 0.05,
-        "effort": 50.0,
+        "force": 50.0,
+        "torque": 5.0,
     }
 
 
@@ -33,11 +34,10 @@ def objective_weights() -> Dict[str, float]:
         "linVel": 0.5,
         "angVel": 0.5,
         "inertia": 1.5,
-        # Effort weight raised from 0.01: at 0.01 the wrenchRMS term was
-        # negligible (~0.026) vs the tracking/estimation terms (~9+), giving
-        # the optimizer free rein to drive gains — and therefore wrench — as
-        # high as needed.  0.5 makes effort a real trade-off.
-        "effort": 0.5,
+        # The total effort weight remains 0.5 and is split evenly between
+        # separately scaled force and torque RMS terms.
+        "forceEffort": 0.25,
+        "torqueEffort": 0.25,
         "failure": 1e6,
     }
 
@@ -74,6 +74,15 @@ def evaluate_scenario_candidate(
         weights = objective_weights()
     scales = objective_scales()
 
+    # Preserve the metric-coherent design when the base scenario uses it.
+    # Check before applying the candidate: applying a new Lambda while
+    # retaining the registry Lambda_s would otherwise make the comparison
+    # spuriously fail.
+    base_controller = base_scenario["controller"]
+    lambda_s_tracks_lambda = np.allclose(
+        base_controller["Lambda_s"], np.linalg.inv(base_controller["Lambda"])
+    )
+
     # 1. Decode and round candidate to 4 significant figures
     temp_scenario = apply_scenario_gains(candidate, base_scenario)
     c = temp_scenario["controller"]
@@ -93,6 +102,8 @@ def evaluate_scenario_candidate(
     c["KR"] = np.diag(gains["KRdiag"])
     c["Kxi"] = np.diag(gains["Kxidiag"])
     c["Lambda"] = np.diag(gains["LambdaDiag"])
+    if lambda_s_tracks_lambda:
+        c["Lambda_s"] = np.linalg.inv(c["Lambda"])
     c["kd"] = gains["kd"]
     c["ks"] = gains["ks"]
     c["alpha"] = gains["alpha"]
@@ -111,23 +122,55 @@ def evaluate_scenario_candidate(
         warnings.simplefilter("ignore", category=RuntimeWarning)
         run, failure = run_scenario(temp_scenario)
 
+    def _tracking_cost(metrics: Dict[str, Any]) -> float:
+        def _term(name: str, scale: float, weight: float) -> float:
+            value = float(metrics.get(name, float("nan")))
+            if np.isfinite(value):
+                return weight * (value / scale) ** 2
+            # Keep a finite ordering for runaway partial trajectories. The
+            # caller applies the additional unstable-trial multiplier.
+            return weight * 1.0e6
+
+        return (
+            _term("positionRMSE", scales["position"], weights["position"])
+            + _term("attitudeRMSE", scales["attitude"], weights["attitude"])
+            + _term("massEstimationRMSE", scales["mass"], weights["mass"])
+            + _term("centerOfMassEstimationRMSE", scales["cog"], weights["cog"])
+            + _term("linearVelocityRMSE", scales["linVel"], weights["linVel"])
+            + _term("angularVelocityRMSE", scales["angVel"], weights["angVel"])
+            + _term("inertiaEstimationRMSE", scales["inertia"], weights["inertia"])
+            + _term("forceRMS", scales["force"], weights["forceEffort"])
+            + _term("torqueRMS", scales["torque"], weights["torqueEffort"])
+        )
+
+    metrics = {}
+    unstable = False
     if failure is None:
         metrics = compute_metrics(run)
-        cost = (
-            weights["position"] * (metrics["positionRMSE"] / scales["position"]) ** 2
-            + weights["attitude"] * (metrics["attitudeRMSE"] / scales["attitude"]) ** 2
-            + weights["mass"] * (metrics["massEstimationRMSE"] / scales["mass"]) ** 2
-            + weights["cog"] * (metrics["centerOfMassEstimationRMSE"] / scales["cog"]) ** 2
-            + weights["linVel"] * (metrics["linearVelocityRMSE"] / scales["linVel"]) ** 2
-            + weights["angVel"] * (metrics["angularVelocityRMSE"] / scales["angVel"]) ** 2
-            + weights["inertia"] * (metrics["inertiaEstimationRMSE"] / scales["inertia"]) ** 2
-            + weights["effort"] * (metrics["wrenchRMS"] / scales["effort"]) ** 2
-        )
+        cost = _tracking_cost(metrics)
         failed = not np.isfinite(cost)
     else:
-        cost = float(weights["failure"])
-        failed = True
-        metrics = {}
+        # Runaway guards intentionally return the finite prefix of a trial.
+        # Preserve that information so PSO can distinguish unstable candidates
+        # instead of seeing a flat failure cost for every particle.
+        try:
+            with warnings.catch_warnings(), np.errstate(all="ignore"):
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                if len(run.get("t", [])) >= 2:
+                    metrics = compute_metrics(run)
+                    partial_cost = _tracking_cost(metrics)
+                else:
+                    partial_cost = float("nan")
+        except Exception:
+            partial_cost = float("nan")
+
+        if np.isfinite(partial_cost):
+            cost = 100.0 * float(partial_cost)
+            failed = False
+            unstable = True
+        else:
+            cost = float(weights["failure"])
+            failed = True
 
     return {
         "rawCandidate": np.asarray(candidate, dtype=float).ravel(),
@@ -135,6 +178,7 @@ def evaluate_scenario_candidate(
         "gains": gains,
         "cost": float(cost),
         "failed": failed,
+        "unstable": unstable,
         "label": str(label),
         "metrics": metrics,
         "failure": failure,

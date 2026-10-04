@@ -1,23 +1,23 @@
 {
   "experiment": "connection-sensitivity",
-  "export_source_sha256": "db04ff46fd694dbd859c67b616c1f0fbe3ef28c9e2c87aeedd729e2260694ae5",
+  "export_source_sha256": "337283832964c0b1fe86e636c6219d0fb3b083c688fed2d8d0f4c4cf6154e6d7",
   "raw_provenance": {
     "lc": {
-      "scenario_sha256": "71e3010ab381df0538b474a14a518429d268d86d9256da53897ad397e9e47747",
-      "source_sha256": "db04ff46fd694dbd859c67b616c1f0fbe3ef28c9e2c87aeedd729e2260694ae5"
+      "scenario_sha256": "fd1b35f2de9e74df7e7da91b2cbfdfb71ad12b6a451e670963319e1d05a3ef9b",
+      "source_sha256": "337283832964c0b1fe86e636c6219d0fb3b083c688fed2d8d0f4c4cf6154e6d7"
     },
     "rb": {
-      "scenario_sha256": "a0706e38a96266f2b03e803630f478f66aeda4456be465074e2ef7a3cf6d79ac",
-      "source_sha256": "db04ff46fd694dbd859c67b616c1f0fbe3ef28c9e2c87aeedd729e2260694ae5"
+      "scenario_sha256": "14ac76891600ca495294c16aec22f55f50f123a3317c42d5debe94f27c6191c9",
+      "source_sha256": "337283832964c0b1fe86e636c6219d0fb3b083c688fed2d8d0f4c4cf6154e6d7"
     }
   },
   "full_source_interval_s": [
     10.0,
     30.0
   ],
-  "focused_source_interval_s": [
+  "figure_source_interval_s": [
     10.0,
-    13.0
+    30.0
   ],
   "figures": [
     "connection_equivalence.pdf",

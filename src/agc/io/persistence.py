@@ -2,6 +2,8 @@
 
 import os
 import json
+import tempfile
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -10,15 +12,40 @@ import numpy as np
 
 def default_results_root(
     repository_root: Optional[str] = None,
-    inplace_save: bool = True,
+    inplace_save: bool = False,
     timestamp: Optional[str] = None,
 ) -> Path:
     """Return the optimization result root for in-place or timestamped output."""
     root = Path(repository_root) if repository_root is not None else Path(__file__).resolve().parent.parent.parent.parent
     if inplace_save:
         return root / "results" / "optimization" / "best-gain"
-    stamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+    stamp = timestamp or f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_{uuid.uuid4().hex[:8]}"
     return root / "results" / "optimization" / "timestamped" / stamp
+
+
+def atomic_write_text(path: Path, content: str) -> None:
+    """Atomically replace a text file, keeping the previous file on failure."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = None
+    try:
+        fd, temp_name = tempfile.mkstemp(
+            prefix=f".{path.name}.", suffix=f".{uuid.uuid4().hex}.tmp", dir=path.parent
+        )
+        temp_path = Path(temp_name)
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None and temp_path.exists():
+            temp_path.unlink()
+
+
+def atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
+    """Atomically write JSON so interruptions do not truncate the prior record."""
+    atomic_write_text(path, json.dumps(_to_json_serializable(payload), indent=2) + "\n")
 
 
 def default_simulation_results_root(
@@ -42,22 +69,26 @@ def save_best_gain(
     cost: float,
     stage: str,
     candidate: Optional[np.ndarray] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    evaluation: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Persist one variant's best rounded gains and score."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
+        "schemaVersion": 2,
         "mode": str(mode).lower(),
         "coriolis": str(coriolis).lower(),
         "gains": _to_json_serializable(gains),
         "cost": float(cost),
         "stage": str(stage),
         "updatedAt": datetime.now().isoformat(timespec="seconds"),
+        "metadata": metadata or {},
+        "evaluation": evaluation or {},
     }
     if candidate is not None:
         payload["candidate"] = _to_json_serializable(np.asarray(candidate, dtype=float))
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2)
+    atomic_write_json(path, payload)
 
 
 def load_best_gain(path: Path) -> Optional[Dict[str, Any]]:
@@ -68,6 +99,9 @@ def load_best_gain(path: Path) -> Optional[Dict[str, Any]]:
     with path.open("r", encoding="utf-8") as f:
         payload = json.load(f)
     payload["cost"] = float(payload["cost"])
+    payload.setdefault("schemaVersion", 1)
+    payload.setdefault("metadata", {})
+    payload.setdefault("evaluation", {})
     return payload
 
 
@@ -77,6 +111,8 @@ def _to_json_serializable(obj: Any) -> Any:
         return obj.tolist()
     if isinstance(obj, (np.floating, np.integer)):
         return obj.item()
+    if isinstance(obj, np.bool_):
+        return bool(obj)
     if isinstance(obj, dict):
         return {str(k): _to_json_serializable(v) for k, v in obj.items() if not callable(v)}
     if isinstance(obj, (list, tuple)):

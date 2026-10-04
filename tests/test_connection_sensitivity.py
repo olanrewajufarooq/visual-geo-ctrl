@@ -1,13 +1,26 @@
 import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
-from agc.sim.connection_sensitivity import focus_end, separation, sensitivity_scenario
+from agc.sim.connection_sensitivity import separation, sensitivity_scenario
 
 
-def test_focus_includes_later_dwell_and_rounds_up():
-    assert focus_end([1., 1.336], 20.) == 2.25
-    assert focus_end([None, 1.], 20.) == 20.
-    assert focus_end([19.5, 19.6], 20.) == 20.
+def test_connections_use_independent_persistent_reaching_times():
+    from agc.sim.connection_sensitivity import audit
+    from agc.sim.publication_runner import nominal_scenario
+    scenario = nominal_scenario(20.)
+    runs = []
+    for settle in (2., 5.):
+        t = np.arange(0., 20.001, .1)
+        s = np.zeros((len(t), 6)); s[t < settle, 0] = 1.
+        H = np.repeat(np.eye(4)[None], len(t), axis=0)
+        runs.append({'t':t, 's':s, 'H':H, 'V':np.zeros((len(t),6)),
+                     'Hdesired':H, 'Vdesired':np.zeros((len(t),6)),
+                     'VdotDesired':np.zeros((len(t),6)), 'wrench':np.zeros((len(t),6))})
+    a, b = audit(runs[0], scenario), audit(runs[1], scenario)
+    assert a['persistent_reaching_elapsed_s'] != b['persistent_reaching_elapsed_s']
+    assert a['persistent_reaching_absolute_s'] == pytest.approx(a['persistent_reaching_elapsed_s'] + 10.)
+    assert a['persistent_threshold'] == 1e-4
+    assert a['persistent_final_source_time_s'] == 30.
 
 
 def test_separation_uses_physical_units_and_common_axes():

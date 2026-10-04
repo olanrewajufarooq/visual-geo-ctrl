@@ -30,6 +30,7 @@ from agc.opt.objective import (
 )
 from agc.opt.bregman_profile import bregman_gamma_grid
 from agc.opt.pso import ParticleSwarmOptimizer
+from agc.opt.de import DifferentialEvolutionOptimizer
 from agc.opt.staged_optimizer import promote_gains_to_registry
 from agc.config.manual_gains import manual_gains
 from agc.sim.default_scenario import default_scenario
@@ -43,7 +44,7 @@ def test_default_convergence_uses_ten_stalled_iterations_at_one_milliunit():
     assert options["maxIterations"] == 20
 
 
-def test_optimizer_defaults_use_shared_velocity_and_effort_weights():
+def test_optimizer_defaults_use_separate_force_and_torque_weights():
     weights = objective_weights()
     options = optimization_options()
 
@@ -55,7 +56,8 @@ def test_optimizer_defaults_use_shared_velocity_and_effort_weights():
         "linVel": 0.5,
         "angVel": 0.5,
         "inertia": 1.5,
-        "effort": 0.5,
+        "force": 0.25,
+        "torque": 0.25,
         "failure": 1e6,
     }
     for k, v in expected.items():
@@ -73,7 +75,8 @@ def test_optimizer_uses_explicit_physical_error_scales():
         "linVel": 0.20,
         "angVel": 0.50,
         "inertia": 0.05,
-        "effort": 50.0,
+        "force": 50.0,
+        "torque": 1.0,
     }
     for k, v in expected.items():
         assert np.isclose(scales[k], v)
@@ -85,27 +88,31 @@ def test_supplied_convergence_settings_override_defaults():
     assert options["maxStallIterations"] == 7
 
 
-def test_blank_selectors_expand_to_unique_optimization_modes():
-    modes = expand_scenario_selection("", "")
-    assert modes == ["nominal", "adaptive"]
-    assert expand_scenario_selection(None, None) == ["nominal", "adaptive"]
-    assert expand_scenario_selection("all") == ["nominal", "adaptive"]
+def test_blank_selectors_expand_to_complete_mode_and_factorization_matrix():
+    variants = expand_scenario_selection("", "")
+    expected = [
+        ("nominal", "lc"),
+        ("nominal", "rb"),
+        ("euclidean", "lc"),
+        ("euclidean", "rb"),
+        ("bregman", "lc"),
+        ("bregman", "rb"),
+    ]
+    assert variants == expected
 
 
-def test_mode_selectors_validate_and_filter():
-    assert expand_scenario_selection("nominal") == ["nominal"]
-    assert expand_scenario_selection(["adaptive"]) == ["adaptive"]
-    with pytest.raises(ValueError, match="Unsupported mode selector"):
-        expand_scenario_selection("invalid_mode")
+def test_list_selectors_form_their_cartesian_product():
+    variants = expand_scenario_selection(["bregman", "euclidean"], "rb")
+    assert variants == [("bregman", "rb"), ("euclidean", "rb")]
 
 
 def test_gain_blocks_cover_and_partition_adaptive_controllers():
-    all_indices = gain_block_indices("adaptive", "all")
-    tracking = gain_block_indices("adaptive", "tracking")
-    sliding_diss = gain_block_indices("adaptive", "sliding_dissipation")
-    sliding_metric = gain_block_indices("adaptive", "sliding_metric")
-    dissipation = gain_block_indices("adaptive", "dissipation")
-    adaptive = gain_block_indices("adaptive", "adaptive")
+    all_indices = gain_block_indices("euclidean", "all")
+    tracking = gain_block_indices("euclidean", "tracking")
+    sliding_diss = gain_block_indices("euclidean", "sliding_dissipation")
+    sliding_metric = gain_block_indices("euclidean", "sliding_metric")
+    dissipation = gain_block_indices("euclidean", "dissipation")
+    adaptive = gain_block_indices("euclidean", "adaptive")
 
     assert all_indices == list(range(25))
     assert tracking == list(range(0, 6))
@@ -121,10 +128,6 @@ def test_gain_blocks_cover_and_partition_adaptive_controllers():
 
     # Test complete union
     assert sorted(tracking + sliding_metric + dissipation + adaptive) == all_indices
-
-    # Test nominal partitions (15 parameters)
-    nom_all = gain_block_indices("nominal", "all")
-    assert nom_all == list(range(15))
 
 
 def test_bregman_grid_includes_bounds_and_seed_values():
@@ -146,19 +149,16 @@ def test_incumbent_selection_retains_feasible_lower_cost_candidate():
     assert best_feasible_candidate(incumbent, better) == better
 
 
-def test_training_conditions_default_to_two_replays_two_payloads_two_coriolis():
+def test_training_conditions_default_to_three_replays_and_two_payloads():
     conditions = default_training_conditions()
 
-    assert len(conditions) == 8
-    assert [(c["replayId"], c["payloadProfile"], c["coriolis"]) for c in conditions] == [
-        ("lemniscate_02_auto", "flat_light", "lc"),
-        ("lemniscate_02_auto", "flat_light", "rb"),
-        ("lemniscate_02_auto", "tall_heavy", "lc"),
-        ("lemniscate_02_auto", "tall_heavy", "rb"),
-        ("lemniscate_03_auto", "flat_light", "lc"),
-        ("lemniscate_03_auto", "flat_light", "rb"),
-        ("lemniscate_03_auto", "tall_heavy", "lc"),
-        ("lemniscate_03_auto", "tall_heavy", "rb"),
+    assert [(c["replayId"], c["payloadProfile"]) for c in conditions] == [
+        ("lemniscate_02_auto", "flat_light"),
+        ("lemniscate_02_auto", "tall_heavy"),
+        ("lemniscate_03_auto", "flat_light"),
+        ("lemniscate_03_auto", "tall_heavy"),
+        ("lemniscate_04_auto", "flat_light"),
+        ("lemniscate_04_auto", "tall_heavy"),
     ]
 
 
@@ -187,7 +187,8 @@ def test_training_cost_averages_all_finite_conditions_and_rejects_any_failure():
 
 def test_staged_schedule_hierarchical_and_classic():
     assert gain_optimization_stages("nominal", "classic") == ["all"]
-    assert gain_optimization_stages("adaptive", "classic") == ["all", "nonadaptive", "adaptive"]
+    assert gain_optimization_stages("euclidean", "classic") == ["all", "nonadaptive", "adaptive", "all"]
+    assert gain_optimization_stages("bregman", "classic") == ["all", "nonadaptive", "adaptive", "all"]
 
     assert gain_optimization_stages("nominal", "hierarchical") == [
         "all",
@@ -197,14 +198,14 @@ def test_staged_schedule_hierarchical_and_classic():
         "dissipation",
         "all",
     ]
-    # Adaptive hierarchical must end in 'adaptive' (omitting the final 'all' to avoid estimator bias)
-    assert gain_optimization_stages("adaptive", "hierarchical") == [
+    assert gain_optimization_stages("bregman", "hierarchical") == [
         "all",
         "tracking",
         "sliding_dissipation",
         "sliding_metric",
         "dissipation",
         "adaptive",
+        "all",
     ]
 
 
@@ -256,18 +257,118 @@ def test_pso_sphere_function_convergence():
     assert np.allclose(best_x, np.zeros(3), atol=0.25)
 
 
-def test_pso_stall_early_stopping():
-    opt = ParticleSwarmOptimizer(
+def test_de_explicitly_uses_deferred_updates_with_workers():
+    captured = {}
+
+    class Result:
+        x = np.array([0.0])
+        fun = 0.0
+
+    def fake_differential_evolution(*args, **kwargs):
+        captured.update(kwargs)
+        return Result()
+
+    with patch("agc.opt.de.differential_evolution", fake_differential_evolution):
+        optimizer = DifferentialEvolutionOptimizer(
+            cost_func=lambda x: float(np.sum(x**2)),
+            lower_bound=np.array([-1.0]),
+            upper_bound=np.array([1.0]),
+            parallel=True,
+            max_workers=2,
+            verbose=False,
+        )
+        optimizer.optimize()
+
+    assert captured["updating"] == "deferred"
+
+
+def test_de_progress_notes_show_iteration_number_without_extra_evaluations():
+    """DE callback reads intermediate_result.fun — no extra cost_func call per iteration."""
+    import io
+    from contextlib import redirect_stdout
+
+    call_count = [0]
+
+    def sphere(x):
+        call_count[0] += 1
+        return float(np.sum(x**2))
+
+    opt = DifferentialEvolutionOptimizer(
+        cost_func=sphere,
+        lower_bound=np.array([-5.0, -5.0]),
+        upper_bound=np.array([5.0, 5.0]),
+        pop_size=5,
+        max_iter=3,
+        max_stall=10,
+        parallel=False,
+        verbose=True,
+        seed=0,
+    )
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        best_x, best_cost, hist = opt.optimize()
+
+    output = buf.getvalue()
+    iter_lines = [line for line in output.splitlines() if "DE Iter" in line]
+
+    # Iteration counter must appear in at least one printed line
+    assert len(iter_lines) >= 1, "No 'DE Iter' lines were printed"
+    assert any("1/" in line for line in iter_lines), "Iteration number missing from output"
+
+    # Stall indicator must appear in output when max_stall is set
+    assert any("stall" in line for line in iter_lines), "Stall indicator missing from output"
+
+    # History is populated by the callback (at most max_iter entries)
+    assert 1 <= len(hist) <= 3
+
+    # Guard against regression: total cost_func calls must not exceed what
+    # SciPy's population evaluations require — no extra call per callback.
+    # pop_size=5, dim=2, max_iter=3 → generous upper bound of 5*2*(3+2)=50
+    assert call_count[0] <= 50, (
+        f"cost_func called {call_count[0]} times — callback may be re-evaluating"
+    )
+
+
+def test_de_stall_early_stopping_halts_before_max_iter():
+    """Callback returns True after max_stall stalled iterations, signalling SciPy to stop."""
+    from unittest.mock import patch, MagicMock
+
+    opt = DifferentialEvolutionOptimizer(
         cost_func=lambda x: 1.0,
         lower_bound=np.array([-1.0]),
         upper_bound=np.array([1.0]),
-        swarm_size=5,
         max_iter=50,
         max_stall=3,
         tol=1e-3,
         parallel=False,
-        verbose=False,
+        verbose=True,
         seed=0,
     )
-    best_x, best_cost, hist = opt.optimize()
-    assert len(hist) <= 5
+
+    # Intercept the callback that our optimizer registers with SciPy
+    captured = {}
+    fake_result = MagicMock()
+    fake_result.x = np.array([0.0])
+    fake_result.fun = 0.0
+
+    def fake_de(*args, **kwargs):
+        captured["callback"] = kwargs["callback"]
+        return fake_result
+
+    with patch("agc.opt.de.differential_evolution", fake_de):
+        opt.optimize()
+
+    cb = captured["callback"]
+
+    # Fire callback with constant cost.
+    # Call 1: prev_best=inf → resets to 1.0, stall=0 → None
+    # Call 2: 1.0-1.0=0 ≤ tol, stall=1 → None
+    # Call 3: stall=2 → None
+    # Call 4: stall=3 ≥ max_stall=3 → True  (early stop)
+    ir = MagicMock()
+    ir.fun = 1.0
+    results = [cb(ir) for _ in range(5)]
+    assert any(r is True for r in results), (
+        "Callback should return True when stall count reaches max_stall"
+    )

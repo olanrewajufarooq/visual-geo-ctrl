@@ -135,6 +135,15 @@ def run_scenario(scenario: dict) -> Tuple[dict, Optional[dict]]:
                 # Check for numerical divergence / NaN in plant state
                 if not np.all(np.isfinite(state["V"])) or not np.all(np.isfinite(state["H"])):
                     raise FloatingPointError("Trajectory diverged: non-finite plant state.")
+                # Abort runaway candidates early during gain optimization. A
+                # completed trajectory with enormous state values is not useful
+                # evidence and can make each PSO worker spend minutes on one
+                # unstable candidate.
+                if (
+                    np.linalg.norm(state["V"]) > 1.0e3
+                    or np.max(np.abs(state["H"])) > 1.0e6
+                ):
+                    raise FloatingPointError("Trajectory diverged: state magnitude exceeded safety bound.")
 
                 # Determine active plant inertial parameters
                 if payload_drop is None:

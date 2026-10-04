@@ -17,15 +17,15 @@ def main():
         "--mode",
         type=str,
         default="all",
-        choices=["nominal", "adaptive", "all"],
-        help="Controller mode to optimize: 'nominal', 'adaptive', or 'all'",
+        choices=["nominal", "euclidean", "bregman", "all"],
+        help="Controller mode to optimize",
     )
     parser.add_argument(
         "--coriolis",
         type=str.lower,
         default="all",
         choices=["lc", "rb", "all"],
-        help="Coriolis factorization form (default: all; evaluated across both forms to ensure invariance)",
+        help="Coriolis factorization form",
     )
     parser.add_argument(
         "--schedule",
@@ -33,6 +33,19 @@ def main():
         default="hierarchical",
         choices=["hierarchical", "classic"],
         help="Optimization schedule: hierarchical (7-stage) or classic (4-stage)",
+    )
+    parser.add_argument(
+        "--method",
+        type=str,
+        default="pso",
+        choices=["pso", "de"],
+        help="Global search method: 'pso' (Particle Swarm) or 'de' (Differential Evolution)",
+    )
+    parser.add_argument(
+        "--polish",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Run local Nelder-Mead simplex polish on the final 'all' stage",
     )
     parser.add_argument(
         "--duration",
@@ -49,7 +62,7 @@ def main():
     parser.add_argument(
         "--train-replay-ids",
         type=str,
-        default="lemniscate_02_auto",
+        default="lemniscate_02_auto,lemniscate_03_auto,lemniscate_04_auto",
         help="Comma-separated replay IDs used to train each gain candidate",
     )
     parser.add_argument(
@@ -62,7 +75,7 @@ def main():
         "--swarm-size",
         type=int,
         default=20,
-        help="Swarm size for PSO",
+        help="Swarm size for PSO / population multiplier for DE",
     )
     parser.add_argument(
         "--max-iter",
@@ -73,7 +86,7 @@ def main():
     parser.add_argument(
         "--max-stall",
         type=int,
-        default=15,
+        default=10,
         help="Maximum iterations without improvement before early stopping",
     )
     parser.add_argument(
@@ -120,6 +133,8 @@ def main():
         mode=mode_arg,
         coriolis=coriolis_arg,
         schedule=args.schedule,
+        method=args.method,
+        polish=args.polish,
         duration=args.duration,
         replay_id=args.replay_id,
         training_replay_ids=(

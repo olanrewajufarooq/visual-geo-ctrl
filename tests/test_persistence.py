@@ -4,6 +4,7 @@ import json
 import sys
 import pytest
 import numpy as np
+import uuid
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -21,6 +22,7 @@ from agc.io.persistence import (
     default_results_root,
     save_best_gain,
     load_best_gain,
+    atomic_write_json,
 )
 
 
@@ -36,25 +38,59 @@ def test_default_simulation_result_roots_use_inplace_and_timestamped_layouts():
 def test_default_optimization_result_roots_use_best_gain_inplace_and_timestamped_layouts():
     repo_root = "/repo"
 
-    assert default_results_root(repo_root) == Path(repo_root) / "results" / "optimization" / "best-gain"
+    assert default_results_root(repo_root).parent == Path(repo_root) / "results" / "optimization" / "timestamped"
     assert default_results_root(repo_root, inplace_save=True) == Path(repo_root) / "results" / "optimization" / "best-gain"
     assert default_results_root(repo_root, inplace_save=False, timestamp="20260922_143000") == (
         Path(repo_root) / "results" / "optimization" / "timestamped" / "20260922_143000"
     )
+    assert default_results_root(repo_root, inplace_save=False) != default_results_root(repo_root, inplace_save=False)
 
 
-def test_best_gain_roundtrips_in_one_optimization_folder(tmp_path):
+def test_atomic_json_write_preserves_previous_file_when_replace_fails(monkeypatch):
+    import agc.io.persistence as persistence
+
+    target = Path(__file__).resolve().parent / f".atomic-checkpoint-{uuid.uuid4().hex}.json"
+    try:
+        atomic_write_json(target, {"iteration": 1})
+
+        def fail_replace(source, destination):
+            raise OSError("simulated interruption before replace")
+
+        monkeypatch.setattr(persistence.os, "replace", fail_replace)
+        with pytest.raises(OSError, match="simulated interruption"):
+            atomic_write_json(target, {"iteration": 2})
+
+        assert json.loads(target.read_text(encoding="utf-8")) == {"iteration": 1}
+        assert list(target.parent.glob(f".{target.name}.*.tmp")) == []
+    finally:
+        target.unlink(missing_ok=True)
+
+
+def test_best_gain_roundtrips_with_evaluation_provenance():
     gains = {"KRdiag": np.array([1.0, 2.0, 3.0]), "kd": 4.0}
-    best_file = tmp_path / "best-gain" / "nominal_lc.json"
+    test_dir = Path(__file__).resolve().parent / f".best-gain-{uuid.uuid4().hex}"
+    best_file = test_dir / "nominal_lc.json"
 
-    save_best_gain(best_file, "nominal", "lc", gains, 2755.24, "sliding_dissipation")
-    loaded = load_best_gain(best_file)
+    metadata = {"objectiveId": "objective-v2:abc", "trainingConditions": [{"replayId": "r1"}]}
+    evaluation = {"conditionRecords": [{"cost": 2755.24, "metrics": {"positionRMSE": 0.1}}]}
+    try:
+        save_best_gain(
+            best_file, "nominal", "lc", gains, 2755.24, "sliding_dissipation",
+            metadata=metadata, evaluation=evaluation,
+        )
+        loaded = load_best_gain(best_file)
 
-    assert loaded["mode"] == "nominal"
-    assert loaded["coriolis"] == "lc"
-    assert np.allclose(loaded["gains"]["KRdiag"], gains["KRdiag"])
-    assert loaded["cost"] == pytest.approx(2755.24)
-    assert loaded["stage"] == "sliding_dissipation"
+        assert loaded["mode"] == "nominal"
+        assert loaded["coriolis"] == "lc"
+        assert np.allclose(loaded["gains"]["KRdiag"], gains["KRdiag"])
+        assert loaded["cost"] == pytest.approx(2755.24)
+        assert loaded["stage"] == "sliding_dissipation"
+        assert loaded["schemaVersion"] == 2
+        assert loaded["metadata"] == metadata
+        assert loaded["evaluation"] == evaluation
+    finally:
+        best_file.unlink(missing_ok=True)
+        test_dir.rmdir()
 
 
 def test_saved_metadata_includes_payload_profile(tmp_path):

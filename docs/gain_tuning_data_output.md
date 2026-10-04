@@ -1,26 +1,37 @@
 # Gain-Tuning Data Output
 
-Staged optimization reports and checkpoints are written to `results/inplace/optimization/<mode>_<coriolis>/` by default, or `results/timestamped/<timestamp>/optimization/<mode>_<coriolis>/` with `--timestamped-save`.
+The optimizer saves under `results/optimization/best-gain/` by default. Pass `--timestamped-save` to isolate artifacts under `results/optimization/timestamped/<timestamp>/`, or `--output-dir` to select a custom artifact root.
 
-## Output Files
+## Output layout
 
-- `optimization_results.json`: Complete record of the optimization session, containing:
-  - `mode`, `coriolis`, `schedule`, and `method` settings.
-  - Initial baseline costs (`manual_cost`, `registered_cost`, `incumbent_seed_cost`).
-  - Stage-by-stage progression with block names, candidate costs, improvement status, and elapsed wall-clock times.
-  - Final optimized gain dictionary (`KRdiag`, `Kxidiag`, `LambdaDiag`, `kd`, `ks`, `alpha`, `gammaE`, `gammaB`).
-  - Promotion status indicating whether registries (`src/agc/config/optimized_gains.py` and `config/optimized_gains.py`) were updated.
-- `checkpoint_<stage>.json`: Intermediate checkpoint after each block optimization stage, preserving the best candidate state and cost history.
+Each selected mode/factorization pair has an independent artifact directory and incumbent file:
 
-## Gain Data Dictionary
+```text
+results/optimization/best-gain/
+  nominal_lc.json
+  nominal_rb.json
+  euclidean_lc.json
+  euclidean_rb.json
+  bregman_lc.json
+  bregman_rb.json
+  nominal_lc/optimization.json
+  nominal_rb/optimization.json
+  ...
+```
 
-| Gain Field | Dimension | Physical Meaning |
+`<mode>_<coriolis>/optimization.json` records the selected mode, factorization, schedule, method, training conditions, incumbent, and stage history. It is rewritten as stages complete. The root-level `<mode>_<coriolis>.json` stores the incumbent candidate used for future comparisons. Optimization and promotion operate only on that matching pair; an LC result never replaces or changes the RB entry, and changing one controller mode does not propagate tracking gains to another.
+
+The optimizer re-evaluates the saved candidate under the current run’s selected conditions before comparing it with a new candidate. The paper runner reads `src/agc/config/optimized_gains.py` and does not run optimization.
+
+## Gain fields
+
+| Gain field | Dimension | Meaning |
 | --- | --- | --- |
-| `KRdiag` | $3 \times 1$ | Diagonal attitude tracking gains on $\mathfrak{so}(3)$ |
-| `Kxidiag` | $3 \times 1$ | Diagonal position tracking gains in $\mathbb{R}^3$ |
-| `LambdaDiag` | $6 \times 1$ | Diagonal metric damping gains on $\mathfrak{se}(3)$ |
-| `kd` | Scalar | Velocity damping gain |
-| `ks` | Scalar | Generalized sliding surface scaling |
-| `alpha` | Scalar | Orientation sliding scale |
-| `gammaE` | $10 \times 1$ | Euclidean adaptation learning rates: $[m, h_x, h_y, h_z, I_{xx}, I_{yy}, I_{zz}, I_{xy}, I_{xz}, I_{yz}]$ |
-| `gammaB` | Scalar | Bregman Riemannian learning rate for SPD affine-invariant update |
+| `KRdiag` | $3 \times 1$ | Diagonal attitude tracking gains |
+| `Kxidiag` | $3 \times 1$ | Diagonal position tracking gains |
+| `LambdaDiag` | $6 \times 1$ | Diagonal sliding metric gains |
+| `kd` | Scalar | Linear transverse damping gain |
+| `ks` | Scalar | Fractional transverse dissipation gain |
+| `alpha` | Scalar | Fractional reaching exponent |
+| `gammaE` | $10 \times 1$ | Euclidean adaptation gains |
+| `gammaB` | Scalar | Bregman adaptation gain |

@@ -2,6 +2,7 @@
 
 from typing import Dict, Any
 import numpy as np
+from ..math.se3 import adjoint_se3, inv_se3
 
 
 def compute_metrics(run: Dict[str, Any]) -> Dict[str, float]:
@@ -18,7 +19,15 @@ def compute_metrics(run: Dict[str, Any]) -> Dict[str, float]:
         cos_theta = np.clip((np.trace(Re) - 1.0) / 2.0, -1.0, 1.0)
         att_error[k] = np.arccos(cos_theta)
 
-    vel_error = run["V"] - run["Vdesired"]
+    vel_error = np.empty_like(np.asarray(run["V"], dtype=float))
+    for k in range(n):
+        He = inv_se3(run["Hdesired"][k]) @ run["H"][k]
+        transported = adjoint_se3(inv_se3(He)) @ run["Vdesired"][k]
+        vel_error[k] = run["V"][k] - transported
+
+    wrench = np.asarray(run["wrench"], dtype=float)
+    force_norm = np.linalg.norm(wrench[:, 3:6], axis=1)
+    torque_norm = np.linalg.norm(wrench[:, 0:3], axis=1)
 
     metrics = {
         "positionRMSE": float(np.sqrt(np.mean(np.sum(pos_error**2, axis=1)))),
@@ -26,7 +35,8 @@ def compute_metrics(run: Dict[str, Any]) -> Dict[str, float]:
         "angularVelocityRMSE": float(np.sqrt(np.mean(np.sum(vel_error[:, 0:3]**2, axis=1)))),
         "linearVelocityRMSE": float(np.sqrt(np.mean(np.sum(vel_error[:, 3:6]**2, axis=1)))),
         "maxPositionError": float(np.max(np.linalg.norm(pos_error, axis=1))),
-        "wrenchRMS": float(np.sqrt(np.mean(np.sum(run["wrench"]**2, axis=1)))),
+        "forceRMS": float(np.sqrt(np.mean(force_norm**2))),
+        "torqueRMS": float(np.sqrt(np.mean(torque_norm**2))),
     }
 
     if "activePlantPi" in run and "estimatePi" in run:

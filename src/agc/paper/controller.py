@@ -58,7 +58,7 @@ def controller(
     desired : dict
         'H': (4, 4) desired pose, 'V': (6,) desired twist, 'Vdot': (6,) desired acceleration.
     cfg : dict
-        Controller configuration with KR, Kxi, Lambda, kd, ks, alpha, gravity, mode, coriolis,
+        Controller configuration with KR, Kxi, Lambda, Lambda_s, kd, ks, alpha, gravity, mode, coriolis,
         gammaE, gammaB.
     estimate : array-like
         Current estimator state: pi (10,) for nominal/euclidean, or J (4, 4) for bregman.
@@ -113,8 +113,11 @@ def controller(
     Wg = np.concatenate([skew(piHat[1:4]) @ gBody, piHat[0] * gBody])
 
     s = V - Vr
-    LinvS = np.linalg.solve(Lambda, s)
-    sNorm_sq = max(0.0, float(s @ LinvS))
+    Lambda_s = np.asarray(cfg.get('Lambda_s', np.linalg.inv(Lambda)), dtype=float)
+    if Lambda_s.ndim == 1:
+        Lambda_s = np.diag(Lambda_s)
+    LambdaS = Lambda_s @ s
+    sNorm_sq = max(0.0, float(s @ LambdaS))
     sNorm = np.sqrt(sNorm_sq)
 
     alpha = float(cfg['alpha'])
@@ -123,7 +126,7 @@ def controller(
     if sNorm == 0.0:
         D = np.zeros(6, dtype=float)
     else:
-        D = (kd + ks * (sNorm ** (alpha - 1.0))) * LinvS
+        D = (kd + ks * (sNorm ** (alpha - 1.0))) * LambdaS
 
     # Commanded body wrench
     Y = regressor(H, V, Vr, VrDot, gravity, coriolis_form)

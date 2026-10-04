@@ -6,13 +6,20 @@ import subprocess
 import numpy as np
 from .publication import (paper_scenario, gain_report, baseline_metrics, adaptive_performance_row,
                            physical_consistency_row, controller_gain_rows, connection_realization_row,
-                           write_json, write_csv, reaching_summary, NAMES, PRIMARY_MODES, ADAPTIVE_MODES)
+                           write_json, write_csv, reaching_summary, NAMES, PRIMARY_MODES, ADAPTIVE_MODES,
+                           CONNECTIONS, PAPER_RUNS)
 from .default_scenario import default_scenario
 from .run_scenario import run_scenario
 from ..io.persistence import save_run, load_run
 from ..paper.diagnostics import connection_identity
 from ..math.inertia import inertia_from_pi
 from ..viz.publication_figures import adaptive_figures, theory_figures, connection_realization_figures
+
+PUBLICATION_COMMANDS = {
+    "all", "adaptive-drop", "nominal-connection", "nominal-reaching",
+    "connection-realizations", "connection-sensitivity",
+    "physical-consistency-monte-carlo",
+}
 
 
 def nominal_scenario(duration, dt=.002):
@@ -34,7 +41,7 @@ def nominal_scenario(duration, dt=.002):
     }
     inertia = inertia_from_pi(scenario["plantPi"])
     scenario["controller"].update(KR=np.diag([1., 2., 3.]), Kxi=np.eye(3),
-                                   Lambda=np.linalg.inv(inertia), kd=1., ks=1., alpha=.5)
+                                   Lambda=np.linalg.inv(inertia), Lambda_s=inertia.copy(), kd=1., ks=1., alpha=.5)
     scenario.update(dtPlant=dt, dtControl=dt, dtAdaptation=dt)
     return scenario
 
@@ -55,7 +62,7 @@ def connection_test(run, scenario):
     # gravity-compensating wrenches. Retain absolute checks at every sample.
     meaningful = scales > 1e-6
     rel = float(np.max(values[meaningful, 2]/scales[meaningful])) if meaningful.any() else None
-    metric = np.linalg.inv(scenario["controller"]["Lambda"])
+    metric = np.asarray(scenario["controller"].get("Lambda_s", np.linalg.inv(scenario["controller"]["Lambda"])))
     r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
     i = int(indices[min(5, len(indices)-1)])
     on_manifold = connection_identity({"H": run["H"][i], "V": run["V"][i]-run["s"][i]},
@@ -183,11 +190,13 @@ def connection_pair_passed(protocol):
 
 
 def run_publication(command, duration, root, raw_root, reuse_cache=False):
-    if command == "physical-consistency-mc":
+    if command not in PUBLICATION_COMMANDS:
+        raise ValueError(f"Unsupported paper simulation command: {command}")
+    if command == "physical-consistency-monte-carlo":
         if duration != 30.0 or reuse_cache:
             raise ValueError("The physical-consistency Monte Carlo uses its fixed 30 s protocol and fresh paired runs")
         from .physical_consistency_experiment import run_experiment
-        return run_experiment(Path(root) / "physical_consistency")
+        return run_experiment(Path(root))
     if command in ("all", "nominal-connection", "nominal-reaching", "connection-realizations", "connection-sensitivity"):
         if duration != 30. or reuse_cache:
             raise ValueError("The nominal sensitivity study requires fresh runs over source time 10–30 s")
@@ -199,30 +208,45 @@ def run_publication(command, duration, root, raw_root, reuse_cache=False):
     root.mkdir(parents=True, exist_ok=True)
     metadata_root = root / "metadata"
     metadata_root.mkdir(parents=True, exist_ok=True)
-    report = {"optimization_run": False, "fair_adaptation_retuned": True,
+    report = {"optimization_run": False, "fair_adaptation_retuned": False,
+              "adaptation_gain_tuning": "saved configuration values; no retuning performed by run_paper_sim",
               "repeatability": "omitted: deterministic identical trials are not repeatability evidence"}
     prior_manifest = metadata_root / "manifest.json"
     if command != "all" and prior_manifest.exists():
         report.update(json.loads(prior_manifest.read_text(encoding="utf-8")).get("report", {}))
+    # Do not let a prior manifest restore obsolete claims from older runs.
+    report.update({
+        "optimization_run": False,
+        "fair_adaptation_retuned": False,
+        "adaptation_gain_tuning": "saved configuration values; no retuning performed by run_paper_sim",
+    })
+    # Do not carry obsolete six-variant adaptive entries into a new
+    # single-realization section 01--03 manifest.
+    for stale_key in (f"{mode}_{connection}" for mode in PRIMARY_MODES for connection in CONNECTIONS):
+        if stale_key not in PAPER_RUNS:
+            report.pop(stale_key, None)
     if command in ("all", "adaptive-drop"):
         runs, scenarios, rows = {}, {}, []
-        for mode in PRIMARY_MODES:
-            scenario = paper_scenario(mode, duration)
-            run, failure, cached = load_or_run(raw_root/"adaptive"/mode, scenario, reuse_cache)
+        for run_key in PAPER_RUNS:
+            mode, coriolis = run_key.rsplit("_", 1)
+            scenario = paper_scenario(mode, duration, coriolis)
+            run, failure, cached = load_or_run(raw_root/"adaptive"/run_key, scenario, reuse_cache)
             if cached:
                 scenario = cached_scenario(run)
-            print(f"{'Reusing' if cached else 'Running'} {NAMES[mode]}", flush=True)
-            report[NAMES[mode]] = {"failure": failure, "end_time": float(run["t"][-1]) if len(run["t"]) else None}
-            rows.append(adaptive_performance_row(run, mode, failure))
-            if len(run["t"]): runs[mode], scenarios[mode] = run, scenario
+            print(f"{'Reusing' if cached else 'Running'} {NAMES[mode]} ({coriolis.upper()})", flush=True)
+            report[run_key] = {"failure": failure, "end_time": float(run["t"][-1]) if len(run["t"]) else None}
+            rows.append(adaptive_performance_row(run, mode, failure, coriolis))
+            if len(run["t"]): runs[run_key], scenarios[run_key] = run, scenario
         write_csv(root/"tables"/"adaptive_performance_summary.csv", rows)
         write_csv(root/"tables"/"baseline_comparison.csv", rows)
         write_csv(root/"tables"/"physical_consistency_summary.csv",
-                  [physical_consistency_row(runs[mode], mode) for mode in ADAPTIVE_MODES if mode in runs])
+                  [physical_consistency_row(runs[f"{mode}_{coriolis}"], mode, coriolis)
+                   for mode in ADAPTIVE_MODES for coriolis in CONNECTIONS
+                   if f"{mode}_{coriolis}" in runs])
         write_csv(root/"tables"/"controller_gain_summary.csv", controller_gain_rows(scenarios))
         gain = gain_report()
-        gain["actual_saved_run_gains"] = controller_gain_rows(scenarios)[0]
-        gain["known_inertia_baseline"] = "uses the true loaded inertia before release and true bare-vehicle inertia after release"
+        gain["actual_saved_run_gains"] = controller_gain_rows(scenarios)
+        gain["known_inertia_baseline"] = "the single LC known-inertia run uses the nominal_lc gain entry and the true active-plant inertia"
         write_json(metadata_root/"gain_summary.json", gain)
         if runs:
             adaptive_figures(runs, scenarios, root/"figures")
@@ -253,16 +277,16 @@ DIAGNOSTICS = """# Numerical-results diagnostic report
 - Dwell checks formerly excluded the endpoint. Numerical reaching now uses the weighted s norm.
 - Previous reaching experiment started on s=0 and had a vacuous zero bound. Isolated test starts with a nonzero twist and uses true inertia to recompute energy.
 - Logged s and energy previously held stale controller samples; now evaluated at each plant sample. Estimates are logged before the next update. Physical margins are computed for both estimators.
-- Tracking gains were independently tuned; all primary comparisons now share one saved optimized gain set.
-- PyBullet previously recomputed inertia from collision geometry (Ixx approximately 0.0800 instead of 0.0409). URDF inertia loading, principal-inertia/body-frame transforms, body-origin wrench application and payload attachment frames are corrected and regression-tested. Existing optimized gains were obtained on that old plant and are not optimality evidence for the corrected plant.
+- The payload-release comparison runs nominal, Euclidean, and Natural/Bregman controllers with the LC realization. The separate nominal validation protocol is the only section that compares LC and RB. The paper runner does not optimize gains; saved estimator rates are used as configured.
+- PyBullet previously recomputed inertia from collision geometry (Ixx approximately 0.0800 instead of 0.0409). URDF inertia loading, principal-inertia/body-frame transforms, body-origin wrench application and payload attachment frames are corrected and regression-tested. Gain entries without current optimization metadata are configuration values, not optimality evidence for the corrected plant.
 - The relative connection residual is ill-conditioned near zero differences. Absolute residual is checked at EVERY sample with tolerance 1e-12+1e-10*signal norm; relative diagnostics exclude signal norms <=1e-6.
 
 ## Publication qualifications
 
 - Connection-plot y-axis titles omit [1] for readability, but both norms are dimensionless: torque is divided by 1 N m and force by 1 N before taking the Euclidean norm. This is not mixed-unit wrench effort; see metric_definitions.md. The identity residual is theoretically zero at all times; its computed roundoff-level values remain on a logarithmic scale.
 
-- Staged block-coordinate PSO establishes unified tracking gains across nominal and adaptive controllers, with isolated adaptation gain tuning on frozen tracking baselines.
-- Both Euclidean and Natural/Bregman controllers use identical shared tracking gains; estimator adaptation rates (gamma, gamma_B) are tuned independently on identical trajectories, payloads, and metrics.
+- For the payload-release comparison, each controller uses its committed LC gain set (nominal-LC, Euclidean-LC, Bregman-LC). The nominal connection/reaching study is a separate no-payload protocol and is the only LC/RB comparison.
+- `run_paper_sim` loads the gain registry and does not execute PSO. Estimator rates are reported as configured; the saved values do not establish a fair estimator-gain tuning comparison.
 - The Known-inertia controller receives the true loaded inertia before release and the true bare-vehicle inertia after release. It is included as a model-knowledge reference; the adaptive estimators do not receive this parameter switch. The separate nominal reaching test has no payload release.
 - The matched LC/RB closed-loop study is a separate test from the same-state connection identity. Its protocol file records equal plant, initial state, reference samples, and gains; only the Coriolis realization changes. Small off-manifold differences are expected and neither realization is ranked.
 - No rotor allocation or actuator limits exist in this ideal wrench-actuated model. These plots do not establish hardware feasibility.
@@ -270,7 +294,7 @@ DIAGNOSTICS = """# Numerical-results diagnostic report
 - Bregman stepping uses an SPD-preserving exponential update with numerical eigenvalue/exponent safeguards; it is not exact continuous-time integration.
 - Identical repeated trials and all old flat figures/tables are superseded and must not be cited.
 - FAILED reaching figures are diagnostics only; numerical threshold crossing is not exact finite-time convergence.
-- All payload time histories use 0--30 s. Every figure in 04-nominal-validation uses the 4x connection sensitivity experiment on source time 10--30 s. Reaching, identity, and sensitivity-detail figures use the shared observed-reaching window; summaries retain elapsed reaching durations. The connection residual remains logarithmic. See connection_sensitivity_diagnostics.md for the experiment and numerical limitations.
+- Payload time histories use 0--30 s. Every figure in 04-nominal-validation uses the 4x connection sensitivity experiment on source time 10--30 s. `T_obs` is the first saved sample from which weighted s stays <=1e-4 through source time 30 s; LC and RB are assessed independently. The connection residual remains logarithmic. See connection_sensitivity_diagnostics.md for the experiment and numerical limitations.
 - The nominal transverse-energy integral's relative numerical residual is retained in the reaching summary. Report the threshold-and-dwell bound check as numerical evidence, not as a pointwise reproduction of the continuous-time energy identity.
 """
 
@@ -288,10 +312,12 @@ at every sample through the first sample at or after t+1 s (inclusive).
 Report absolute time and duration t-10. Blank means not observed with a complete dwell.
 This is sampled dwell evidence, not a guarantee between samples or for all future time.
 
-Observed reaching: first sample with sqrt(s.T Lambda_s s)<=0.001 throughout a
-0.5 s sampled dwell, including the endpoint. No incomplete terminal dwell qualifies.
-Lambda_s=inverse(Lambda). Bound uses true I and actual s(0), never estimated energy.
-The nominal controller is continuous in theory but evaluated at finite sample rate.
+T_obs: first saved sample with sqrt(s.T Lambda_s s)<=1e-4 at every sample
+through source time 30 s. The complete horizon is required; incomplete logs
+do not qualify. LC and RB times are assessed independently.
+Lambda_s is the configured transverse metric. The bound uses true I and
+actual s(0), never estimated energy. The nominal controller is continuous
+in theory but evaluated at finite sample rate.
 
 Physical margin: smallest eigenvalue of Jhat directly (Bregman) or pseudo_from_pi
 (Euclidean), with full-run and post-release minima and nonpositive flag.
@@ -328,8 +354,9 @@ Theory predicts r_K = W_RB - W_LC + K_RB(V)s = 0 at every time, including off
 the sliding manifold. The wrench difference itself need only vanish when s=0.
 The computed small residual is consistent with floating-point roundoff; the
 logarithmic panel retains these values rather than setting them to zero.
-T_obs marks numerical threshold-and-dwell reaching, not the onset of validity
-of the algebraic identity.
+T_obs uses the 1e-4 persistence threshold through source time 30 s. It does
+not determine when the algebraic identity becomes valid; that identity holds
+at every sample.
 
 Relative residual uses max(norm(left),norm(right)) only above 1e-6.
 Separate maximum force and torque residuals are also saved.

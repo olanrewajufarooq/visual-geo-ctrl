@@ -34,8 +34,10 @@ def compute_window_metrics(run: Dict[str, Any], start_time: float, end_time: flo
     sliding = np.asarray(run.get("s", np.zeros((len(t), 6))), dtype=float)
     sliding_norm = np.linalg.norm(sliding, axis=1)
     selected_t = t[mask]
-    selected_wrench = wrench[mask]
-    effort = float(np.trapezoid(np.sum(selected_wrench ** 2, axis=1), selected_t)) if len(selected_t) > 1 else 0.0
+    selected_force = wrench[mask, 3:]
+    selected_torque = wrench[mask, :3]
+    integrated_force = float(np.trapezoid(np.sum(selected_force ** 2, axis=1), selected_t)) if len(selected_t) > 1 else 0.0
+    integrated_torque = float(np.trapezoid(np.sum(selected_torque ** 2, axis=1), selected_t)) if len(selected_t) > 1 else 0.0
     return {
         "startTime": float(start_time),
         "endTime": float(end_time),
@@ -44,10 +46,12 @@ def compute_window_metrics(run: Dict[str, Any], start_time: float, end_time: flo
         "maxPositionError": float(np.max(position[mask])),
         "maxAttitudeError": float(np.max(attitude[mask])),
         "maxSlidingNorm": float(np.max(sliding_norm[mask])),
-        "wrenchRMS": float(np.sqrt(np.mean(np.sum(selected_wrench ** 2, axis=1)))),
+        "forceRMS": float(np.sqrt(np.mean(force_norm[mask] ** 2))),
+        "torqueRMS": float(np.sqrt(np.mean(torque_norm[mask] ** 2))),
         "peakForce": float(np.max(force_norm[mask])),
         "peakTorque": float(np.max(torque_norm[mask])),
-        "integratedSquaredWrench": effort,
+        "integratedSquaredForce": integrated_force,
+        "integratedSquaredTorque": integrated_torque,
         "maxPsi": float(np.max(np.asarray(run["Psi"])[mask])),
         "maxVs": float(np.max(np.asarray(run["Vs"])[mask])),
     }
@@ -97,21 +101,55 @@ def compute_reaching_time(
     return None
 
 
+def compute_persistent_reaching_time(
+    run: Dict[str, Any],
+    threshold: float = 1e-8,
+    lambda_s: Optional[np.ndarray] = None,
+    *,
+    final_time: float = 30.0,
+    time_offset: float = 0.0,
+) -> Optional[float]:
+    """Return first local sample staying below threshold through source final_time.
+
+    The complete requested source-time horizon must be present. The returned
+    value is elapsed run time, so add ``time_offset`` for source-time plots.
+    """
+    if threshold <= 0 or final_time <= time_offset:
+        raise ValueError("threshold must be positive and final_time must exceed time_offset")
+    t = np.asarray(run["t"], dtype=float)
+    vectors = np.asarray(run["s"], dtype=float)
+    if t.ndim != 1 or vectors.shape != (len(t), 6) or len(t) == 0:
+        raise ValueError("run must contain nonempty aligned t and (N, 6) s samples")
+    target = float(final_time - time_offset)
+    if t[-1] < target - 1e-10:
+        return None
+    end = int(np.searchsorted(t, target, side="right"))
+    if end == 0 or not np.isclose(t[end-1], target, rtol=0., atol=1e-10):
+        return None
+    metric = np.eye(6) if lambda_s is None else np.asarray(lambda_s, dtype=float)
+    norm = np.sqrt(np.maximum(0., np.einsum("ni,ij,nj->n", vectors[:end], metric, vectors[:end])))
+    suffix_max = np.maximum.accumulate(norm[::-1])[::-1]
+    valid = np.flatnonzero(suffix_max <= threshold)
+    return float(t[valid[0]]) if valid.size else None
+
+
 def compute_nominal_reaching_bound(
     run: Dict[str, Any],
     inertia: np.ndarray,
     lambda_s: np.ndarray,
+    kd: float,
     ks: float,
     alpha: float,
 ) -> float:
     """Compute the finite-time certificate from the initial transverse energy."""
-    if ks <= 0.0 or not 0.0 < alpha < 1.0:
-        raise ValueError("ks must be positive and alpha must lie in (0, 1)")
+    if kd <= 0.0 or ks <= 0.0 or not 0.0 < alpha < 1.0:
+        raise ValueError("kd and ks must be positive and alpha must lie in (0, 1)")
     inertia = np.asarray(inertia, dtype=float)
     lambda_s = np.asarray(lambda_s, dtype=float)
     initial_s = np.asarray(run["s"], dtype=float)[0]
     initial_vs = float(0.5 * initial_s @ inertia @ initial_s)
     q = (1.0 + alpha) / 2.0
     c_lambda = 2.0 * np.min(np.linalg.eigvalsh(lambda_s)) / np.max(np.linalg.eigvalsh(inertia))
-    c_alpha = ks * c_lambda ** q
-    return float(initial_vs ** (1.0 - q) / (c_alpha * (1.0 - q))) if initial_vs > 0.0 else 0.0
+    a = kd * c_lambda
+    b = ks * c_lambda ** q
+    return float(np.log1p((a / b) * initial_vs ** (1.0 - q)) / (a * (1.0 - q))) if initial_vs > 0.0 else 0.0

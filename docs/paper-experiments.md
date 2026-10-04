@@ -11,7 +11,7 @@ python run/run_paper_sim.py nominal-connection
 python run/run_paper_sim.py nominal-reaching
 python run/run_paper_sim.py connection-realizations
 python run/run_paper_sim.py connection-sensitivity
-python run/run_paper_sim.py physical-consistency-mc
+python run/run_paper_sim.py physical-consistency-monte-carlo
 ```
 
 The adaptive release benchmark uses a 10 s release, a 5 cm position
@@ -19,14 +19,20 @@ threshold, a 5 degree geodesic attitude threshold, and a 1 s recovery
 dwell. The commanded wrench is reported; the current plant does not expose
 rotor allocation or actuator saturation.
 
-Both adaptive controllers use the saved optimized Bregman/LC tracking
-gains, held identical. Existing adaptation gains are reused provisionally.
-No re-optimization is run; `agc.opt.paper_adaptation.adaptation_objective`
-provides a future adaptation-only objective with the same initial state,
-estimate, trajectory, release, duration, constraints and weights for both modes.
-The gain summary explicitly records the tuning qualification. The old gains
-were optimized before the PyBullet inertia/frame correction and should not be
-described as optimal for the revised plant.
+The payload-release comparison runs Known-inertia, Euclidean, and
+Natural/Bregman controllers with both LC and RB realizations. Each run uses
+its corresponding committed gain set: `nominal_lc`, `nominal_rb`,
+`euclidean_lc`, `euclidean_rb`, `bregman_lc`, or `bregman_rb`. The
+Known-inertia controller receives the active plant inertia across payload
+release; it is not the separate nominal-validation controller. Nominal
+connection and reaching studies use a payload-disabled scenario with their
+own gains.
+
+The runner reads configured gains and does not run PSO. Estimator adaptation
+rates are used as saved; the run metadata does not claim they were fairly
+retuned between methods. Gain provenance is recorded in
+`metadata/gain_summary.json`, which distinguishes the payload-release and
+nominal-validation protocols.
 
 Outputs are grouped without an extra paper-name directory:
 
@@ -41,26 +47,25 @@ results/papers/
   tables/connection_realization_summary.csv
   tables/nominal_reaching_summary.csv
   metadata/                          # protocols, summaries, definitions, diagnostics, provenance
-  physical_consistency/              # paired Monte Carlo CSV, figures, report, and initializations
+  figures/03-monte-carlo-verification/ # paired Monte Carlo figures
+  metadata/physical_consistency_monte_carlo_*.json
+  tables/physical_consistency_monte_carlo_*.csv
 ```
 
-Each figure is saved as vector PDF and 400 dpi
-PNG. Payload time histories use 0--30 s and mark 10 s. The reaching and
-connection-equivalence plots share a focused transient window. Connection
-equivalence retains its logarithmic residual panel and labels its time axis
-"Time since initialization, t [s]". For reaching, a conservative bound outside the view
-is annotated with its value and an arrow, never falsely drawn at the edge.
-The numerical bound uses the specified eigenvalue estimate, not a tighter
-replacement. Numerical reaching is threshold-and-dwell evidence only.
+Each figure is saved as vector PDF and 400 dpi PNG. Payload histories use
+0--30 s; connection histories use the full source interval 10--30 s. The
+reaching threshold is 1e-4 and must hold at every saved sample through 30 s;
+LC and RB reaching times are independent. The nominal bound includes both
+the linear and fractional dissipation terms. Figures have no titles, use
+full-intensity RGB primaries, and place legends above the axes.
 
 The adaptive comparison includes the Known-inertia controller, which uses the
 true loaded inertia before release and the true bare-vehicle inertia after
-release, plus Euclidean and Natural/Bregman adaptation. The shared tracking gains are verified from the saved runs. The
-saved records cannot establish that `gamma` and `gamma_B` were tuned under an
-identical protocol, so the comparison does not claim a fair estimator-gain
-optimization.
-Velocity
-reference curves are transported into each actual body frame using the full
+release, plus Euclidean and Natural/Bregman adaptation. Each mode/factorization
+run uses its own committed tracking and sliding gains. The comparison does not
+establish that `gamma_E` and `gamma_B` were tuned under an identical protocol,
+so it makes no fair estimator-gain tuning claim. Velocity reference curves
+are transported into each actual body frame using the full
 adjoint; these references need not coincide between controllers. Angle errors
 in the CSV are intrinsic and in degrees; RPY figures are only visualization.
 

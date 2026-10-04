@@ -1,2 +1,2 @@
-V_s(0),lambda_min(Lambda_s),lambda_max(I),k_s,alpha,q,c_Lambda,c_alpha,epsilon_s,dwell_s,T_obs,T_bound,passed
-8.50922,0.0401463,3.64602,1,0.5,0.75,0.022022,0.0571666,0.001,0.5,2.15,119.506,True
+V_s(0),lambda_min(Lambda_s),lambda_max(I),k_d,k_s,alpha,q,c_Lambda,a,b,epsilon_s,T_obs,T_bound,passed
+8.50922,0.0401463,3.64602,1,1,0.5,0.75,0.022022,0.022022,0.0571666,0.0001,11.218,91.8312,True
