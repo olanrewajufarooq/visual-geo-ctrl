@@ -64,6 +64,9 @@ def main():
             duration=args.duration,
             gain_source="optimized",
             gui=False,
+            # Nominal variants are bare-vehicle runs; adaptive variants use
+            # the payload-release benchmark by default.
+            payload_enabled=(mode != "nominal"),
         )
         for mode, coriolis in variants
     ]

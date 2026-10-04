@@ -74,22 +74,6 @@ def encode_scenario_gains(scenario: Dict[str, Any]) -> np.ndarray:
     return np.array(candidate, dtype=float)
 
 
-def encode_adaptive_base_gains(
-    tracking_candidate: np.ndarray, gamma_e: np.ndarray, gamma_b: float,
-) -> np.ndarray:
-    """Encode shared tracking gains with Euclidean and Bregman rates."""
-    tracking = np.asarray(tracking_candidate, dtype=float).ravel()
-    euclidean = np.asarray(gamma_e, dtype=float).ravel()
-    bregman = float(gamma_b)
-    if tracking.size != 15 or not np.all(np.isfinite(tracking)):
-        raise ValueError("Adaptive-base tracking candidate must contain 15 finite coordinates.")
-    if euclidean.size != 10 or not np.all(np.isfinite(euclidean)) or np.any(euclidean <= 0.0):
-        raise ValueError("gammaE must contain 10 finite, strictly positive values.")
-    if not np.isfinite(bregman) or bregman <= 0.0:
-        raise ValueError("gammaB must be finite and strictly positive.")
-    return np.concatenate([tracking, np.log10(euclidean), [np.log10(bregman)]])
-
-
 def apply_scenario_gains(candidate: np.ndarray, scenario: Dict[str, Any]) -> Dict[str, Any]:
     """Decode candidate vector and apply to a deep copy of scenario."""
     sc = copy.deepcopy(scenario)
@@ -100,10 +84,6 @@ def apply_scenario_gains(candidate: np.ndarray, scenario: Dict[str, Any]) -> Dic
     cand = np.asarray(candidate, dtype=float).ravel()
     if len(cand) != expected_len:
         raise ValueError(f"Candidate length {len(cand)} does not match expected {expected_len} for mode {mode}")
-
-    old_lambda = np.asarray(c["Lambda"], dtype=float)
-    old_lambda_s = np.asarray(c.get("Lambda_s", np.linalg.inv(old_lambda)), dtype=float)
-    lambda_s_tracks_lambda = np.allclose(old_lambda_s, np.linalg.inv(old_lambda))
 
     positive = 10.0 ** cand[0:14]
     alpha = float(cand[14])
@@ -116,8 +96,6 @@ def apply_scenario_gains(candidate: np.ndarray, scenario: Dict[str, Any]) -> Dic
     c["KR"] = np.diag(positive[0:3])
     c["Kxi"] = np.diag(positive[3:6])
     c["Lambda"] = np.diag(positive[6:12])
-    if lambda_s_tracks_lambda:
-        c["Lambda_s"] = np.linalg.inv(c["Lambda"])
     c["kd"] = float(positive[12])
     c["ks"] = float(positive[13])
     c["alpha"] = alpha

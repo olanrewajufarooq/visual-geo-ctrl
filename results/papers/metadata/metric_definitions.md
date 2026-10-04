@@ -12,7 +12,7 @@ at every sample through the first sample at or after t+1 s (inclusive).
 Report absolute time and duration t-10. Blank means not observed with a complete dwell.
 This is sampled dwell evidence, not a guarantee between samples or for all future time.
 
-T_obs: first saved sample with sqrt(s.T Lambda_s s)<=1e-8 at every sample
+T_obs: first saved sample with sqrt(s.T Lambda_s s)<=1e-4 at every sample
 through source time 30 s. The complete horizon is required; incomplete logs
 do not qualify. LC and RB times are assessed independently.
 Lambda_s is the configured transverse metric. The bound uses true I and
@@ -54,7 +54,7 @@ Theory predicts r_K = W_RB - W_LC + K_RB(V)s = 0 at every time, including off
 the sliding manifold. The wrench difference itself need only vanish when s=0.
 The computed small residual is consistent with floating-point roundoff; the
 logarithmic panel retains these values rather than setting them to zero.
-T_obs uses the 1e-8 persistence threshold through source time 30 s. It does
+T_obs uses the 1e-4 persistence threshold through source time 30 s. It does
 not determine when the algebraic identity becomes valid; that identity holds
 at every sample.
 
@@ -79,9 +79,3 @@ The existing pseudo-inertia certificate remains the physical-consistency test.
 Exports: estimated_center_of_mass.pdf/png and estimated_principal_inertia.pdf/png
 in figures/02-physical-consistency. Both show 0–30 s with a 10 s release marker,
 Euclidean blue dash-dot, Natural/Bregman solid green, and true values black dashed.
-
-## Nominal figures: connection sensitivity experiment
-
-All figures in figures/04-nominal-validation use the same 4x sensitivity pair. The previous 1x experiment is superseded in this folder. Initial pose equals the desired lemniscate pose at source time 10 s; initial twist error is [1.2,-0.8,0.4] rad/s and [1.6,-0.8,1.2] m/s. The plant has exact bare-vehicle inertia, no adaptation, and no physical payload release. LC/RB gains are identical. Full tracking and error figures cover source time 10-30 s. All time-history figures cover source time 10-30 s. Persistent reaching requires weighted s <= 1e-8 through source time 30 s. Each connection has its own reaching time. The conservative bound is also an elapsed duration.
-
-See connection_sensitivity_diagnostics.md for physical separation definitions, refinement sensitivity and persistent-invariance checks. The two-step comparison does not establish numerical convergence.

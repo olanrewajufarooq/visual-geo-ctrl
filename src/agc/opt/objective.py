@@ -9,15 +9,6 @@ from ..sim.run_scenario import run_scenario
 from ..sim.metrics import compute_metrics
 
 
-COMPLETED_RUN_METRIC_LIMITS = {
-    "positionRMSE": 0.5,
-    "attitudeRMSE": 0.1,
-    "forceRMS": 1000.0,
-    "torqueRMS": 50.0,
-}
-COMPLETED_RUN_PENALTY_MULTIPLIER = 100.0
-
-
 def objective_scales() -> Dict[str, float]:
     """Return acceptable physical error scales for dimensionless costs."""
     return {
@@ -83,10 +74,18 @@ def evaluate_scenario_candidate(
         weights = objective_weights()
     scales = objective_scales()
 
+    # Preserve the metric-coherent design when the base scenario uses it.
+    # Check before applying the candidate: applying a new Lambda while
+    # retaining the registry Lambda_s would otherwise make the comparison
+    # spuriously fail.
+    base_controller = base_scenario["controller"]
+    lambda_s_tracks_lambda = np.allclose(
+        base_controller["Lambda_s"], np.linalg.inv(base_controller["Lambda"])
+    )
+
     # 1. Decode and round candidate to 4 significant figures
     temp_scenario = apply_scenario_gains(candidate, base_scenario)
     c = temp_scenario["controller"]
-    lambda_s_tracks_lambda = np.allclose(c["Lambda_s"], np.linalg.inv(c["Lambda"]))
     raw_gains = {
         "KRdiag": np.diag(c["KR"]),
         "Kxidiag": np.diag(c["Kxi"]),
@@ -123,69 +122,63 @@ def evaluate_scenario_candidate(
         warnings.simplefilter("ignore", category=RuntimeWarning)
         run, failure = run_scenario(temp_scenario)
 
-    failure_type = None
-    failure_reasons = []
-    unpenalized_cost = None
+    def _tracking_cost(metrics: Dict[str, Any]) -> float:
+        def _term(name: str, scale: float, weight: float) -> float:
+            value = float(metrics.get(name, float("nan")))
+            if np.isfinite(value):
+                return weight * (value / scale) ** 2
+            # Keep a finite ordering for runaway partial trajectories. The
+            # caller applies the additional unstable-trial multiplier.
+            return weight * 1.0e6
+
+        return (
+            _term("positionRMSE", scales["position"], weights["position"])
+            + _term("attitudeRMSE", scales["attitude"], weights["attitude"])
+            + _term("massEstimationRMSE", scales["mass"], weights["mass"])
+            + _term("centerOfMassEstimationRMSE", scales["cog"], weights["cog"])
+            + _term("linearVelocityRMSE", scales["linVel"], weights["linVel"])
+            + _term("angularVelocityRMSE", scales["angVel"], weights["angVel"])
+            + _term("inertiaEstimationRMSE", scales["inertia"], weights["inertia"])
+            + _term("forceRMS", scales["force"], weights["forceEffort"])
+            + _term("torqueRMS", scales["torque"], weights["torqueEffort"])
+        )
+
+    metrics = {}
+    unstable = False
     if failure is None:
         metrics = compute_metrics(run)
+        cost = _tracking_cost(metrics)
+        failed = not np.isfinite(cost)
+    else:
+        # Runaway guards intentionally return the finite prefix of a trial.
+        # Preserve that information so PSO can distinguish unstable candidates
+        # instead of seeing a flat failure cost for every particle.
         try:
-            finite_metrics = all(np.isfinite(float(value)) for value in metrics.values())
-        except (TypeError, ValueError):
-            finite_metrics = False
-        unpenalized_cost = (
-            weights["position"] * (metrics["positionRMSE"] / scales["position"]) ** 2
-            + weights["attitude"] * (metrics["attitudeRMSE"] / scales["attitude"]) ** 2
-            + weights["mass"] * (metrics["massEstimationRMSE"] / scales["mass"]) ** 2
-            + weights["cog"] * (metrics["centerOfMassEstimationRMSE"] / scales["cog"]) ** 2
-            + weights["linVel"] * (metrics["linearVelocityRMSE"] / scales["linVel"]) ** 2
-            + weights["angVel"] * (metrics["angularVelocityRMSE"] / scales["angVel"]) ** 2
-            + weights["inertia"] * (metrics["inertiaEstimationRMSE"] / scales["inertia"]) ** 2
-            + weights["forceEffort"] * (metrics["forceRMS"] / scales["force"]) ** 2
-            + weights["torqueEffort"] * (metrics["torqueRMS"] / scales["torque"]) ** 2
-        )
-        if not np.isfinite(unpenalized_cost) or not finite_metrics:
+            with warnings.catch_warnings(), np.errstate(all="ignore"):
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                if len(run.get("t", [])) >= 2:
+                    metrics = compute_metrics(run)
+                    partial_cost = _tracking_cost(metrics)
+                else:
+                    partial_cost = float("nan")
+        except Exception:
+            partial_cost = float("nan")
+
+        if np.isfinite(partial_cost):
+            cost = 100.0 * float(partial_cost)
+            failed = False
+            unstable = True
+        else:
             cost = float(weights["failure"])
             failed = True
-            failure_type = "numerical_failure"
-            failure_reasons = ["nonfinite_objective_or_metric"]
-        else:
-            failure_reasons = [
-                name for name, limit in COMPLETED_RUN_METRIC_LIMITS.items()
-                if float(metrics[name]) > limit
-            ]
-            if failure_reasons:
-                tracking_violation = any(
-                    name in ("positionRMSE", "attitudeRMSE") for name in failure_reasons
-                )
-                penalized_cost = float(unpenalized_cost * COMPLETED_RUN_PENALTY_MULTIPLIER)
-                if not np.isfinite(penalized_cost):
-                    cost = float(weights["failure"])
-                    failed = True
-                    failure_type = "numerical_failure"
-                    failure_reasons = ["nonfinite_penalized_objective"]
-                else:
-                    failure_type = "unstable_completed" if tracking_violation else "effort_limit_exceeded"
-                    cost = penalized_cost
-                    failed = True
-            else:
-                cost = float(unpenalized_cost)
-                failed = False
-    else:
-        cost = float(weights["failure"])
-        failed = True
-        metrics = {}
-        failure_type = "simulation_failure"
-        failure_reasons = [str(failure)]
 
     return {
         "rawCandidate": np.asarray(candidate, dtype=float).ravel(),
         "candidate": published_candidate,
         "gains": gains,
         "cost": float(cost),
-        "unpenalizedCost": None if unpenalized_cost is None else float(unpenalized_cost),
         "failed": failed,
-        "failureType": failure_type,
-        "failureReasons": failure_reasons,
+        "unstable": unstable,
         "label": str(label),
         "metrics": metrics,
         "failure": failure,
@@ -202,20 +195,10 @@ def aggregate_scenario_records(
         raise ValueError("At least one scenario record is required for aggregation.")
     costs = np.asarray([record["cost"] for record in records], dtype=float)
     failed = any(record.get("failed", True) for record in records) or not np.all(np.isfinite(costs))
-    completed_limit_failures = {"unstable_completed", "effort_limit_exceeded"}
-    has_hard_failure = any(
-        record.get("failed", True)
-        and record.get("failureType") not in completed_limit_failures
-        for record in records
-    ) or not np.all(np.isfinite(costs))
     return {
-        "cost": float(failure_cost if has_hard_failure else np.mean(costs)),
+        "cost": float(failure_cost if failed else np.mean(costs)),
         "failed": bool(failed),
         "label": str(label),
-        "failureTypes": sorted({
-            record.get("failureType") for record in records
-            if record.get("failureType") is not None
-        }),
         "conditionRecords": records,
     }
 
@@ -250,20 +233,4 @@ def best_feasible_candidate(incumbent: Dict[str, Any], contender: Dict[str, Any]
     if contender_valid:
         if not incumbent_valid or contender["cost"] < incumbent["cost"]:
             return contender
-    return incumbent
-
-
-def best_search_candidate(incumbent: Dict[str, Any], contender: Dict[str, Any]) -> Dict[str, Any]:
-    """Carry the lowest-cost search point while still preferring feasible points."""
-    incumbent_finite = np.isfinite(incumbent.get("cost", float("inf")))
-    contender_finite = np.isfinite(contender.get("cost", float("inf")))
-    incumbent_feasible = not incumbent.get("failed", True) and incumbent_finite
-    contender_feasible = not contender.get("failed", True) and contender_finite
-
-    if contender_feasible and not incumbent_feasible:
-        return contender
-    if incumbent_feasible and not contender_feasible:
-        return incumbent
-    if contender_finite and (not incumbent_finite or contender["cost"] < incumbent["cost"]):
-        return contender
     return incumbent

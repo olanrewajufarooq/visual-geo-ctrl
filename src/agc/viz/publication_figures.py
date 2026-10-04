@@ -47,10 +47,31 @@ def transported_reference(run):
                      for h, hd, v in zip(run["H"], run["Hdesired"], run["Vdesired"])])
 
 
+def _variant(key):
+    if key in PRIMARY_MODES:
+        return key, "lc"
+    mode, connection = key.rsplit("_", 1)
+    return mode, connection
+
+
+def _variant_label(key):
+    mode, connection = _variant(key)
+    return f"{NAMES[mode]} ({connection.upper()})"
+
+
+def _variant_style(key):
+    mode, connection = _variant(key)
+    return {**STYLES[mode], "linestyle": CONNECTION_STYLES[connection]["linestyle"]}
+
+
 def adaptive_figures(runs, scenarios, output_dir):
-    runs = {mode: runs[mode] for mode in PRIMARY_MODES if mode in runs}
+    runs = {key: runs[key] for key in runs}
+    # Section 01 is an adaptive-controller comparison.  The known-inertia
+    # trajectory remains available for tables and benchmark metadata, but its
+    # traces do not add information to these adaptive plots.
+    plot_runs = {key: run for key, run in runs.items() if _variant(key)[0] != "nominal"}
     out = Path(output_dir) / "01-adaptive-tracking"
-    first = next(iter(runs.values()))
+    first = next(iter(plot_runs.values()))
     for kind, labels, indices in (
         ("position", [f"${c}$ [m]" for c in "xyz"], [0, 1, 2]),
         ("attitude", ["Roll [deg]", "Pitch [deg]", "Yaw [deg]"], [0, 1, 2]),
@@ -58,7 +79,8 @@ def adaptive_figures(runs, scenarios, output_dir):
         ("angular_velocity", [rf"$\omega_{c}$ [rad/s]" for c in "xyz"], [0, 1, 2]),
     ):
         fig, axes = panels(labels)
-        for mode, run in runs.items():
+        for mode, run in plot_runs.items():
+            style, label = _variant_style(mode), _variant_label(mode)
             if kind == "position": actual = run["H"][:, :3, 3]
             elif kind == "attitude":
                 actual = np.unwrap(Rotation.from_matrix(run["H"][:, :3, :3]).as_euler("xyz"), axis=0)
@@ -66,48 +88,55 @@ def adaptive_figures(runs, scenarios, output_dir):
                 actual += 2*np.pi*np.round((reference[0]-actual[0])/(2*np.pi))
                 actual = np.degrees(actual)
             else: actual = run["V"]
-            for ax, j in zip(axes, indices): ax.plot(run["t"], actual[:, j], label=NAMES[mode], **STYLES[mode])
+            for ax, j in zip(axes, indices): ax.plot(run["t"], actual[:, j], label=label, **style)
             if "velocity" in kind:
                 reference = transported_reference(run)
                 for ax, j in zip(axes, indices):
                     ax.plot(run["t"], reference[:, j], "k--", lw=.7, alpha=.65,
-                            label="Transported reference" if mode == next(iter(runs)) else "_nolegend_")
+                            label="Transported reference" if mode == next(iter(plot_runs)) else "_nolegend_")
         if kind in ("position", "attitude"):
             reference = first["Hdesired"][:, :3, 3] if kind == "position" else np.degrees(np.unwrap(Rotation.from_matrix(first["Hdesired"][:, :3, :3]).as_euler("xyz"), axis=0))
             for ax, j in zip(axes, indices): ax.plot(first["t"], reference[:, j], "k--", label="Desired reference")
         legend(fig, axes[0]); save(fig, out, "tracking_"+kind)
 
     fig, axes = panels([r"$\|p-p_d\|$ [m]", "Geodesic attitude\nerror [deg]", r"$\|s\|_{\Lambda_s}$"])
-    for mode, run in runs.items():
+    for mode, run in plot_runs.items():
+        style, label = _variant_style(mode), _variant_label(mode)
         pos, angle = _pose_errors(run)
         metric = np.asarray(scenarios[mode]["controller"].get("Lambda_s", np.linalg.inv(scenarios[mode]["controller"]["Lambda"])))
         r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
         for ax, values in zip(axes, (pos, np.degrees(angle), r)):
-            ax.plot(run["t"], values, label=NAMES[mode], **STYLES[mode])
+            ax.plot(run["t"], values, label=label, **style)
     legend(fig, axes[0]); save(fig, out, "adaptive_tracking_errors")
 
     fig, axes = panels([r"$\|f_c\|$ [N]", r"$\|\tau_c\|$ [N m]"])
-    for mode, run in runs.items():
+    for mode, run in plot_runs.items():
+        style, label = _variant_style(mode), _variant_label(mode)
         for ax, sl in zip(axes, (slice(3, 6), slice(0, 3))):
-            ax.plot(run["t"], np.linalg.norm(run["wrench"][:, sl], axis=1), label=NAMES[mode], **STYLES[mode])
+            ax.plot(run["t"], np.linalg.norm(run["wrench"][:, sl], axis=1), label=label, **style)
     legend(fig, axes[0]); save(fig, out, "control_wrench_demand")
 
     fig, axes = panels([r"$\hat m$ [kg]", r"$\lambda_{\min}(\hat{\mathcal{J}})$"])
-    for mode, run in runs.items():
+    for key, run in plot_runs.items():
+        mode, _ = _variant(key)
         if mode == "nominal": continue
-        axes[0].plot(run["t"], run["estimatePi"][:, 0], label=NAMES[mode], **STYLES[mode])
-        axes[1].plot(run["t"], run["minPseudoEigenvalue"], **STYLES[mode])
+        style, label = _variant_style(key), _variant_label(key)
+        axes[0].plot(run["t"], run["estimatePi"][:, 0], label=label, **style)
+        axes[1].plot(run["t"], run["minPseudoEigenvalue"], **style)
     axes[0].step(first["t"], first["activePlantPi"][:, 0], where="post", color="black", ls="--", label="True mass")
     axes[1].axhline(0, color="black", lw=.6)
     legend(fig, axes[0]); save(fig, Path(output_dir)/"02-physical-consistency", "physical_consistency")
     inertial_estimate_figures(runs, output_dir)
 
-    if "bregman" in runs:
-        run = runs["bregman"]
+    bregman_keys = [key for key in runs if _variant(key)[0] == "bregman"]
+    if bregman_keys:
         fig = plt.figure(figsize=(3.5, 3.3), layout="constrained")
         ax = fig.add_subplot(projection="3d")
+        run = runs[bregman_keys[0]]
         ax.plot(*run["Hdesired"][:, :3, 3].T, "k--", label="Desired reference")
-        ax.plot(*run["H"][:, :3, 3].T, **STYLES["bregman"], label=NAMES["bregman"])
+        for key in bregman_keys:
+            run = runs[key]
+            ax.plot(*run["H"][:, :3, 3].T, **_variant_style(key), label=_variant_label(key))
         i = np.searchsorted(run["t"], 10)
         if i < len(run["t"]): ax.scatter(*run["H"][i, :3, 3], marker="x", color="black", label="Release (10 s)")
         ax.set(xlabel="x [m]", ylabel="y [m]", zlabel="z [m]")
@@ -118,21 +147,22 @@ def adaptive_figures(runs, scenarios, output_dir):
 
 def inertial_estimate_figures(runs, output_dir):
     """Export additional estimator diagnostics without rerunning the plant."""
-    adaptive = {mode: runs[mode] for mode in ("euclidean", "bregman") if mode in runs}
+    adaptive = {key: run for key, run in runs.items() if _variant(key)[0] in ("euclidean", "bregman")}
     if not adaptive:
         return
     first = next(iter(adaptive.values()))
     truth = center_and_principal_moments(first["activePlantPi"])
-    estimates = {mode: center_and_principal_moments(run["estimatePi"])
-                 for mode, run in adaptive.items()}
+    estimates = {key: center_and_principal_moments(run["estimatePi"])
+                 for key, run in adaptive.items()}
     for index, name, labels in (
         (0, "estimated_center_of_mass", [rf"$\hat c_{{{axis}}}$ [m]" for axis in "xyz"]),
         (1, "estimated_principal_inertia", [rf"$\hat J_{{c,{i}}}$ [kg m$^2$]" for i in (1, 2, 3)]),
     ):
         fig, axes = panels(labels)
         for mode, run in adaptive.items():
+            style, label = _variant_style(mode), _variant_label(mode)
             for j, ax in enumerate(axes):
-                ax.plot(run["t"], estimates[mode][index][:, j], label=NAMES[mode], **STYLES[mode])
+                ax.plot(run["t"], estimates[mode][index][:, j], label=label, **style)
         for j, ax in enumerate(axes):
             ax.step(first["t"], truth[index][:, j], where="post", color="black",
                     ls="--", label="True value")
@@ -191,7 +221,7 @@ def connection_realization_figures(runs, scenarios, output_dir):
     legend(fig, axes[0]); save(fig, out, "connection_realization_comparison")
 
 
-def theory_figures(run, scenario, root, summary, connection):
+def theory_figures(runs, scenarios, root, summary, connection):
     out = Path(root)/"04-nominal-validation"
     # Do not leave a stale successful figure beside a newly failed check.
     obsolete = ["nominal_reaching_FAILED" if summary["passed"] else "nominal_reaching"]
@@ -199,22 +229,28 @@ def theory_figures(run, scenario, root, summary, connection):
     for name in obsolete:
         for extension in ("pdf", "png"):
             (out/f"{name}.{extension}").unlink(missing_ok=True)
-    metric = np.asarray(scenario["controller"].get("Lambda_s", np.linalg.inv(scenario["controller"]["Lambda"])))
-    r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
-    time_offset = float(scenario.get("timeOffset", 0.0))
-    horizon = float(summary.get("final_source_time_s", scenario.get("displayEnd", 30.0)))
-    visible_run = time_offset + np.asarray(run["t"]) <= horizon
-    run_time = time_offset + np.asarray(run["t"])[visible_run]
+    time_offset = float(next(iter(scenarios.values())).get("timeOffset", 0.0))
+    horizon = float(summary.get("final_source_time_s", next(iter(scenarios.values())).get("displayEnd", 30.0)))
     fig, axes = panels([r"$\|s\|_{\Lambda_s}$", "$V_s$ [J]"], False, (time_offset, horizon))
-    axes[0].plot(run_time, r[visible_run], color="#FF0000", label="Known-inertia controller")
-    axes[1].plot(run_time, np.asarray(run["Vs"])[visible_run], color="#FF0000")
+    for form, run in runs.items():
+        scenario = scenarios[form]
+        metric = np.asarray(scenario["controller"].get("Lambda_s", np.linalg.inv(scenario["controller"]["Lambda"])))
+        r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
+        visible_run = time_offset + np.asarray(run["t"]) <= horizon
+        run_time = time_offset + np.asarray(run["t"])[visible_run]
+        style = CONNECTION_STYLES[form]
+        axes[0].plot(run_time, r[visible_run], label=rf"$C_{{\mathrm{{{form.upper()}}}}}$", **style)
+        axes[1].plot(run_time, np.asarray(run["Vs"])[visible_run], **style)
     axes[0].set_yscale("symlog", linthresh=summary["epsilon_s"])
     axes[0].axhline(summary["epsilon_s"], color="black", ls=":", label=r"$\epsilon_s$")
+    observed_by_connection = summary.get("T_obs_source_by_connection", {})
     for index, ax in enumerate(axes):
         if time_offset + summary["T_bound"] <= horizon:
             ax.axvline(time_offset + summary["T_bound"], color="#FF0000", ls="--", label=r"$T_{\rm bound}$")
-        if summary["T_obs"] is not None:
-            ax.axvline(time_offset + summary["T_obs"], color="black", ls=":", label=r"$T_{\mathrm{obs}}$")
+        for form, observed in observed_by_connection.items():
+            if observed is not None:
+                ax.axvline(observed, color=CONNECTION_STYLES[form]["color"], ls=":",
+                           label=rf"$T_{{\mathrm{{obs}},{form.upper()}}}$")
     if time_offset + summary["T_bound"] > horizon:
         axes[0].text(.99, .96,
                      rf"$T_{{\mathrm{{bound}}}}={summary['T_bound']:.2f}\,\mathrm{{s}}$ elapsed (outside view)",

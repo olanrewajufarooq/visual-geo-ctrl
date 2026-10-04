@@ -28,10 +28,18 @@ true loaded inertia before release and true bare-vehicle inertia after release,
 with Euclidean and Natural/Bregman adaptation. Known-inertia nominal theory
 tests remain separate.
 
-Important: tracking gains are shared, but saved adaptation gains have not been
-retuned on that shared controller or on the corrected PyBullet inertial model.
-No optimization was run. The gain summary marks this comparison provisional.
-Do not infer estimator superiority or complete parameter convergence.
+The payload-release comparison uses distinct `nominal_lc`, `euclidean_lc`,
+and `bregman_lc` gain sets for its Known-inertia, Euclidean, and
+Natural/Bregman controllers. The paper runner loads these configured values
+and does not run optimization. The gain summary records each controller's
+gains separately; it makes no claim that one estimator is superior or that
+the full inertial parameter vector converges.
+
+The gain summary and controller-gain CSV have been refreshed from the
+restored registry. Existing trajectory figures, performance tables, and the
+generation manifest still describe the previous saved runs; rerun
+`adaptive-drop` after the final gain optimization before using them as results
+for these gain sets.
 
 Payload-release experiments validate adaptive recovery after the inertial
 change; they do not establish finite-time adaptive reaching. Finite-time
@@ -42,7 +50,7 @@ reaching is evaluated separately with exact inertial parameters.
 Each PDF has a same-name 400 dpi PNG alongside it. All adaptive time histories
 span 0--30 s and mark the release at 10 s. Connection time histories use the
 full 10-30 s source interval. Persistent reaching is assessed independently
-for LC and RB: the weighted transverse norm must remain at or below 1e-8 at
+for LC and RB: the weighted transverse norm must remain at or below 1e-4 at
 every saved sample through source time 30 s. Plots use full-intensity RGB
 primaries, omit titles, and place legends above the plotting area.
 
@@ -78,7 +86,7 @@ experiment, superseding the original 1x nominal figures. Full tracking views spa
 - [Physical-consistency summary](tables/physical_consistency_summary.csv)
 - [LC/RB realization summary](tables/connection_realization_summary.csv)
 - [Nominal reaching summary](tables/nominal_reaching_summary.csv)
-- [Common gains and tuning qualification](metadata/gain_summary.json)
+- [Mode-specific gains and tuning qualification](metadata/gain_summary.json)
 - [Reaching bound and step-refinement results](metadata/finite_time_reaching_summary.json)
 - [Connection residual summary](metadata/connection_equivalence_summary.json)
 - [Connection sensitivity protocol](metadata/connection_sensitivity_protocol.json)
@@ -89,7 +97,7 @@ experiment, superseding the original 1x nominal figures. Full tracking views spa
 - [Physical-consistency parameters (LaTeX)](tables/physical_consistency_monte_carlo_implemented_parameters.tex)
 - Physical-consistency Monte Carlo: [report](metadata/physical_consistency_monte_carlo_report.md),
   [trial CSV](tables/physical_consistency_monte_carlo_trials.csv),
-  [margin distribution PDF](figures/03-monte-carlo-verification/physical_consistency_monte_carlo_figure1_margin_ecdf.pdf),
-  [paired history PDF](figures/03-monte-carlo-verification/physical_consistency_monte_carlo_figure2_trial.pdf)
+  [physical-consistency outcome rates PDF](figures/03-monte-carlo-verification/physical_consistency_outcome_rates.pdf),
+  [paired pseudo-inertia margin trial PDF](figures/03-monte-carlo-verification/pseudo_inertia_margin_trial.pdf)
 
 Simulation-setup artwork is intentionally excluded: another agent owns it.

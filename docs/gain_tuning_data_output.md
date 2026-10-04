@@ -1,46 +1,37 @@
 # Gain-Tuning Data Output
 
-Every optimization writes to a unique run directory under
-`results/optimization/timestamped/<run-id>/` by default. The run ID includes
-subsecond time and a random suffix, preventing concurrent or same-second runs
-from overwriting each other. `--inplace-save` explicitly selects the shared
-`results/optimization/best-gain/` location. An interrupted timestamped run can
-be resumed with `--resume <run-directory>` when its objective, training
-conditions, schedule, and PSO settings match the manifest.
+The optimizer saves under `results/optimization/best-gain/` by default. Pass `--timestamped-save` to isolate artifacts under `results/optimization/timestamped/<timestamp>/`, or `--output-dir` to select a custom artifact root.
 
-## Output Files
+## Output layout
 
-- `manifest.json`: objective version and fingerprint, scoring weights and
-  scales, code revision, selected replay/payload/Coriolis conditions,
-  trajectory artifact hashes, relevant source-file hashes, runtime package
-  versions, frozen initial registry seed candidates, duration, schedule,
-  seed, and PSO settings. Its status records whether the run completed.
-- `<mode>/optimization.json`: current incumbent, condition-mean cost, and
-  completed stage history.
-- `<mode>/best_gain.json`: the best candidate scored by this run, including
-  per-condition metrics and failures, whether or not it improves the
-  canonical registry candidate.
-- `<mode>/stage_<index>_<name>.json`: atomically replaced checkpoint. PSO
-  stages retain particle positions and velocities, personal/global bests,
-  stall count, iteration history, and random-generator state. Completed
-  stages are reused on resume.
-- `results/optimization/best-gain/<mode>.json`: canonical incumbent used as
-  the promotion benchmark. Its candidate is re-evaluated under the current
-  objective before comparison; an older stored cost is not compared directly.
+Each selected mode/factorization pair has an independent artifact directory and incumbent file:
 
-Promotion updates `src/agc/config/optimized_gains.py` atomically. If nominal
-tracking gains change, adaptive registry costs are cleared because those
-scores were obtained with different shared tracking gains.
+```text
+results/optimization/best-gain/
+  nominal_lc.json
+  nominal_rb.json
+  euclidean_lc.json
+  euclidean_rb.json
+  bregman_lc.json
+  bregman_rb.json
+  nominal_lc/optimization.json
+  nominal_rb/optimization.json
+  ...
+```
 
-## Gain Data Dictionary
+`<mode>_<coriolis>/optimization.json` records the selected mode, factorization, schedule, method, training conditions, incumbent, and stage history. It is rewritten as stages complete. The root-level `<mode>_<coriolis>.json` stores the incumbent candidate used for future comparisons. Optimization and promotion operate only on that matching pair; an LC result never replaces or changes the RB entry, and changing one controller mode does not propagate tracking gains to another.
 
-| Gain Field | Dimension | Physical Meaning |
+The optimizer re-evaluates the saved candidate under the current run’s selected conditions before comparing it with a new candidate. The paper runner reads `src/agc/config/optimized_gains.py` and does not run optimization.
+
+## Gain fields
+
+| Gain field | Dimension | Meaning |
 | --- | --- | --- |
-| `KRdiag` | $3 \times 1$ | Diagonal attitude tracking gains on $\mathfrak{so}(3)$ |
-| `Kxidiag` | $3 \times 1$ | Diagonal position tracking gains in $\mathbb{R}^3$ |
-| `LambdaDiag` | $6 \times 1$ | Diagonal metric damping gains on $\mathfrak{se}(3)$ |
-| `kd` | Scalar | Velocity damping gain |
-| `ks` | Scalar | Generalized sliding surface scaling |
+| `KRdiag` | $3 \times 1$ | Diagonal attitude tracking gains |
+| `Kxidiag` | $3 \times 1$ | Diagonal position tracking gains |
+| `LambdaDiag` | $6 \times 1$ | Diagonal sliding metric gains |
+| `kd` | Scalar | Linear transverse damping gain |
+| `ks` | Scalar | Fractional transverse dissipation gain |
 | `alpha` | Scalar | Fractional reaching exponent |
-| `gammaE` | $10 \times 1$ | Euclidean adaptation learning rates |
-| `gammaB` | Scalar | Bregman learning rate for the SPD pseudo-inertia update |
+| `gammaE` | $10 \times 1$ | Euclidean adaptation gains |
+| `gammaB` | Scalar | Bregman adaptation gain |

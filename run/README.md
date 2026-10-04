@@ -96,29 +96,28 @@ python run/run_paper_sim.py connection-sensitivity
 ---
 
 ### 4. `optimize_gains.py`
-Performs staged block-coordinate gain optimization (Particle Swarm Optimization) over tracking gains ($K_R, K_\xi$), damping/metric gains ($\Lambda, k_s, k_d$), and adaptation gains ($\gamma_E, \gamma_B$).
+Performs staged block-coordinate gain optimization with Particle Swarm Optimization or Differential Evolution over tracking gains ($K_R, K_\xi$), damping/metric gains ($\Lambda, k_s, k_d$), and adaptation gains ($\gamma_E, \gamma_B$).
 
 ```powershell
-# Optimize all modes (nominal tracking baseline followed by isolated adaptation tuning)
-python run/optimize_gains.py --mode all --schedule hierarchical
+# Optimize all three modes independently for both LC and RB
+python run/optimize_gains.py --mode all --coriolis all --schedule hierarchical
 
 # Optimize nominal tracking gains only
 python run/optimize_gains.py --mode nominal --swarm-size 30 --max-iter 40
 
-# Optimize adaptive gains with frozen tracking gains
-python run/optimize_gains.py --mode adaptive --swarm-size 20 --max-iter 30
+# Optimize Bregman gains for the RB factorization with DE and optional polish
+python run/optimize_gains.py --mode bregman --coriolis rb --method de --polish
 ```
 
 **Options:**
-- `--mode`: `nominal`, `adaptive`, or `all` (default: `all`).
-- `--coriolis`: `lc`, `rb`, or `all` (default: `all`). Only `all` evaluates both forms and may promote shared gains; a single form is diagnostic only.
-- Completed candidates are rejected above 0.5 m position RMSE, 0.1 rad attitude RMSE, 1000 N force RMS, or 50 N m torque RMS. These completed-run violations retain their metric-based objective multiplied by 100; simulation and numerical failures retain the fixed failure cost.
-- Single-factorization optimization is diagnostic only and cannot promote shared gains to the registry.
-- `--schedule`: `hierarchical` (6 stages) or `classic`.
+- `--mode`: `nominal`, `euclidean`, `bregman`, or `all` (default: `all`).
+- `--coriolis`: `lc`, `rb`, or `all` (default: `all`). Each mode/factorization pair is optimized and promoted independently.
+- `--schedule`: `hierarchical` or `classic`. Hierarchical uses six stages for nominal and seven for adaptive modes; classic uses one nominal stage and four adaptive stages.
+- `--method`: `pso` (default) or `de`; `--polish` optionally applies Nelder–Mead on the final all-gains stage.
 - `--duration`: Evaluation flight duration in seconds (default: 30.0 s).
-- `--train-replay-ids`: Comma-separated replay IDs (default: `lemniscate_02_auto,lemniscate_03_auto`).
-- `--training-payload-profiles`: Comma-separated named payload profiles (default: `flat_light,tall_heavy`).
-- `--swarm-size`: Swarm size for PSO (default: 20).
+- `--train-replay-ids`: Comma-separated replay IDs (default: `lemniscate_02_auto,lemniscate_03_auto,lemniscate_04_auto`).
+- `--training-payload-profiles`: Comma-separated named payload profiles (default: `flat_light,tall_heavy`). All training conditions include payload release.
+- `--swarm-size`: Swarm size for PSO / population multiplier for DE (default: 20).
 - `--max-iter`: Maximum iterations per stage (default: 50).
 - `--max-stall`: Maximum iterations without improvement (default: 10).
 - `--seed`: Random seed for reproducible search.

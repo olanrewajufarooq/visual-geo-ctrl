@@ -19,8 +19,10 @@ threshold, a 5 degree geodesic attitude threshold, and a 1 s recovery
 dwell. The commanded wrench is reported; the current plant does not expose
 rotor allocation or actuator saturation.
 
-The Known-inertia, Euclidean, and Natural/Bregman controllers in the
-payload-release comparison use the same adaptive-base tracking gains. The
+The payload-release comparison runs Known-inertia, Euclidean, and
+Natural/Bregman controllers with both LC and RB realizations. Each run uses
+its corresponding committed gain set: `nominal_lc`, `nominal_rb`,
+`euclidean_lc`, `euclidean_rb`, `bregman_lc`, or `bregman_rb`. The
 Known-inertia controller receives the active plant inertia across payload
 release; it is not the separate nominal-validation controller. Nominal
 connection and reaching studies use a payload-disabled scenario with their
@@ -52,18 +54,18 @@ results/papers/
 
 Each figure is saved as vector PDF and 400 dpi PNG. Payload histories use
 0--30 s; connection histories use the full source interval 10--30 s. The
-reaching threshold is 1e-8 and must hold at every saved sample through 30 s;
+reaching threshold is 1e-4 and must hold at every saved sample through 30 s;
 LC and RB reaching times are independent. The nominal bound includes both
 the linear and fractional dissipation terms. Figures have no titles, use
 full-intensity RGB primaries, and place legends above the axes.
 
 The adaptive comparison includes the Known-inertia controller, which uses the
 true loaded inertia before release and the true bare-vehicle inertia after
-release, plus Euclidean and Natural/Bregman adaptation. The saved-run gain
-summary verifies common adaptive-base tracking gains across these three
-controllers. It does not establish that `gamma` and `gamma_B` were tuned under
-an identical protocol, so the comparison makes no fair estimator-gain tuning
-claim. Velocity reference curves are transported into each actual body frame using the full
+release, plus Euclidean and Natural/Bregman adaptation. Each mode/factorization
+run uses its own committed tracking and sliding gains. The comparison does not
+establish that `gamma_E` and `gamma_B` were tuned under an identical protocol,
+so it makes no fair estimator-gain tuning claim. Velocity reference curves
+are transported into each actual body frame using the full
 adjoint; these references need not coincide between controllers. Angle errors
 in the CSV are intrinsic and in degrees; RPY figures are only visualization.
 

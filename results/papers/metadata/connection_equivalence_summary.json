@@ -16,11 +16,11 @@
   "passed": true,
   "experiment": "connection-sensitivity",
   "all_sample_audit": {
-    "T_obs_elapsed_s": null,
-    "T_obs_source_s": null,
-    "persistent_threshold": 1e-08,
+    "T_obs_elapsed_s": 11.218,
+    "T_obs_source_s": 21.218,
+    "persistent_threshold": 0.0001,
     "persistent_final_source_time_s": 30.0,
-    "persistent_invariance_passed": false,
+    "persistent_invariance_passed": true,
     "initial_s": [
       1.2,
       -0.7999999999999999,

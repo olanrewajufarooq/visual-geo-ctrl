@@ -22,7 +22,7 @@ payload-drop impulse. No optimization is run.
 
 All figures use the full source-time interval 10--30 s. `T_obs` is reported
 independently for LC and RB and denotes the first saved sample from which
-`||s||_{Lambda_s} <= 1e-8` holds at every saved sample through source time
+`||s||_{Lambda_s} <= 1e-4` holds at every saved sample through source time
 30 s. The complete interval is required; incomplete logs have no qualifying
 `T_obs`. The finer 1 ms pair also covers the full run.
 

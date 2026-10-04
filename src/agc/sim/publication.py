@@ -1,4 +1,4 @@
-"""Publication protocol: shared gains, explicit units, and auditable validation.
+"""Publication protocol: mode-specific gains, explicit units, and auditable validation.
 
 No optimization is performed here. Saved adaptation gains are provisional.
 """
@@ -12,32 +12,25 @@ from .default_scenario import default_scenario
 from .paper_metrics import (_pose_errors, compute_recovery_time, compute_persistent_reaching_time,
                            compute_nominal_reaching_bound)
 from ..math.inertia import inertia_from_pi
-from ..config.optimized_gains import optimized_gains
 
 NAMES = {"nominal": "Known-inertia controller", "euclidean": "Euclidean adaptive controller",
          "bregman": "Natural/Bregman adaptive controller"}
 ADAPTIVE_MODES = ("euclidean", "bregman")
 PRIMARY_MODES = ("nominal",) + ADAPTIVE_MODES
-COMMON_KEYS = ("KR", "Kxi", "Lambda", "kd", "ks", "alpha", "gravity")
+CONNECTIONS = ("lc", "rb")
+CONNECTION_PERSISTENCE_THRESHOLD = 1e-4
+# Sections 01--03 are single-realization studies.  The explicit LC/RB
+# comparison is reserved for the nominal-validation protocol in section 04.
+# Keeping this registry LC-only prevents the adaptive and physical-consistency
+# figures from being interpreted as connection comparisons.
+PAPER_RUNS = tuple(f"{mode}_lc" for mode in PRIMARY_MODES)
 
 
-def paper_scenario(mode, duration=30.):
-    scenario = default_scenario(mode=mode, duration=duration, coriolis="lc", enable_pacing=False)
+def paper_scenario(mode, duration=30., coriolis="lc"):
+    scenario = default_scenario(mode=mode, duration=duration, coriolis=coriolis, enable_pacing=False)
     if mode.lower() == "nominal":
-        # In the payload-release comparison the known-inertia controller is
-        # the baseline for the adaptive controllers, so it shares their
-        # adaptive-base tracking gains. The separate nominal validation
-        # experiment uses nominal_scenario() and its own no-payload setup.
-        gains = optimized_gains("adaptive_base", "lc")
-        scenario["controller"].update(
-            KR=np.diag(gains["KRdiag"]),
-            Kxi=np.diag(gains["Kxidiag"]),
-            Lambda=np.diag(gains["LambdaDiag"]),
-            Lambda_s=np.diag(1.0 / np.asarray(gains["LambdaDiag"], dtype=float)),
-            kd=float(gains["kd"]),
-            ks=float(gains["ks"]),
-            alpha=float(gains["alpha"]),
-        )
+        # This is a mode-specific nominal gain set. The separate nominal
+        # connection/reaching validation uses its own no-payload scenario.
         scenario["controller"]["knownInertiaSchedule"] = "active-plant"
     return scenario
 
@@ -61,11 +54,12 @@ def write_csv(path, rows):
             writer.writerow({k: f"{v:.6g}" if isinstance(v, float) else v for k, v in row.items()})
 
 
-def baseline_metrics(run, mode, failure=None):
+def baseline_metrics(run, mode, failure=None, coriolis="lc"):
     t = run["t"]
     position, attitude = _pose_errors(run)
     attitude = np.degrees(attitude)
-    row = {"Controller": NAMES[mode], "Status": "failed / partial data" if failure else "completed"}
+    row = {"Controller": NAMES[mode], "Coriolis": coriolis.upper(),
+           "Status": "failed / partial data" if failure else "completed"}
     for label, mask in (("Pre-release", t < 10), ("Post-release", t >= 10)):
         for name, values, unit in (("position", position, "m"), ("attitude", attitude, "deg")):
             row[f"{label} {name} RMSE [{unit}]"] = float(np.sqrt(np.mean(values[mask]**2))) if mask.any() else None
@@ -86,11 +80,12 @@ def baseline_metrics(run, mode, failure=None):
     return row
 
 
-def adaptive_performance_row(run, mode, failure=None):
+def adaptive_performance_row(run, mode, failure=None, coriolis="lc"):
     """Paper table row with controller-facing names and separate effort units."""
-    row = baseline_metrics(run, mode, failure)
+    row = baseline_metrics(run, mode, failure, coriolis)
     return {
         "Controller": row["Controller"],
+        "Coriolis": row["Coriolis"],
         "Status": row["Status"],
         "Pre-release position RMSE [m]": row["Pre-release position RMSE [m]"],
         "Post-release position RMSE [m]": row["Post-release position RMSE [m]"],
@@ -107,7 +102,7 @@ def adaptive_performance_row(run, mode, failure=None):
     }
 
 
-def physical_consistency_row(run, mode):
+def physical_consistency_row(run, mode, coriolis="lc"):
     if mode not in ADAPTIVE_MODES:
         raise ValueError("Physical-consistency table is defined for adaptive estimators only")
     margin = np.asarray(run["minPseudoEigenvalue"], dtype=float)
@@ -115,6 +110,7 @@ def physical_consistency_row(run, mode):
     post_release = margin[t >= 10.]
     return {
         "Controller": NAMES[mode],
+        "Coriolis": coriolis.upper(),
         "Initial estimated mass [kg]": float(run["estimatePi"][0, 0]),
         "Final estimated mass [kg]": float(run["estimatePi"][-1, 0]),
         "Minimum lambda_min(Jhat)": float(np.min(margin)),
@@ -123,7 +119,7 @@ def physical_consistency_row(run, mode):
     }
 
 
-def connection_realization_row(run, connection, scenario, epsilon=1e-8, final_time=30., time_offset=10.):
+def connection_realization_row(run, connection, scenario, epsilon=CONNECTION_PERSISTENCE_THRESHOLD, final_time=30., time_offset=10.):
     position, attitude = _pose_errors(run)
     metric = np.asarray(scenario["controller"].get("Lambda_s", np.linalg.inv(scenario["controller"]["Lambda"])))
     weighted = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
@@ -145,46 +141,67 @@ def connection_realization_row(run, connection, scenario, epsilon=1e-8, final_ti
 
 
 def controller_gain_rows(scenarios):
-    """Machine-readable record of actual gains used in the saved runs."""
-    nominal = scenarios["nominal"]["controller"]
-    euclidean, bregman = scenarios["euclidean"]["controller"], scenarios["bregman"]["controller"]
-    shared = all(
-        np.array_equal(nominal[k], controller[k])
-        for controller in (euclidean, bregman)
-        for k in ("KR", "Kxi", "Lambda", "Lambda_s", "kd", "ks", "alpha")
-    )
-    return [{
-        "Tracking gains common across payload-release comparison?": "yes" if shared else "no",
-        "Lambda": np.asarray(euclidean["Lambda"]).tolist(),
-        "Lambda_s": np.asarray(euclidean["Lambda_s"]).tolist(),
-        "K_R": np.asarray(euclidean["KR"]).tolist(),
-        "K_xi": np.asarray(euclidean["Kxi"]).tolist(),
-        "k_d": float(euclidean["kd"]), "k_s": float(euclidean["ks"]), "alpha": float(euclidean["alpha"]),
-        "gamma": np.asarray(euclidean["gammaE"]).tolist(), "gamma_B": float(bregman["gammaB"]),
-        "Estimator-gain tuning provenance": "loaded from saved configuration; not tuned by run_paper_sim",
-    }]
+    """Machine-readable per-controller gains actually used in the saved runs."""
+    rows = []
+    for run_key in PAPER_RUNS:
+        if run_key not in scenarios:
+            continue
+        mode, coriolis = run_key.rsplit("_", 1)
+        cfg = scenarios[run_key]["controller"]
+        rows.append({
+            "Mode": mode,
+            "Controller": NAMES[mode],
+            "Gain set": f"{mode}_{coriolis}",
+            "Coriolis": cfg["coriolis"].upper(),
+            "K_R": np.asarray(cfg["KR"]).tolist(),
+            "K_xi": np.asarray(cfg["Kxi"]).tolist(),
+            "Lambda": np.asarray(cfg["Lambda"]).tolist(),
+            "Lambda_s": np.asarray(cfg["Lambda_s"]).tolist(),
+            "k_d": float(cfg["kd"]),
+            "k_s": float(cfg["ks"]),
+            "alpha": float(cfg["alpha"]),
+            "gamma_E": np.asarray(cfg["gammaE"]).tolist(),
+            "gamma_B": float(cfg["gammaB"]),
+            "Gain provenance": f"optimized_gains.py:{mode}_{cfg['coriolis']}; run_paper_sim does not optimize",
+        })
+    return rows
 
 
 def gain_report():
-    adaptive_scenario = paper_scenario("bregman")
-    cfg = adaptive_scenario["controller"]
+    scenarios = {}
+    for key in PAPER_RUNS:
+        mode, coriolis = key.rsplit("_", 1)
+        scenarios[key] = paper_scenario(mode, coriolis=coriolis)
+    gain_sources = {key: f"{key} optimized gain entry" for key in PAPER_RUNS}
+    gain_sets = {
+        key: {
+            "K_R": scenario["controller"]["KR"],
+            "K_xi": scenario["controller"]["Kxi"],
+            "Lambda": scenario["controller"]["Lambda"],
+            "Lambda_s": scenario["controller"]["Lambda_s"],
+            "k_d": scenario["controller"]["kd"],
+            "k_s": scenario["controller"]["ks"],
+            "alpha": scenario["controller"]["alpha"],
+            "gamma_E": scenario["controller"]["gammaE"],
+            "gamma_B": scenario["controller"]["gammaB"],
+        }
+        for key, scenario in scenarios.items()
+    }
     return {
         "status": "saved gains reported; run_paper_sim performs no optimization",
-        "adaptive_comparison_tracking_gain_source": "adaptive_base entry in optimized_gains.py; shared by known-inertia, Euclidean, and Natural/Bregman payload-release runs",
-        "adaptive_comparison_common_tracking_gains": {k: cfg[k] for k in COMMON_KEYS},
+        "adaptive_comparison_gain_sources": gain_sources,
+        "adaptive_comparison_gain_sets": gain_sets,
         "nominal_study_tracking_gain_source": "separate payload-disabled nominal_scenario setup in publication_runner.py",
-        "Lambda_s": cfg["Lambda_s"],
-        "gamma": optimized_gains("euclidean", "lc")["gammaE"], "gamma_B": cfg["gammaB"],
         "optimization_executed": False,
         "tuning_protocol": {
             "paper_simulation": "loads configured gains; does not run PSO",
-            "tracking_gains": "adaptive_base gains are common within the payload-release comparison; nominal validation is separate",
-            "adaptation_rates": "loaded from saved configuration; this report does not establish estimator-gain tuning fairness",
+            "tracking_gains": "nominal, Euclidean, and Bregman payload-release controllers use their respective LC gain entries; Coriolis comparison is reserved for nominal validation",
+            "adaptation_rates": "loaded from each mode's saved configuration; this report does not establish estimator-gain tuning fairness",
         },
     }
 
 
-def reaching_summary(run, scenario, epsilon=1e-8, final_time=30., time_offset=10.):
+def reaching_summary(run, scenario, epsilon=CONNECTION_PERSISTENCE_THRESHOLD, final_time=30., time_offset=10.):
     cfg = scenario["controller"]
     inertia = inertia_from_pi(scenario["plantPi"])
     metric = np.asarray(cfg.get("Lambda_s", np.linalg.inv(cfg["Lambda"])))

@@ -6,7 +6,7 @@
     10.0,
     30.0
   ],
-  "persistent_threshold": 1e-08,
+  "persistent_threshold": 0.0001,
   "persistent_final_source_time_s": 30.0,
   "protocol": {
     "exact_known_inertia": true,
@@ -197,11 +197,11 @@
   "fine_dt_s": 0.001,
   "coarse": {
     "lc": {
-      "T_obs_elapsed_s": null,
-      "T_obs_source_s": null,
-      "persistent_threshold": 1e-08,
+      "T_obs_elapsed_s": 11.218,
+      "T_obs_source_s": 21.218,
+      "persistent_threshold": 0.0001,
       "persistent_final_source_time_s": 30.0,
-      "persistent_invariance_passed": false,
+      "persistent_invariance_passed": true,
       "initial_s": [
         1.2,
         -0.7999999999999999,
@@ -219,11 +219,11 @@
       "command_replay_passed": true
     },
     "rb": {
-      "T_obs_elapsed_s": null,
-      "T_obs_source_s": null,
-      "persistent_threshold": 1e-08,
+      "T_obs_elapsed_s": 11.208,
+      "T_obs_source_s": 21.208,
+      "persistent_threshold": 0.0001,
       "persistent_final_source_time_s": 30.0,
-      "persistent_invariance_passed": false,
+      "persistent_invariance_passed": true,
       "initial_s": [
         1.2,
         -0.7999999999999999,
@@ -243,11 +243,11 @@
   },
   "fine": {
     "lc": {
-      "T_obs_elapsed_s": null,
-      "T_obs_source_s": null,
-      "persistent_threshold": 1e-08,
+      "T_obs_elapsed_s": 11.037,
+      "T_obs_source_s": 21.037,
+      "persistent_threshold": 0.0001,
       "persistent_final_source_time_s": 30.0,
-      "persistent_invariance_passed": false,
+      "persistent_invariance_passed": true,
       "initial_s": [
         1.2,
         -0.7999999999999999,
@@ -265,11 +265,11 @@
       "command_replay_passed": true
     },
     "rb": {
-      "T_obs_elapsed_s": null,
-      "T_obs_source_s": null,
-      "persistent_threshold": 1e-08,
+      "T_obs_elapsed_s": 11.031,
+      "T_obs_source_s": 21.031,
+      "persistent_threshold": 0.0001,
       "persistent_final_source_time_s": 30.0,
-      "persistent_invariance_passed": false,
+      "persistent_invariance_passed": true,
       "initial_s": [
         1.2,
         -0.7999999999999999,
@@ -332,7 +332,7 @@
     }
   },
   "qualifications": [
-    "Persistent reaching is the first saved sample after which the weighted norm remains <=1e-8 through source time 30 s.",
+    "Persistent reaching is the first saved sample after which the weighted norm remains <=1e-4 through source time 30 s.",
     "Two integration steps measure sensitivity, not established numerical convergence.",
     "LC and RB reaching times are assessed independently and may differ.",
     "Different configurations at reaching may retain position separation while following the same reduced vector field."

@@ -28,22 +28,26 @@ def test_recovery_includes_dwell_endpoint():
     assert compute_recovery_time(run, 0, dwell_time=2) is None
 
 
-def test_primary_controllers_share_gains_and_initial_parameters():
-    from agc.sim.publication import (paper_scenario, controller_gain_rows, COMMON_KEYS,
-                                     ADAPTIVE_MODES, PRIMARY_MODES)
-    from agc.sim.run_scenario import estimate_to_pi
+def test_paper_comparison_uses_one_coriolis_realization_per_controller():
+    from agc.config.optimized_gains import optimized_gains
+    from agc.sim.publication import paper_scenario, controller_gain_rows, ADAPTIVE_MODES, PAPER_RUNS
     assert ADAPTIVE_MODES == ("euclidean", "bregman")
-    assert PRIMARY_MODES == ("nominal", "euclidean", "bregman")
-    scenarios = [paper_scenario(mode) for mode in PRIMARY_MODES]
-    for scenario in scenarios:
-        for key in COMMON_KEYS:
-            np.testing.assert_array_equal(scenario["controller"][key], scenarios[0]["controller"][key])
-        np.testing.assert_allclose(estimate_to_pi(scenario["controller"]["mode"], scenario["initialEstimate"]),
-                                   scenarios[0]["initialEstimate"])
-    saved_scenarios = dict(zip(PRIMARY_MODES, scenarios))
-    assert controller_gain_rows(saved_scenarios)[0][
-        "Tracking gains common across payload-release comparison?"
-    ] == "yes"
+    scenarios = {key: paper_scenario(*key.rsplit("_", 1)[:1], coriolis=key.rsplit("_", 1)[1])
+                 for key in PAPER_RUNS}
+    rows = controller_gain_rows(scenarios)
+    assert list(PAPER_RUNS) == ["nominal_lc", "euclidean_lc", "bregman_lc"]
+    assert [row["Gain set"] for row in rows] == list(PAPER_RUNS)
+    for key, scenario in scenarios.items():
+        mode, coriolis = key.rsplit("_", 1)
+        gains = optimized_gains(mode, coriolis)
+        cfg = scenario["controller"]
+        np.testing.assert_array_equal(cfg["KR"], np.diag(gains["KRdiag"]))
+        np.testing.assert_array_equal(cfg["Kxi"], np.diag(gains["Kxidiag"]))
+        np.testing.assert_array_equal(cfg["Lambda"], np.diag(gains["LambdaDiag"]))
+        assert cfg["kd"] == gains["kd"]
+        assert cfg["ks"] == gains["ks"]
+        assert cfg["alpha"] == gains["alpha"]
+    assert all(key.endswith("_lc") for key in PAPER_RUNS)
 
 
 def test_adaptive_payload_baseline_and_nominal_validation_are_distinct():
@@ -63,7 +67,10 @@ def test_gain_report_does_not_claim_optimization_during_paper_run():
 
     report = gain_report()
     assert report["optimization_executed"] is False
-    assert "adaptive_base" in report["adaptive_comparison_tracking_gain_source"]
+    assert report["adaptive_comparison_gain_sources"] == {
+        key: f"{key} optimized gain entry"
+        for key in ("nominal_lc", "euclidean_lc", "bregman_lc")
+    }
     assert "separate" in report["nominal_study_tracking_gain_source"].lower()
 
 

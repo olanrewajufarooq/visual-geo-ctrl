@@ -8,3 +8,5 @@ and `results/papers/tables/`. Rerunning the command updates these artifacts.
 
 Plots use exact full-intensity RGB primaries, have no title, put legends above
 the axes, and constrain the paired history to 0--30 s.
+
+The outcome-rate figure is physical_consistency_outcome_rates; the paired history is pseudo_inertia_margin_trial.

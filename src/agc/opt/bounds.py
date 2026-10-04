@@ -7,7 +7,7 @@ import numpy as np
 def gain_bounds(mode: str) -> Tuple[np.ndarray, np.ndarray]:
     """Default all-gain optimizer bounds in log10 coordinates for positive gains and linear for alpha."""
     mode = mode.lower()
-    if mode not in ("nominal", "adaptive_base", "euclidean", "bregman"):
+    if mode not in ("nominal", "euclidean", "bregman"):
         raise ValueError(f"Unknown controller mode: {mode}")
 
     # 14 positive parameters in log10 space:
@@ -36,12 +36,12 @@ def gain_bounds(mode: str) -> Tuple[np.ndarray, np.ndarray]:
     lb = pos_lb + [0.30]
     ub = pos_ub + [0.95]
 
-    if mode in ("euclidean", "adaptive", "adaptive_base"):
+    if mode == "euclidean":
         # 10 adaptation gains in log10 space [-5, 0]
         lb.extend([np.log10(1e-5)] * 10)
         ub.extend([0.0] * 10)
-    if mode in ("bregman", "adaptive_base"):
-        # 1 scalar adaptation gain gammaB in log10 space [-5, -1] (1e-5 to 1e-1)
+    elif mode == "bregman":
+        # 1 scalar adaptation gain gammaB in log10 space [-5, -1]
         lb.append(np.log10(1e-5))
         ub.append(np.log10(1e-1))
 
@@ -55,11 +55,9 @@ def gain_block_indices(mode: str, block: str) -> List[int]:
 
     if mode == "nominal":
         total = 15
-    elif mode == "adaptive_base":
-        total = 26
     elif mode == "bregman":
         total = 16
-    elif mode in ("euclidean", "adaptive"):
+    elif mode == "euclidean":
         total = 25
     else:
         raise ValueError(f"Unknown controller mode: {mode}")
@@ -81,7 +79,7 @@ def gain_block_indices(mode: str, block: str) -> List[int]:
         # kd (12), ks (13), alpha (14)
         return list(range(12, 15))
     elif block == "adaptive":
-        # gammaB (15), gammaE (15..24), or adaptive_base's gammaE (15..24) + gammaB (25)
+        # gammaB (15) or gammaE (15..24)
         return list(range(15, total))
     else:
         raise ValueError(f"Unknown gain block: {block}")
@@ -92,23 +90,21 @@ def gain_optimization_stages(mode: str, schedule: str = "hierarchical") -> List[
     mode = mode.lower()
     schedule = schedule.lower()
 
-    if mode in ("nominal", "adaptive_base"):
-        if schedule == "classic":
+    if schedule == "classic":
+        if mode == "nominal":
             return ["all"]
-        stages = [
-            "all",
-            "tracking",
-            "sliding_dissipation",
-            "sliding_metric",
-            "dissipation",
-        ]
-        if mode == "adaptive_base":
-            stages.append("adaptive")
-        stages.append("all")
-        return stages
-    elif mode in ("adaptive", "euclidean", "bregman"):
-        if schedule == "classic":
-            return ["all", "nonadaptive", "adaptive"]
+        return ["all", "nonadaptive", "adaptive", "all"]
+
+    elif schedule == "hierarchical":
+        if mode == "nominal":
+            return [
+                "all",
+                "tracking",
+                "sliding_dissipation",
+                "sliding_metric",
+                "dissipation",
+                "all",
+            ]
         return [
             "all",
             "tracking",
@@ -116,27 +112,43 @@ def gain_optimization_stages(mode: str, schedule: str = "hierarchical") -> List[
             "sliding_metric",
             "dissipation",
             "adaptive",
+            "all",
         ]
     else:
-        raise ValueError(f"Unknown controller mode: {mode}. Choose 'nominal', 'adaptive_base', or 'adaptive'.")
+        raise ValueError(f"Unknown schedule: {schedule}. Choose 'hierarchical' or 'classic'.")
 
 
 def expand_scenario_selection(
     modes: Union[str, List[str], None] = None,
     coriolis: Union[str, List[str], None] = None,
-) -> List[str]:
-    """Expand mode selector into unique optimization modes ('nominal', 'adaptive')."""
-    available_modes = ["nominal", "adaptive"]
+) -> List[Tuple[str, str]]:
+    """Expand mode and Coriolis selectors into a list of (mode, coriolis) scenario tuples."""
+    available_modes = ["nominal", "euclidean", "bregman"]
+    available_coriolis = ["lc", "rb"]
 
-    if not modes or (isinstance(modes, str) and modes.lower() == "all"):
-        return list(available_modes)
+    if not modes:
+        sel_modes = available_modes
     elif isinstance(modes, str):
         sel_modes = [modes.lower()]
     else:
         sel_modes = [m.lower() for m in modes]
 
+    if not coriolis:
+        sel_coriolis = available_coriolis
+    elif isinstance(coriolis, str):
+        sel_coriolis = [coriolis.lower()]
+    else:
+        sel_coriolis = [c.lower() for c in coriolis]
+
     for m in sel_modes:
         if m not in available_modes:
-            raise ValueError(f"Unsupported mode selector: {m}. Choose 'nominal' or 'adaptive'.")
+            raise ValueError(f"Unsupported mode selector: {m}")
+    for c in sel_coriolis:
+        if c not in available_coriolis:
+            raise ValueError(f"Unsupported coriolis selector: {c}")
 
-    return sel_modes
+    variants = []
+    for m in sel_modes:
+        for c in sel_coriolis:
+            variants.append((m, c))
+    return variants

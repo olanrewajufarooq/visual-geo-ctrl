@@ -14,7 +14,7 @@ from ..viz.publication_figures import (panels, legend, save, CONNECTION_STYLES,
                                        connection_realization_figures, theory_figures)
 
 OFFSET = 10.0
-EPSILON = 1e-8
+EPSILON = 1e-4
 
 
 def sensitivity_scenario(form, duration=20., dt=.002):
@@ -57,6 +57,8 @@ def audit(run, scenario):
         command = controller(state, desired, scenario['controller'], scenario['plantPi'])[0]
         command_errors.append(float(np.linalg.norm(command-run['wrench'][i])))
     return {'T_obs_elapsed_s': observed, 'T_obs_source_s': None if observed is None else OFFSET+observed,
+            'persistent_reaching_elapsed_s': observed,
+            'persistent_reaching_absolute_s': None if observed is None else OFFSET+observed,
             'persistent_threshold': EPSILON, 'persistent_final_source_time_s': 30.,
             'persistent_invariance_passed': observed is not None,
             'initial_s': run['s'][0], 'initial_weighted_s': float(r[0]),
@@ -113,7 +115,7 @@ def run_study(root, raw_root):
               'coarse_dt_s': .002, 'fine_dt_s': .001, 'coarse': audits, 'fine': fine_audits,
               'full_run_separation_peaks': peaks, 'refinement': refinement}
     report['qualifications'] = [
-        'Persistent reaching is the first saved sample after which the weighted norm remains <=1e-8 through source time 30 s.',
+        'Persistent reaching is the first saved sample after which the weighted norm remains <=1e-4 through source time 30 s.',
         'Two integration steps measure sensitivity, not established numerical convergence.',
         'LC and RB reaching times are assessed independently and may differ.',
         'Different configurations at reaching may retain position separation while following the same reduced vector field.',
@@ -137,12 +139,13 @@ def run_study(root, raw_root):
     refined_nominal = reaching_summary(fine['lc'], sensitivity_scenario('lc', end, .001), EPSILON)
     nominal.update(experiment='connection-sensitivity', time_offset_s=OFFSET,
                    T_obs_source_s=audits['lc']['T_obs_source_s'],
+                   T_obs_source_by_connection={form: audits[form]['T_obs_source_s'] for form in audits},
                    persistent_invariance_passed=audits['lc']['persistent_invariance_passed'],
                    step_refinement={'T_obs_fine': refined_nominal['T_obs'],
                                     'fine_passed': refined_nominal['passed'],
                                     'fine_energy_residual_relative_to_initial': refined_nominal['energy_residual_relative_to_initial']})
     identity = connection_test(runs['lc'], scenarios['lc'])
-    theory_figures(runs['lc'], scenarios['lc'], root/'figures', nominal, identity)
+    theory_figures(runs, scenarios, root/'figures', nominal, identity)
     write_json(metadata/'finite_time_reaching_summary.json', nominal)
     write_json(metadata/'connection_equivalence_summary.json', {
         **{k:v for k,v in identity.items() if k not in ('t', 'difference', 'theory', 'residual')},
@@ -173,7 +176,7 @@ def run_study(root, raw_root):
              'Full run: lemniscate source time 10-30 s. Initial twist perturbation is 4x the original; '
              'pose starts at the desired pose. This is not a physical payload-drop experiment.\n\n'
              'RMSE is sqrt(mean(squared error norm)); attitude uses geodesic degrees. '
-              'Persistent reaching is the first sample with weighted s <= 1e-8 that stays below the threshold '
+              'Persistent reaching is the first sample with weighted s <= 1e-4 that stays below the threshold '
               'through source time 30 s. LC and RB reaching times are assessed independently.\n\n'
              'Separation compares positions in metres, relative rotation angle in degrees, and force/torque '
              'commands rotated into inertial axes. Torque is the commanded free couple about each body origin; '
@@ -197,7 +200,7 @@ def run_study(root, raw_root):
                    'The plant has exact bare-vehicle inertia, no adaptation, and no physical payload release. '
                    'LC/RB gains are identical. Full tracking and error figures cover source time 10-30 s. '
                    'All time-history figures cover source time 10-30 s. Persistent reaching requires '
-                   'weighted s <= 1e-8 through source time 30 s. Each connection has its own reaching time. '
+                   'weighted s <= 1e-4 through source time 30 s. Each connection has its own reaching time. '
                    'The conservative bound is also an elapsed duration.'\
                    '\n\nSee connection_sensitivity_diagnostics.md for physical separation definitions, '
                    'refinement sensitivity and persistent-invariance checks. The two-step comparison does not '

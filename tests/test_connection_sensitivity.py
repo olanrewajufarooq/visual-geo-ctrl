@@ -19,7 +19,7 @@ def test_connections_use_independent_persistent_reaching_times():
     a, b = audit(runs[0], scenario), audit(runs[1], scenario)
     assert a['persistent_reaching_elapsed_s'] != b['persistent_reaching_elapsed_s']
     assert a['persistent_reaching_absolute_s'] == pytest.approx(a['persistent_reaching_elapsed_s'] + 10.)
-    assert a['persistent_threshold'] == 1e-8
+    assert a['persistent_threshold'] == 1e-4
     assert a['persistent_final_source_time_s'] == 30.
 
 

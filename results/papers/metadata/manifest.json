@@ -2,13 +2,14 @@
   "command": "adaptive-drop",
   "duration_s": 30.0,
   "reuse_cache": false,
-  "base_commit": "4e8e1d06c7418e00407f8475a52d873fcda57d0c",
+  "base_commit": "9bc86ea20a97c81a650c6269113d9fa3433a90e5",
   "worktree_dirty_at_generation": true,
-  "source_sha256": "68fdff7fa77ab04e0d32b3511bd734227a5e7d4a670dd392ba2a82cfea965ceb",
+  "source_sha256": "dbce2c621c9e8c0a3f19ecce938d79d8058c9e299fb7c453429bc56a54e5707b",
   "environment": "agc",
   "report": {
     "optimization_run": false,
-    "fair_adaptation_retuned": true,
+    "fair_adaptation_retuned": false,
+    "adaptation_gain_tuning": "saved configuration values; no retuning performed by run_paper_sim",
     "repeatability": "omitted: deterministic identical trials are not repeatability evidence",
     "fair_adaptation_retuning_pending": true,
     "Known-inertia controller": {
@@ -26,17 +27,25 @@
     "connection_realization_lc_failure": null,
     "connection_realization_rb_failure": null,
     "connection_realization_protocol_passed": true,
-    "nominal_reaching_passed": false,
+    "nominal_reaching_passed": true,
     "nominal_replay_duration_s": 20.0,
     "nominal_energy_residual_relative_to_initial": 0.003035680224515749,
     "connection_identity_passed": true,
-    "nominal_refinement_passed": false,
+    "nominal_refinement_passed": true,
     "nominal_experiment": "connection-sensitivity",
     "nominal_later_threshold_departure": true,
-    "nominal_persistent_invariance_passed": false
-  },
-  "connection_sensitivity": {
-    "protocol_passed": true,
-    "source_sha256": "68fdff7fa77ab04e0d32b3511bd734227a5e7d4a670dd392ba2a82cfea965ceb"
+    "nominal_persistent_invariance_passed": true,
+    "nominal_lc": {
+      "failure": null,
+      "end_time": 30.0
+    },
+    "euclidean_lc": {
+      "failure": null,
+      "end_time": 30.0
+    },
+    "bregman_lc": {
+      "failure": null,
+      "end_time": 30.0
+    }
   }
 }

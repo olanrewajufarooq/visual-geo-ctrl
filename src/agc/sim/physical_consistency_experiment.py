@@ -117,8 +117,6 @@ def metrics(run, failure, mode):
 def simulate_pair(x, gamma_e, gamma_b, release=False):
     e = scenario("euclidean", x, gamma_e, gamma_b, release)
     b = scenario("bregman", x, gamma_e, gamma_b, release)
-    for k in ("KR", "Kxi", "Lambda", "kd", "ks", "alpha"):
-        assert np.array_equal(e["controller"][k], b["controller"][k]), k
     assert np.array_equal(e["initial"]["H"], b["initial"]["H"])
     assert np.array_equal(e["initial"]["V"], b["initial"]["V"])
     re, fe = run_scenario(e)
@@ -212,7 +210,9 @@ def reaching_certificate():
 
 
 def write_audit(s, gamma_e, gamma_b):
-    cfg = s["controller"]
+    euclidean_cfg = s["controller"]
+    bregman_cfg = default_scenario(mode="bregman", coriolis="lc", replay_id="lemniscate_02_auto",
+                                   duration=30.0, payload_enabled=True, enable_pacing=False)["controller"]
     I = inertia_from_pi(s["plantPi"])
     replay = s["trajectory"].__self__
     replay_times = np.asarray(replay.t, dtype=float)
@@ -225,10 +225,12 @@ def write_audit(s, gamma_e, gamma_b):
     def diag(x): return r"\operatorname{diag}(" + r",\;".join(f"{v:.8g}" for v in x) + ")"
     def mat(x): return r"\begin{bmatrix}" + r" \\".join(" & ".join(f"{v:.7g}" for v in row) for row in x) + r"\end{bmatrix}"
     rows = [
-        (r"Adaptive $\Lambda$", f"${diag(np.diag(cfg['Lambda']))}$", "optimized_gains.py: LambdaDiag"),
-        (r"Adaptive $\Lambda_s$", rf"${diag(np.diag(cfg['Lambda_s']))}$ (six diagonal entries)", "default_scenario.py: Lambda_s"),
-        (r"$K_R$, $K_\xi$", rf"${diag(np.diag(cfg['KR']))},\quad {diag(np.diag(cfg['Kxi']))}$", "optimized_gains.py: KRdiag, Kxidiag"),
-        (r"$k_d,k_s,\alpha$", f"{cfg['kd']}, {cfg['ks']}, {cfg['alpha']}", "optimized_gains.py: kd, ks, alpha"),
+        (r"Euclidean $K_R$, $K_\xi$", rf"${diag(np.diag(euclidean_cfg['KR']))},\quad {diag(np.diag(euclidean_cfg['Kxi']))}$", "optimized_gains.py: euclidean_lc"),
+        (r"Bregman $K_R$, $K_\xi$", rf"${diag(np.diag(bregman_cfg['KR']))},\quad {diag(np.diag(bregman_cfg['Kxi']))}$", "optimized_gains.py: bregman_lc"),
+        (r"Euclidean $\Lambda$, $\Lambda_s$", rf"${diag(np.diag(euclidean_cfg['Lambda']))},\quad {diag(np.diag(euclidean_cfg['Lambda_s']))}$", "optimized_gains.py / default_scenario.py: euclidean_lc"),
+        (r"Bregman $\Lambda$, $\Lambda_s$", rf"${diag(np.diag(bregman_cfg['Lambda']))},\quad {diag(np.diag(bregman_cfg['Lambda_s']))}$", "optimized_gains.py / default_scenario.py: bregman_lc"),
+        (r"Euclidean $k_d,k_s,\alpha$", f"{euclidean_cfg['kd']}, {euclidean_cfg['ks']}, {euclidean_cfg['alpha']}", "optimized_gains.py: euclidean_lc"),
+        (r"Bregman $k_d,k_s,\alpha$", f"{bregman_cfg['kd']}, {bregman_cfg['ks']}, {bregman_cfg['alpha']}", "optimized_gains.py: bregman_lc"),
         (r"Euclidean $\Gamma$", f"${diag(gamma_e)}$", "optimized_gains.py: gammaE"),
         (r"Natural/Bregman $\gamma_B$", f"{gamma_b} (scalar)", "optimized_gains.py: gammaB"),
         ("Plant/control/adaptation step", "0.002 / 0.02 / 0.01 s", "default_scenario.py"),
@@ -253,9 +255,13 @@ def write_audit(s, gamma_e, gamma_b):
     table += [r"\hline\end{tabular}\end{table*}"]
     (TABLES/"physical_consistency_monte_carlo_implemented_parameters.tex").write_text("\n".join(table)+"\n", encoding="utf-8")
     dump(META/"physical_consistency_monte_carlo_implemented_parameters.json", {
-        "adaptive_controller": {"Lambda": cfg["Lambda"], "Lambda_s": cfg["Lambda_s"],
-            "Lambda_structure": "diagonal; six configured entries; Lambda_s configured independently (default reciprocal)",
-            "KR": cfg["KR"], "Kxi": cfg["Kxi"], "kd": cfg["kd"], "ks": cfg["ks"], "alpha": cfg["alpha"]},
+        "adaptive_controllers": {
+            "euclidean_lc": {"Lambda": euclidean_cfg["Lambda"], "Lambda_s": euclidean_cfg["Lambda_s"],
+                "KR": euclidean_cfg["KR"], "Kxi": euclidean_cfg["Kxi"], "kd": euclidean_cfg["kd"],
+                "ks": euclidean_cfg["ks"], "alpha": euclidean_cfg["alpha"]},
+            "bregman_lc": {"Lambda": bregman_cfg["Lambda"], "Lambda_s": bregman_cfg["Lambda_s"],
+                "KR": bregman_cfg["KR"], "Kxi": bregman_cfg["Kxi"], "kd": bregman_cfg["kd"],
+                "ks": bregman_cfg["ks"], "alpha": bregman_cfg["alpha"]}},
         "estimators": {"euclidean_gamma": gamma_e, "euclidean_gamma_structure": "diagonal 10-vector",
             "natural_bregman_gamma": gamma_b, "natural_bregman_gamma_structure": "scalar"},
         "simulation": {"duration_s": s["duration"], "dt_plant_s": s["dtPlant"],
@@ -289,24 +295,41 @@ def write_audit(s, gamma_e, gamma_b):
 
 def figures(rows):
     done = [r for r in rows if r["euclidean"]["completed"] and r["bregman"]["completed"]]
-    fig, ax = plt.subplots(figsize=(7,4.5), constrained_layout=True)
-    for mode, label, color in (("euclidean","Euclidean","#00FF00"),("bregman","Natural/Bregman","#0000FF")):
-        z = np.sort([r[mode]["min_lambda"] for r in done]); y=np.arange(1,len(z)+1)/len(z)
-        ax.step(z,y,where="post",label=label,color=color,lw=2)
-    ax.axvline(0,color="black",ls="--",lw=1.7,label="SPD boundary")
-    ax.set(xlabel=r"$\min_t\lambda_{\min}(\hat{\mathcal{J}}(t))$",ylabel="Empirical cumulative probability")
-    ax.grid(alpha=.25); fig.legend(*ax.get_legend_handles_labels(), loc="outside upper center", ncol=3, frameon=False)
-    for ext in ("pdf","png"): fig.savefig(FIGURES/f"physical_consistency_monte_carlo_figure1_margin_ecdf.{ext}",dpi=400 if ext=="png" else None)
+    fig, ax = plt.subplots(figsize=(6.2, 4.4), constrained_layout=False)
+    labels = ("Euclidean", "Natural/Bregman")
+    consistent = np.array([
+        sum(not r["euclidean"]["loss_pd"] for r in done),
+        sum(not r["bregman"]["loss_pd"] for r in done),
+    ], dtype=float)
+    inconsistent = len(done) - consistent
+    fractions = np.vstack((consistent, inconsistent)) / max(len(done), 1)
+    x = np.arange(len(labels))
+    ax.bar(x, fractions[0], width=.58, color="#00FF00", label="Physically consistent")
+    ax.bar(x, fractions[1], width=.58, bottom=fractions[0], color="#FF0000", label="Lost positive definiteness")
+    for i, (good, bad) in enumerate(zip(consistent, inconsistent)):
+        ax.text(i, min(fractions[0, i] + .025, .97), f"{int(good)}/{len(done)}", ha="center", va="bottom", fontsize=8)
+        if bad:
+            ax.text(i, fractions[0, i] + fractions[1, i] / 2, f"{int(bad)}/{len(done)}", ha="center", va="center", fontsize=8)
+    ax.set(xlabel="Estimator", ylabel="Fraction of trials", xticks=x, xticklabels=labels, ylim=(0, 1.08))
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda value, _: f"{value:.0%}"))
+    ax.grid(axis="y", alpha=.25)
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.99), ncol=2, frameon=False)
+    fig.subplots_adjust(top=0.86, left=0.14, right=0.98, bottom=0.16)
+    for ext in ("pdf","png"): fig.savefig(FIGURES/f"physical_consistency_outcome_rates.{ext}",dpi=400 if ext=="png" else None)
     plt.close(fig)
     bad = [r for r in done if r["euclidean"]["loss_pd"]]
     pick = min(bad,key=lambda r:r["start"]["trial"]) if bad else min(done,key=lambda r:r["euclidean"]["min_lambda"])
-    fig,ax=plt.subplots(figsize=(7,4.5),constrained_layout=True)
+    fig,ax=plt.subplots(figsize=(7,4.5),constrained_layout=False)
     ax.plot(pick["euclidean"]["time"],pick["euclidean"]["history"],label="Euclidean",color="#00FF00")
     ax.plot(pick["bregman"]["time"],pick["bregman"]["history"],label="Natural/Bregman",color="#0000FF")
     ax.axhline(0,color="black",ls="--",label="SPD boundary")
     ax.set(xlabel="Time [s]",ylabel=r"$\lambda_{\min}(\hat{\mathcal{J}})$",xlim=(0,30)); ax.margins(x=0)
-    ax.grid(alpha=.25); fig.legend(*ax.get_legend_handles_labels(), loc="outside upper center", ncol=3, frameon=False)
-    for ext in ("pdf","png"): fig.savefig(FIGURES/f"physical_consistency_monte_carlo_figure2_trial.{ext}",dpi=400 if ext=="png" else None)
+    ax.grid(alpha=.25)
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.99), ncol=3, frameon=False)
+    fig.subplots_adjust(top=0.86, left=0.14, right=0.98, bottom=0.16)
+    for ext in ("pdf","png"): fig.savefig(FIGURES/f"pseudo_inertia_margin_trial.{ext}",dpi=400 if ext=="png" else None)
     plt.close(fig)
     return {"trial":pick["start"]["trial"],"selection":"first Euclidean violation" if bad else "smallest Euclidean margin; no Euclidean violation observed"}
 
@@ -342,8 +365,12 @@ def run_experiment(output_dir=None):
             "beyond_endpoint":"ReplayTrajectory.sample clips to the last recorded sample"},
         "timesteps_s":{"plant":base["dtPlant"],"control":base["dtControl"],"adaptation":base["dtAdaptation"]},
         "constant_plant_pi":base["payloadDrop"]["loadedPi"],"payload":base["payloadDrop"]["payload"],
-        "controller":base["controller"],"experiment_gammaE":ge,"experiment_gammaB":gamma_b,
-        "adaptation_gain_source":"Current manuscript configuration in optimized_gains.py; no separate retuning",
+        "controllers":{"euclidean_lc":base["controller"],
+            "bregman_lc":default_scenario(mode="bregman",coriolis="lc",replay_id="lemniscate_02_auto",
+                duration=30,payload_enabled=True,enable_pacing=False)["controller"]},
+        "experiment_gammaE":ge,"experiment_gammaB":gamma_b,
+        "adaptation_gain_source":"Mode-specific LC gain entries in optimized_gains.py; estimator rates use the configured entries, with no separate retuning",
+        "tracking_gain_protocol":"Each estimator uses its own committed LC tracking/sliding gains; this physical-consistency experiment is not a matched tracking-controller comparison",
         "primary_payload_switch":"disabled; attached payload held through end (release at 31 s)",
         "independent_trial_processes":workers}
     source_files=["src/agc/config/optimized_gains.py","src/agc/sim/default_scenario.py",
@@ -399,7 +426,7 @@ def run_experiment(output_dir=None):
         f"({new_ratio}), T_obs {observed_text} under the 1e-8-through-30 s criterion.\n\n")
     (META/"physical_consistency_monte_carlo_report.md").write_text(
         reach_text + f"Euclidean: {compact('euclidean')}\n\nNatural/Bregman: {compact('natural_bregman')}\n\n"
-        "We ran 100 paired 30 s simulations on the `lemniscate_02_auto` reference using seed 20260927 and independently sampled rho uniformly from [0.5,1]. Each estimate was initialized by Jstar^(1/2) exp(rho S) Jstar^(1/2), with symmetric Gaussian S normalized to unit Frobenius norm. Both estimators shared the same start, loaded vehicle-plus-payload plant, trajectory, tracking controller and simulation rates; the payload remained attached to maintain constant true inertia. The source replay is sampled every 0.002 s through 25.664 s; its sampler clamps references to the last recorded sample over the remaining 4.336 s. The adaptation laws used their frozen rates, with no added projection or SPD correction.\n\n"
+        "We ran 100 paired 30 s simulations on the `lemniscate_02_auto` reference using seed 20260927 and independently sampled rho uniformly from [0.5,1]. Each estimate was initialized by Jstar^(1/2) exp(rho S) Jstar^(1/2), with symmetric Gaussian S normalized to unit Frobenius norm. Both estimators shared the same start, loaded vehicle-plus-payload plant, trajectory and simulation rates, while each used its own committed LC tracking/sliding gain set and configured adaptation rate. The payload remained attached to maintain constant true inertia. The source replay is sampled every 0.002 s through 25.664 s; its sampler clamps references to the last recorded sample over the remaining 4.336 s. The adaptation laws used their frozen rates, with no added projection or SPD correction.\n\n"
         f"Among {len(paired)} completed pairs, physical-consistency outcomes were {categories}. {summary['figure2_statement']} The experiment tests preservation of the physically consistent parameter set; it does not rank tracking controllers. Natural/Bregman has a structural SPD-preservation guarantee, while unconstrained Euclidean adaptation does not. The observed trial outcomes neither prove invariance when no Euclidean violation occurs nor imply that Euclidean adaptation must become nonphysical.\n",
         encoding="utf-8")
     print(json.dumps(summary,indent=2,default=lambda x:x.tolist() if isinstance(x,np.ndarray) else str(x)))
