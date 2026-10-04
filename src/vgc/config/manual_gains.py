@@ -1,4 +1,4 @@
-"""Nominal gains promoted from the adaptive-geo-ctrl-pybullet tuning run."""
+"""Nominal gains promoted from the predecessor project's tuning run."""
 
 import numpy as np
 
