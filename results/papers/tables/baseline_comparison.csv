@@ -1,4 +1,0 @@
-Controller,Coriolis,Status,Pre-release position RMSE [m],Post-release position RMSE [m],Post-release maximum position error [m],Pre-release geodesic-attitude RMSE [deg],Post-release geodesic-attitude RMSE [deg],Post-release maximum attitude error [deg],Recovery duration [s],RMS force norm [N],Peak force norm [N],RMS torque norm [N m],Peak torque norm [N m],Minimum lambda_min(Jhat)
-Known-inertia controller,LC,completed,0.000481167,0.00415605,0.0155853,0.111204,0.240724,0.685295,0,203.047,329.21,0.905858,1.75896,
-Euclidean adaptive controller,LC,completed,0.000340787,0.112478,0.209489,0.0288877,2.89272,7.11823,13.782,48.1756,125.736,1.07199,1.90416,0.00176069
-Natural/Bregman adaptive controller,LC,completed,0.000326692,0.0191937,0.0835677,0.0171654,3.54226,16.7418,1.03,48.307,126.737,0.894286,1.69405,0.0104745

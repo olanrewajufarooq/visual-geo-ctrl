@@ -1,4 +1,4 @@
-name: agc
+name: vgc
 channels:
   - conda-forge
   - defaults

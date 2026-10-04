@@ -11,14 +11,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from agc.io.persistence import load_run
-from agc.math.se3 import rotm_to_quat
-from agc.plant.suppress import suppress_c_stdout
+from vgc.io.persistence import load_run
+from vgc.math.se3 import rotm_to_quat
+from vgc.plant.suppress import suppress_c_stdout
 
 
-from agc.viz.arena_scene import ArenaScene
-from agc.viz.race_gates import RaceGateManager
-from agc.viz.fpv_osd import FpvOsd
+from vgc.viz.arena_scene import ArenaScene
+from vgc.viz.race_gates import RaceGateManager
+from vgc.viz.fpv_osd import FpvOsd
 
 
 def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
@@ -141,8 +141,7 @@ def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
                     s_norm=float(np.linalg.norm(run["s"][k])) if "s" in run else 0.0,
                     est_m=float(run["estimatePi"][k, 0]) if "estimatePi" in run else 3.65,
                     true_m=float(run["activePlantPi"][k, 0]) if "activePlantPi" in run else 3.65,
-                    payload_dropped=bool(curr_t >= 10.0),
-                    mode=str(run.get("mode", "BREGMAN")).upper(),
+                    mode="NOMINAL",
                     coriolis=str(run.get("coriolis", "LC")).upper(),
                     sim_speed=playback_speed,
                 )
@@ -162,7 +161,7 @@ def replay_3d(run_dir: str, frame_stride: int = 5, playback_speed: float = 1.0):
 
 if __name__ == "__main__":
     import argparse
-    from agc.io.persistence import resolve_result_suite
+    from vgc.io.persistence import resolve_result_suite
 
     parser = argparse.ArgumentParser(description="Replay a saved simulation run in PyBullet 3D GUI.")
     parser.add_argument("run_dir", nargs="?", default=None, help="Path to saved run directory containing run.npz")
@@ -185,7 +184,7 @@ if __name__ == "__main__":
             candidates = [d for d in suite.iterdir() if d.is_dir() and (d / "run.npz").is_file()]
             target_dir = candidates[0] if candidates else suite
         except FileNotFoundError:
-            target_dir = REPO_ROOT / "results" / "inplace" / "bregman_lc"
+            target_dir = REPO_ROOT / "results" / "inplace" / "nominal_lc"
 
     if not (target_dir / "run.npz").is_file():
         print(f"Error: No run.npz found in {target_dir}. Please run a simulation first.")

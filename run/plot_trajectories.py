@@ -36,8 +36,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from agc.sim.replay_trajectory import ReplayTrajectory
-from agc.viz.plot_style import COMPONENT_COLORS, limit_for, plot_time_series
+from vgc.sim.replay_trajectory import ReplayTrajectory
+from vgc.viz.plot_style import COMPONENT_COLORS, limit_for, plot_time_series
 
 # ── canonical ordering matches manifest.json ──────────────────────────────────
 ALL_IDS = ["lemniscate_01_auto", "lemniscate_02_auto", "lemniscate_03_auto", "lemniscate_04_auto"]

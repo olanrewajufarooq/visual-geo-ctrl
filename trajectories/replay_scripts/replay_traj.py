@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, Tuple, Union
 import numpy as np
 
-from agc.sim.replay_trajectory import ReplayTrajectory
+from vgc.sim.replay_trajectory import ReplayTrajectory
 from .replay_processor import ReplayProcessor
 
 

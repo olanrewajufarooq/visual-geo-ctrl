@@ -1,3 +1,0 @@
-Controller,Coriolis,Initial estimated mass [kg],Final estimated mass [kg],Minimum lambda_min(Jhat),Minimum post-release lambda_min(Jhat),Physical-consistency violation?
-Euclidean adaptive controller,LC,4.396,3.69872,0.00176069,0.00176069,no
-Natural/Bregman adaptive controller,LC,4.396,3.64611,0.0104745,0.0104745,no

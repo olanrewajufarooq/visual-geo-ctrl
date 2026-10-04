@@ -20,7 +20,7 @@ import scipy.linalg as la
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
-from agc.math.se3 import (
+from vgc.math.se3 import (
     skew,
     unskew,
     ad_twist,

@@ -206,7 +206,7 @@ class ReplayProcessingCore:
 
     @staticmethod
     def load_artifact(replay_cfg: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
-        from agc.sim.replay_trajectory import ReplayTrajectory
+        from vgc.sim.replay_trajectory import ReplayTrajectory
 
         entry = ReplayProcessingCore.load_entry(replay_cfg)
         sampler = ReplayTrajectory(entry["artifact_path"])

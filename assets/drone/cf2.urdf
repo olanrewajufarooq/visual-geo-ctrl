@@ -24,7 +24,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="C:/Users/g202404900/Desktop/adaptive-geo-ctrl-pybullet/.worktrees/real-sim/assets/drone/cf2.dae" scale="3.5 3.5 3.5"/>
+        <mesh filename="C:/Users/g202404900/Desktop/visual-geo-ctrl/assets/drone/cf2.dae" scale="3.5 3.5 3.5"/>
       </geometry>
     </visual>
 

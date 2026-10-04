@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agc"
+name = "vgc"
 version = "0.1.0"
-description = "Adaptive Geometric Control on SE(3) in Python and PyBullet"
+description = "Nominal geometric control visualization in Python and PyBullet"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
