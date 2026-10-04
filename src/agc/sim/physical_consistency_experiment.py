@@ -304,15 +304,11 @@ def figures(rows):
     inconsistent = len(done) - consistent
     fractions = np.vstack((consistent, inconsistent)) / max(len(done), 1)
     x = np.arange(len(labels))
-    ax.bar(x, fractions[0], width=.58, color="#00FF00", label="Physically consistent")
-    ax.bar(x, fractions[1], width=.58, bottom=fractions[0], color="#FF0000", label="Lost positive definiteness")
-    for i, (good, bad) in enumerate(zip(consistent, inconsistent)):
-        ax.text(i, min(fractions[0, i] + .025, .97), f"{int(good)}/{len(done)}", ha="center", va="bottom", fontsize=8)
-        if bad:
-            ax.text(i, fractions[0, i] + fractions[1, i] / 2, f"{int(bad)}/{len(done)}", ha="center", va="center", fontsize=8)
-    ax.set(xlabel="Estimator", ylabel="Fraction of trials", xticks=x, xticklabels=labels, ylim=(0, 1.08))
+    width = .36
+    ax.bar(x - width / 2, fractions[0], width=width, color="#00FF00", label="Physically consistent")
+    ax.bar(x + width / 2, fractions[1], width=width, color="#FF0000", label="Lost positive definiteness")
+    ax.set(xlabel="Estimator", ylabel="Fraction of trials", xticks=x, xticklabels=labels, ylim=(0, 1.0))
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda value, _: f"{value:.0%}"))
-    ax.grid(axis="y", alpha=.25)
     handles, labels = ax.get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.99), ncol=2, frameon=False)
     fig.subplots_adjust(top=0.86, left=0.14, right=0.98, bottom=0.16)
