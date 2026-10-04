@@ -67,7 +67,7 @@ experiment, superseding the original 1x nominal figures. Full tracking views spa
 | Attitude tracking | [PDF](figures/01-adaptive-tracking/tracking_attitude.pdf) | [PNG](figures/01-adaptive-tracking/tracking_attitude.png) |
 | Body linear velocity | [PDF](figures/01-adaptive-tracking/tracking_linear_velocity.pdf) | [PNG](figures/01-adaptive-tracking/tracking_linear_velocity.png) |
 | Body angular velocity | [PDF](figures/01-adaptive-tracking/tracking_angular_velocity.pdf) | [PNG](figures/01-adaptive-tracking/tracking_angular_velocity.png) |
-| Natural/Bregman 3-D trajectory | [PDF](figures/01-adaptive-tracking/tracking_3d_bregman.pdf) | [PNG](figures/01-adaptive-tracking/tracking_3d_bregman.png) |
+| Adaptive 3-D trajectory comparison | [PDF](figures/01-adaptive-tracking/tracking_3d_adaptive.pdf) | [PNG](figures/01-adaptive-tracking/tracking_3d_adaptive.png) |
 | Adaptive errors | [PDF](figures/01-adaptive-tracking/adaptive_tracking_errors.pdf) | [PNG](figures/01-adaptive-tracking/adaptive_tracking_errors.png) |
 | Wrench demand | [PDF](figures/01-adaptive-tracking/control_wrench_demand.pdf) | [PNG](figures/01-adaptive-tracking/control_wrench_demand.png) |
 | Physical consistency | [PDF](figures/02-physical-consistency/physical_consistency.pdf) | [PNG](figures/02-physical-consistency/physical_consistency.png) |

@@ -42,6 +42,35 @@ def legend(fig, ax):
     fig.legend(handles, labels, loc="outside upper center", ncol=2, frameon=False)
 
 
+def _publication_samples(t, values):
+    """Return controller-rate block averages for publication rendering."""
+    t = np.asarray(t)
+    values = np.asarray(values)
+    stride = max(1, int(np.ceil(t.size / 300)))
+    if stride == 1:
+        return t, values
+    starts = np.arange(0, t.size, stride)
+    t_plot = np.array([t[start:min(start + stride, t.size)].mean() for start in starts])
+    values_plot = np.stack(
+        [values[start:min(start + stride, t.size)].mean(axis=0) for start in starts],
+        axis=0,
+    )
+    return t_plot, values_plot
+
+
+def _plot_publication_trace(ax, t, values, **kwargs):
+    """Plot dense plant-rate logs at the controller-rate visual resolution.
+
+    The raw paper runs contain 500 Hz samples while the wrench is updated at
+    50 Hz. Drawing every sample makes held inputs and high-frequency numerical
+    chatter render as opaque bands. Samples are block-averaged at the
+    controller-rate visual resolution; all metrics and saved raw runs retain
+    the original samples.
+    """
+    t_plot, values_plot = _publication_samples(t, values)
+    ax.plot(t_plot, values_plot, **kwargs)
+
+
 def transported_reference(run):
     return np.array([adjoint_se3(inv_se3(inv_se3(hd) @ h)) @ v
                      for h, hd, v in zip(run["H"], run["Hdesired"], run["Vdesired"])])
@@ -88,15 +117,15 @@ def adaptive_figures(runs, scenarios, output_dir):
                 actual += 2*np.pi*np.round((reference[0]-actual[0])/(2*np.pi))
                 actual = np.degrees(actual)
             else: actual = run["V"]
-            for ax, j in zip(axes, indices): ax.plot(run["t"], actual[:, j], label=label, **style)
+            for ax, j in zip(axes, indices): _plot_publication_trace(ax, run["t"], actual[:, j], label=label, **style)
             if "velocity" in kind:
                 reference = transported_reference(run)
                 for ax, j in zip(axes, indices):
-                    ax.plot(run["t"], reference[:, j], "k--", lw=.7, alpha=.65,
-                            label="Transported reference" if mode == next(iter(plot_runs)) else "_nolegend_")
+                    _plot_publication_trace(ax, run["t"], reference[:, j], color="black", linestyle="--", lw=.7, alpha=.65,
+                                            label="Transported reference" if mode == next(iter(plot_runs)) else "_nolegend_")
         if kind in ("position", "attitude"):
             reference = first["Hdesired"][:, :3, 3] if kind == "position" else np.degrees(np.unwrap(Rotation.from_matrix(first["Hdesired"][:, :3, :3]).as_euler("xyz"), axis=0))
-            for ax, j in zip(axes, indices): ax.plot(first["t"], reference[:, j], "k--", label="Desired reference")
+            for ax, j in zip(axes, indices): _plot_publication_trace(ax, first["t"], reference[:, j], color="black", linestyle="--", label="Desired reference")
         legend(fig, axes[0]); save(fig, out, "tracking_"+kind)
 
     fig, axes = panels([r"$\|p-p_d\|$ [m]", "Geodesic attitude\nerror [deg]", r"$\|s\|_{\Lambda_s}$"])
@@ -106,14 +135,14 @@ def adaptive_figures(runs, scenarios, output_dir):
         metric = np.asarray(scenarios[mode]["controller"].get("Lambda_s", np.linalg.inv(scenarios[mode]["controller"]["Lambda"])))
         r = np.sqrt(np.einsum("ni,ij,nj->n", run["s"], metric, run["s"]))
         for ax, values in zip(axes, (pos, np.degrees(angle), r)):
-            ax.plot(run["t"], values, label=label, **style)
+            _plot_publication_trace(ax, run["t"], values, label=label, **style)
     legend(fig, axes[0]); save(fig, out, "adaptive_tracking_errors")
 
     fig, axes = panels([r"$\|f_c\|$ [N]", r"$\|\tau_c\|$ [N m]"])
     for mode, run in plot_runs.items():
         style, label = _variant_style(mode), _variant_label(mode)
         for ax, sl in zip(axes, (slice(3, 6), slice(0, 3))):
-            ax.plot(run["t"], np.linalg.norm(run["wrench"][:, sl], axis=1), label=label, **style)
+            _plot_publication_trace(ax, run["t"], np.linalg.norm(run["wrench"][:, sl], axis=1), label=label, **style)
     legend(fig, axes[0]); save(fig, out, "control_wrench_demand")
 
     fig, axes = panels([r"$\hat m$ [kg]", r"$\lambda_{\min}(\hat{\mathcal{J}})$"])
@@ -128,21 +157,41 @@ def adaptive_figures(runs, scenarios, output_dir):
     legend(fig, axes[0]); save(fig, Path(output_dir)/"02-physical-consistency", "physical_consistency")
     inertial_estimate_figures(runs, output_dir)
 
-    bregman_keys = [key for key in runs if _variant(key)[0] == "bregman"]
-    if bregman_keys:
-        fig = plt.figure(figsize=(3.5, 3.3), layout="constrained")
+    adaptive_keys = [key for key in plot_runs if _variant(key)[0] in ("euclidean", "bregman")]
+    if adaptive_keys:
+        fig = plt.figure(figsize=(7.2, 5.0))
         ax = fig.add_subplot(projection="3d")
-        run = runs[bregman_keys[0]]
-        ax.plot(*run["Hdesired"][:, :3, 3].T, "k--", label="Desired reference")
-        for key in bregman_keys:
+        reference = runs[adaptive_keys[0]]
+        _, desired = _publication_samples(reference["t"], reference["Hdesired"][:, :3, 3])
+        ax.plot(*desired.T, color="black", linestyle="--", linewidth=.9, label="Desired reference")
+        all_positions = [desired]
+        for key in adaptive_keys:
             run = runs[key]
-            ax.plot(*run["H"][:, :3, 3].T, **_variant_style(key), label=_variant_label(key))
-        i = np.searchsorted(run["t"], 10)
-        if i < len(run["t"]): ax.scatter(*run["H"][i, :3, 3], marker="x", color="black", label="Release (10 s)")
-        ax.set(xlabel="x [m]", ylabel="y [m]", zlabel="z [m]")
-        fig.legend(*ax.get_legend_handles_labels(), loc="outside upper center", ncol=2,
-                   frameon=False, fontsize=6)
-        save(fig, out, "tracking_3d_bregman")
+            _, position = _publication_samples(run["t"], run["H"][:, :3, 3])
+            ax.plot(*position.T, **_variant_style(key), linewidth=1.2, label=_variant_label(key))
+            all_positions.append(position)
+        i = np.searchsorted(reference["t"], 10)
+        if i < len(reference["t"]):
+            ax.scatter(*reference["H"][i, :3, 3], marker="x", s=42, color="black", label="Release (10 s)")
+        stacked = np.vstack(all_positions)
+        lower = stacked.min(axis=0)
+        upper = stacked.max(axis=0)
+        margin = .06 * np.maximum(upper - lower, 1e-3)
+        ax.set_xlim(lower[0] - margin[0], upper[0] + margin[0])
+        ax.set_ylim(lower[1] - margin[1], upper[1] + margin[1])
+        ax.set_zlim(lower[2] - margin[2], upper[2] + margin[2])
+        ax.set_box_aspect((1.35, 1.0, .72))
+        ax.view_init(elev=25, azim=-52)
+        ax.set_proj_type("ortho")
+        ax.grid(True, alpha=.18, linewidth=.5)
+        ax.tick_params(labelsize=7, pad=0)
+        ax.set_xlabel("x [m]", labelpad=8)
+        ax.set_ylabel("y [m]", labelpad=8)
+        ax.set_zlabel("z [m]", labelpad=8)
+        handles, labels = ax.get_legend_handles_labels()
+        fig.legend(handles, labels, loc="outside upper center", ncol=2, frameon=False, fontsize=7)
+        fig.subplots_adjust(left=.02, right=.96, bottom=.02, top=.88)
+        save(fig, out, "tracking_3d_adaptive")
 
 
 def inertial_estimate_figures(runs, output_dir):

@@ -1,10 +1,10 @@
 {
   "command": "adaptive-drop",
   "duration_s": 30.0,
-  "reuse_cache": false,
-  "base_commit": "9bc86ea20a97c81a650c6269113d9fa3433a90e5",
+  "reuse_cache": true,
+  "base_commit": "af05b17413bc0b51046b78dbb56aead47078b9d1",
   "worktree_dirty_at_generation": true,
-  "source_sha256": "dbce2c621c9e8c0a3f19ecce938d79d8058c9e299fb7c453429bc56a54e5707b",
+  "source_sha256": "bbe197baeadecb52f906b3ea886cfcd58455f7648f12c3996bafa8cb4525c973",
   "environment": "agc",
   "report": {
     "optimization_run": false,
