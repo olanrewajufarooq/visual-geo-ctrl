@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 from scipy.spatial.transform import Rotation
 from ..math.se3 import inv_se3, adjoint_se3
 from ..math.inertia import center_and_principal_moments
@@ -181,9 +182,15 @@ def adaptive_figures(runs, scenarios, output_dir):
         ax.set_ylim(lower[1] - margin[1], upper[1] + margin[1])
         ax.set_zlim(lower[2] - margin[2], upper[2] + margin[2])
         ax.set_box_aspect((1.35, 1.0, .72))
-        ax.view_init(elev=25, azim=-52)
+        ax.view_init(elev=28, azim=-58)
         ax.set_proj_type("ortho")
-        ax.grid(True, alpha=.18, linewidth=.5)
+        ax.xaxis.set_major_locator(MaxNLocator(5))
+        ax.yaxis.set_major_locator(MaxNLocator(5))
+        ax.zaxis.set_major_locator(MaxNLocator(5))
+        for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+            axis._axinfo["grid"].update({"color": (0.55, 0.55, 0.55, 0.20), "linewidth": .3})
+            axis.pane.set_facecolor((1.0, 1.0, 1.0, 0.0))
+            axis.pane.set_edgecolor((0.70, 0.70, 0.70, 0.35))
         ax.tick_params(labelsize=7, pad=0)
         ax.set_xlabel("x [m]", labelpad=8)
         ax.set_ylabel("y [m]", labelpad=8)
